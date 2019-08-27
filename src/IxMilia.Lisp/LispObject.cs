@@ -56,6 +56,26 @@ namespace IxMilia.Lisp
             return !(a == b);
         }
 
+        public static LispNumber operator +(LispNumber a, LispNumber b)
+        {
+            return new LispNumber(a.Value + b.Value);
+        }
+
+        public static LispNumber operator -(LispNumber a, LispNumber b)
+        {
+            return new LispNumber(a.Value - b.Value);
+        }
+
+        public static LispNumber operator *(LispNumber a, LispNumber b)
+        {
+            return new LispNumber(a.Value * b.Value);
+        }
+
+        public static LispNumber operator /(LispNumber a, LispNumber b)
+        {
+            return new LispNumber(a.Value / b.Value);
+        }
+
         public override bool Equals(object obj)
         {
             return obj is LispNumber && this == (LispNumber)obj;
