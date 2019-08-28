@@ -1,5 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using IxMilia.Lisp.Parser;
 
 namespace IxMilia.Lisp
 {
@@ -162,6 +164,19 @@ namespace IxMilia.Lisp
         public override int GetHashCode()
         {
             return Value.GetHashCode();
+        }
+    }
+
+    public class LispFunction : LispObject
+    {
+        // TODO: make these read only collections
+        public string[] Arguments { get; }
+        public LispSyntax[] Commands { get; }
+
+        public LispFunction(IEnumerable<string> arguments, IEnumerable<LispSyntax> commands)
+        {
+            Arguments = arguments.ToArray();
+            Commands = commands.ToArray();
         }
     }
 }
