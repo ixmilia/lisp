@@ -112,7 +112,7 @@ namespace IxMilia.Lisp.Tokens
                 return true;
             }
 
-            c = default;
+            c = default(char);
             return false;
         }
 

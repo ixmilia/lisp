@@ -26,7 +26,7 @@ namespace IxMilia.Lisp.Parser
 
         private bool TryParseExpression(out LispSyntax result)
         {
-            result = default;
+            result = default(LispSyntax);
             while (TryPeek(out var token))
             {
                 switch (token.Type)
@@ -99,7 +99,7 @@ namespace IxMilia.Lisp.Parser
                 return true;
             }
 
-            token = default;
+            token = default(LispToken);
             return false;
         }
 
