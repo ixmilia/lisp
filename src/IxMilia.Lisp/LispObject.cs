@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using IxMilia.Lisp.Parser;
@@ -7,6 +6,23 @@ namespace IxMilia.Lisp
 {
     public abstract class LispObject
     {
+    }
+
+    public class LispError : LispObject
+    {
+        public string Message { get; }
+        public LispStackFrame StackFrame { get; internal set; }
+
+        public LispError(string message)
+            : this(message, null)
+        {
+        }
+
+        internal LispError(string message, LispStackFrame stackFrame)
+        {
+            Message = message;
+            StackFrame = stackFrame;
+        }
     }
 
     public class LispAtom : LispObject

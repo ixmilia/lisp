@@ -40,5 +40,22 @@ namespace IxMilia.Lisp.Test
 ";
             Assert.Equal(new LispNumber(3.0), host.Eval(code));
         }
+
+        [Fact]
+        public void ErrorPropagation()
+        {
+            var host = new LispHost();
+            var result = (LispError)host.Eval(@"
+(defun inc (x)
+    (add x 1))
+(inc 2)
+");
+            Assert.Equal(3, result.StackFrame.Line); // (add x 1)
+            Assert.Equal(6, result.StackFrame.Column);
+            Assert.Equal(4, result.StackFrame.Parent.Line); // (inc 2)
+            Assert.Equal(2, result.StackFrame.Parent.Column);
+            Assert.Null(result.StackFrame.Parent.Parent);
+            Assert.Equal("Undefined function 'add'", result.Message);
+        }
     }
 }

@@ -8,6 +8,9 @@ namespace IxMilia.Lisp.Tokens
     {
         private int _line;
         private int _column;
+        private bool _tokenStartSet;
+        private int _tokenStartLine;
+        private int _tokenStartColumn;
         private int _offset;
         private char[] _characters;
         private List<LispTrivia> _triviaBuilder;
@@ -16,7 +19,7 @@ namespace IxMilia.Lisp.Tokens
         {
             _characters = chars;
             _line = 1;
-            _column = 0;
+            _column = 1;
             _offset = 0;
             _triviaBuilder = new List<LispTrivia>();
         }
@@ -36,14 +39,17 @@ namespace IxMilia.Lisp.Tokens
                 }
                 else if (IsLeftParen(c))
                 {
+                    MarkTokenStart();
                     yield return ApplyProperties(ParseLeftParen());
                 }
                 else if (IsRightParen(c))
                 {
+                    MarkTokenStart();
                     yield return ApplyProperties(ParseRightParen());
                 }
                 else if (IsSingleQuote(c))
                 {
+                    MarkTokenStart();
                     Advance();
                     if (TryPeek(out c) && IsLeftParen(c))
                     {
@@ -57,6 +63,7 @@ namespace IxMilia.Lisp.Tokens
                 }
                 else if (IsMinus(c))
                 {
+                    MarkTokenStart();
                     Advance();
                     if (TryPeek(out c) && IsDigit(c))
                     {
@@ -69,6 +76,7 @@ namespace IxMilia.Lisp.Tokens
                 }
                 else if (IsPlus(c))
                 {
+                    MarkTokenStart();
                     Advance();
                     if (TryPeek(out c) && IsDigit(c))
                     {
@@ -81,24 +89,36 @@ namespace IxMilia.Lisp.Tokens
                 }
                 else if (IsDigit(c))
                 {
+                    MarkTokenStart();
                     yield return ApplyProperties(ParseNumber());
                 }
                 else if (IsDoubleQuote(c))
                 {
+                    MarkTokenStart();
                     Advance();
                     yield return ApplyProperties(ParseString());
                 }
                 else
                 {
+                    MarkTokenStart();
                     yield return ApplyProperties(ParseAtom());
                 }
             }
         }
 
+        private void MarkTokenStart()
+        {
+            _tokenStartSet = true;
+            _tokenStartLine = _line;
+            _tokenStartColumn = _column;
+        }
+
         private TToken ApplyProperties<TToken>(TToken token) where TToken : LispToken
         {
-            token.Line = _line;
-            token.Column = _column;
+            Debug.Assert(_tokenStartSet, $"Expected {nameof(_tokenStartSet)}.  Did you forget to call {nameof(MarkTokenStart)}()?");
+            _tokenStartSet = false;
+            token.Line = _tokenStartLine;
+            token.Column = _tokenStartColumn;
             token.LeadingTrivia = new LispTriviaCollection(_triviaBuilder);
             _triviaBuilder = new List<LispTrivia>();
             return token;
@@ -185,7 +205,7 @@ namespace IxMilia.Lisp.Tokens
             }
 
             _line++;
-            _column = 0;
+            _column = 1;
             _triviaBuilder.Add(new LispNewlineTrivia(newline.ToString()));
         }
 

@@ -6,12 +6,14 @@ namespace IxMilia.Lisp.Parser
     public abstract class LispSyntax
     {
         public abstract LispSyntaxType Type { get; }
+        internal abstract LispToken FirstToken { get; }
     }
 
     public class LispAtomSyntax : LispSyntax
     {
         public override LispSyntaxType Type => LispSyntaxType.Atom;
         public LispAtomToken Atom { get; }
+        internal override LispToken FirstToken => Atom;
 
         public LispAtomSyntax(LispAtomToken atom)
         {
@@ -28,6 +30,7 @@ namespace IxMilia.Lisp.Parser
     {
         public override LispSyntaxType Type => LispSyntaxType.Number;
         public LispNumberToken Number { get; }
+        internal override LispToken FirstToken => Number;
 
         public LispNumberSyntax(LispNumberToken number)
         {
@@ -44,6 +47,7 @@ namespace IxMilia.Lisp.Parser
     {
         public override LispSyntaxType Type => LispSyntaxType.String;
         public LispStringToken String { get; }
+        internal override LispToken FirstToken => String;
 
         public LispStringSyntax(LispStringToken str)
         {
@@ -62,6 +66,7 @@ namespace IxMilia.Lisp.Parser
         public LispToken OpenToken { get; }
         public IEnumerable<LispSyntax> Elements { get; }
         public LispRightParenToken RightParen { get; }
+        internal override LispToken FirstToken => OpenToken;
 
         public LispAbstractListSyntax(LispToken open, IEnumerable<LispSyntax> elements, LispRightParenToken rightParen)
         {

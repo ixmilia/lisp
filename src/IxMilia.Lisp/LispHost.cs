@@ -11,6 +11,7 @@ namespace IxMilia.Lisp
     {
         private readonly Dictionary<string, Func<LispHost, LispSyntax[], LispObject>> _functionMap = new Dictionary<string, Func<LispHost, LispSyntax[], LispObject>>();
         private LispScope _scope = new LispScope();
+        private LispStackFrame _currentFrame = null;
 
         public LispHost()
         {
@@ -61,6 +62,11 @@ namespace IxMilia.Lisp
             foreach (var node in nodes)
             {
                 lastValue = Eval(node);
+                if (lastValue is LispError error)
+                {
+                    TryApplyStackFrame(error, node.FirstToken);
+                    break;
+                }
             }
 
             return lastValue;
@@ -114,13 +120,15 @@ namespace IxMilia.Lisp
 
         private LispObject EvalList(LispListSyntax list)
         {
-            var functionName = ((LispAtomSyntax)list.Elements.First()).Atom.Value;
+            var functionNameToken = ((LispAtomSyntax)list.Elements.First()).Atom;
+            var functionName = functionNameToken.Value;
             var args = list.Elements.Skip(1).ToArray();
             var value = GetValue(functionName);
             if (value is LispFunction)
             {
                 // TODO: what if it's a regular variable?
                 var function = (LispFunction)value;
+                PushStackFrame(functionNameToken.Line, functionNameToken.Column);
                 IncreaseScope();
                 // bind arguments
                 // TODO: validate argument count
@@ -131,6 +139,7 @@ namespace IxMilia.Lisp
                 // eval values
                 var result = Eval(function.Commands);
                 DecreaseScope();
+                PopStackFrame();
                 return result;
             }
             else if (_functionMap.TryGetValue(functionName, out var function))
@@ -140,7 +149,35 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return null; // TODO: error value
+                return GenerateError($"Undefined function '{functionName}'", functionNameToken);
+            }
+        }
+
+        private void PushStackFrame(int line, int column)
+        {
+            _currentFrame = new LispStackFrame(_currentFrame, line, column);
+        }
+
+        private void PopStackFrame()
+        {
+            if (_currentFrame != null)
+            {
+                _currentFrame = _currentFrame.Parent;
+            }
+        }
+
+        private LispError GenerateError(string message, LispToken location)
+        {
+            var error = new LispError(message);
+            TryApplyStackFrame(error, location);
+            return error;
+        }
+
+        private void TryApplyStackFrame(LispError error, LispToken location)
+        {
+            if (error.StackFrame == null)
+            {
+                error.StackFrame = new LispStackFrame(_currentFrame, location.Line, location.Column);
             }
         }
     }
