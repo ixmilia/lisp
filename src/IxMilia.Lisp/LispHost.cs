@@ -86,7 +86,7 @@ namespace IxMilia.Lisp
 
         public LispObject Eval(IEnumerable<LispSyntax> nodes)
         {
-            LispObject lastValue = null;
+            LispObject lastValue = LispObject.Nil;
             foreach (var node in nodes)
             {
                 lastValue = Eval(node);
