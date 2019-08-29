@@ -251,7 +251,16 @@ namespace IxMilia.Lisp.Tokens
                 Advance();
             }
 
-            return new LispAtomToken(builder.ToString());
+            var text = builder.ToString();
+            switch (text)
+            {
+                case "nil":
+                    return new LispNilToken();
+                case "t":
+                    return new LispTToken();
+                default:
+                    return new LispAtomToken(text);
+            }
         }
 
         private LispNumberToken ParseNumber(string existing = null)

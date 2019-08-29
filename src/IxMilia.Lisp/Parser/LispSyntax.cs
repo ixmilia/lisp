@@ -26,6 +26,22 @@ namespace IxMilia.Lisp.Parser
         }
     }
 
+    public class LispNilSyntax : LispAtomSyntax
+    {
+        public LispNilSyntax(LispNilToken nil)
+            : base(nil)
+        {
+        }
+    }
+
+    public class LispTSyntax : LispAtomSyntax
+    {
+        public LispTSyntax(LispTToken t)
+            : base(t)
+        {
+        }
+    }
+
     public class LispNumberSyntax : LispSyntax
     {
         public override LispSyntaxType Type => LispSyntaxType.Number;

@@ -94,5 +94,12 @@ namespace IxMilia.Lisp.Test
             var str = (LispStringToken)SingleToken(code);
             Assert.Equal(text, str.Text);
         }
+
+        [Fact]
+        public void SpecialTokens()
+        {
+            Assert.IsType<LispNilToken>(SingleToken("nil"));
+            Assert.IsType<LispTToken>(SingleToken("t"));
+        }
     }
 }

@@ -63,6 +63,22 @@ namespace IxMilia.Lisp.Tokens
         }
     }
 
+    public class LispNilToken : LispAtomToken
+    {
+        public LispNilToken()
+            : base("nil")
+        {
+        }
+    }
+
+    public class LispTToken : LispAtomToken
+    {
+        public LispTToken()
+            : base("t")
+        {
+        }
+    }
+
     public class LispNumberToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.Number;

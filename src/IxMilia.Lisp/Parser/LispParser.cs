@@ -33,7 +33,19 @@ namespace IxMilia.Lisp.Parser
                 {
                     case LispTokenType.Atom:
                         Advance();
-                        result = new LispAtomSyntax((LispAtomToken)token);
+                        switch (token)
+                        {
+                            case LispNilToken nil:
+                                result = new LispNilSyntax(nil);
+                                break;
+                            case LispTToken t:
+                                result = new LispTSyntax(t);
+                                break;
+                            default:
+                                result = new LispAtomSyntax((LispAtomToken)token);
+                                break;
+                        }
+
                         break;
                     case LispTokenType.Number:
                         Advance();

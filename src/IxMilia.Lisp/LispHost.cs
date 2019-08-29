@@ -104,6 +104,10 @@ namespace IxMilia.Lisp
         {
             switch (syntax)
             {
+                case LispNilSyntax _:
+                    return LispObject.Nil;
+                case LispTSyntax _:
+                    return LispObject.T;
                 case LispAtomSyntax atom:
                     return GetValue(atom.Atom.Value);
                 case LispNumberSyntax num:
