@@ -1,26 +1,54 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using IxMilia.Lisp.Parser;
 using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
 {
+    public delegate LispObject LispDelegate(LispHost host, LispSyntax[] args);
+
     public class LispHost
     {
-        private readonly Dictionary<string, Func<LispHost, LispSyntax[], LispObject>> _functionMap = new Dictionary<string, Func<LispHost, LispSyntax[], LispObject>>();
+        private readonly Dictionary<string, LispDelegate> _delegateMap = new Dictionary<string, LispDelegate>();
         private LispScope _scope = new LispScope();
         private LispStackFrame _currentFrame = null;
 
         public LispHost()
         {
-            PrepareCommonFunctions();
+            AddContextObject(new LispDefaultContext());
         }
 
-        public void AddFunction(string name, Func<LispHost, LispSyntax[], LispObject> function)
+        public void AddFunction(string name, LispDelegate del)
         {
-            _functionMap[name] = function;
+            _delegateMap[name] = del;
+        }
+
+        public void AddContextObject(object context)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            // bind public methods with the appropriate attribute and shape
+            foreach (var methodInfo in context.GetType().GetTypeInfo().DeclaredMethods)
+            {
+                var lispAttribute = methodInfo.GetCustomAttribute<LispValueAttribute>(inherit: true);
+                if (lispAttribute != null)
+                {
+                    var parameterInfo = methodInfo.GetParameters();
+                    if (parameterInfo.Length == 2 &&
+                        parameterInfo[0].ParameterType == typeof(LispHost) &&
+                        parameterInfo[1].ParameterType == typeof(LispSyntax[]) &&
+                        methodInfo.ReturnType== typeof(LispObject))
+                    {
+                        var del = (LispDelegate)methodInfo.CreateDelegate(typeof(LispDelegate), context);
+                        AddFunction(lispAttribute.Name, del);
+                    }
+                }
+            }
         }
 
         public void SetValue(string name, LispObject value)
@@ -72,33 +100,6 @@ namespace IxMilia.Lisp
             return lastValue;
         }
 
-        private void PrepareCommonFunctions()
-        {
-            AddFunction("setq", (host, args) =>
-            {
-                // TODO: properly validate types
-                for (int i = 0; i < args.Length - 1; i += 2)
-                {
-                    var name = ((LispAtomSyntax)args[i]).Atom.Value;
-                    var value = host.Eval(args[i + 1]);
-                    host.SetValue(name, value);
-                }
-
-                return null;
-            });
-
-            AddFunction("defun", (host, args) =>
-            {
-                // TODO: properly validate types and arg counts
-                var name = ((LispAtomSyntax)args[0]).Atom.Value;
-                var functionArgs = ((LispListSyntax)args[1]).Elements.Cast<LispAtomSyntax>().Select(a => a.Atom.Value);
-                var commands = args.Skip(2);
-                var function = new LispFunction(functionArgs, commands);
-                host.SetValue(name, function);
-                return null;
-            });
-        }
-
         public LispObject Eval(LispSyntax syntax)
         {
             switch (syntax)
@@ -142,7 +143,7 @@ namespace IxMilia.Lisp
                 PopStackFrame();
                 return result;
             }
-            else if (_functionMap.TryGetValue(functionName, out var function))
+            else if (_delegateMap.TryGetValue(functionName, out var function))
             {
                 var result = function.Invoke(this, args);
                 return result;
