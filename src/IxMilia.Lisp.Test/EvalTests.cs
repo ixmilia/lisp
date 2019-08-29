@@ -57,5 +57,25 @@ namespace IxMilia.Lisp.Test
             Assert.Null(result.StackFrame.Parent.Parent);
             Assert.Equal("Undefined function 'add'", result.Message);
         }
+
+        [Fact]
+        public void Conditional()
+        {
+            var host = new LispHost();
+
+            // 'true' branch
+            var result = (LispString)host.Eval(@"
+(if (< 1 2)
+    (""one"")
+    (""two""))");
+            Assert.Equal("one", result.Value);
+
+            // 'false' branch
+            result = (LispString)host.Eval(@"
+(if (< 2 1)
+    (""one"")
+    (""two""))");
+            Assert.Equal("two", result.Value);
+        }
     }
 }

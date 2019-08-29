@@ -26,7 +26,7 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return null;
+                    return LispObject.Nil;
                 }
             }
             set => _values[key] = value;

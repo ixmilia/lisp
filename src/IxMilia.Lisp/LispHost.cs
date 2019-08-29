@@ -115,7 +115,7 @@ namespace IxMilia.Lisp
                 case LispRawListSyntax list:
                     return new LispList(list.Elements.Select(e => Eval(e)));
                 default:
-                    return null;
+                    return LispObject.Nil;
             }
         }
 
