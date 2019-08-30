@@ -17,8 +17,8 @@ namespace IxMilia.Lisp.Test
         public void ExternalFunction()
         {
             var host = new LispHost();
-            host.AddFunction("+", (h, args) => (LispNumber)h.Eval(args[0]) + (LispNumber)h.Eval(args[1]));
-            Assert.Equal(new LispNumber(3.0), host.Eval("(+ 1 2)"));
+            host.AddFunction("add", (h, args) => (LispNumber)h.Eval(args[0]) + (LispNumber)h.Eval(args[1]));
+            Assert.Equal(new LispNumber(3.0), host.Eval("(add 1 2)"));
         }
 
         [Fact]
@@ -32,7 +32,6 @@ namespace IxMilia.Lisp.Test
         public void Functions()
         {
             var host = new LispHost();
-            host.AddFunction("+", (h, args) => (LispNumber)h.Eval(args[0]) + (LispNumber)h.Eval(args[1]));
             var code = @"
 (defun inc (x)
     (+ x 1))

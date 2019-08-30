@@ -18,6 +18,11 @@ namespace IxMilia.Lisp
         {
         }
 
+        public override string ToString()
+        {
+            return "nil";
+        }
+
         public static bool operator ==(LispNil a, LispNil b)
         {
             return true;
@@ -45,6 +50,11 @@ namespace IxMilia.Lisp
 
         private LispT()
         {
+        }
+
+        public override string ToString()
+        {
+            return "t";
         }
 
         public static bool operator ==(LispT a, LispT b)
@@ -83,6 +93,11 @@ namespace IxMilia.Lisp
             Message = message;
             StackFrame = stackFrame;
         }
+
+        public override string ToString()
+        {
+            return $"{Message}: {StackFrame}";
+        }
     }
 
     public class LispAtom : LispObject
@@ -92,6 +107,11 @@ namespace IxMilia.Lisp
         public LispAtom(string value)
         {
             Value = value;
+        }
+
+        public override string ToString()
+        {
+            return Value;
         }
 
         public static bool operator ==(LispAtom a, LispAtom b)
@@ -122,6 +142,11 @@ namespace IxMilia.Lisp
         public LispNumber(double value)
         {
             Value = value;
+        }
+
+        public override string ToString()
+        {
+            return Value.ToString();
         }
 
         public static bool operator ==(LispNumber a, LispNumber b)
@@ -174,6 +199,11 @@ namespace IxMilia.Lisp
             Value = value;
         }
 
+        public override string ToString()
+        {
+            return Value;
+        }
+
         public static bool operator ==(LispString a, LispString b)
         {
             return a?.Value == b?.Value;
@@ -207,6 +237,11 @@ namespace IxMilia.Lisp
         public LispList(IEnumerable<LispObject> value)
         {
             Value = value.ToList();
+        }
+
+        public override string ToString()
+        {
+            return $"({string.Join(" ", Value)})";
         }
 
         public static bool operator ==(LispList a, LispList b)
@@ -253,6 +288,11 @@ namespace IxMilia.Lisp
         {
             Arguments = arguments.ToArray();
             Commands = commands.ToArray();
+        }
+
+        public override string ToString()
+        {
+            return "(function)";
         }
     }
 }
