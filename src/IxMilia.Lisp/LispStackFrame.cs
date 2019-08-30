@@ -2,20 +2,20 @@
 {
     public class LispStackFrame
     {
+        public string FunctionName { get; }
         public LispStackFrame Parent { get; }
-        public int Line { get; }
-        public int Column { get; }
+        public int Line { get; internal set; }
+        public int Column { get; internal set; }
 
-        public LispStackFrame(LispStackFrame parent, int line, int column)
+        public LispStackFrame(string functionName, LispStackFrame parent)
         {
+            FunctionName = functionName;
             Parent = parent;
-            Line = line;
-            Column = column;
         }
 
         public override string ToString()
         {
-            return $"({Line}, {Column})\n{Parent}";
+            return $"{FunctionName}: ({Line}, {Column})\n{Parent}";
         }
     }
 }

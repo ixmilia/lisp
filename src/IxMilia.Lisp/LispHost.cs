@@ -13,7 +13,7 @@ namespace IxMilia.Lisp
     {
         private readonly Dictionary<string, LispDelegate> _delegateMap = new Dictionary<string, LispDelegate>();
         private LispScope _scope = new LispScope();
-        private LispStackFrame _currentFrame = null;
+        private LispStackFrame _currentFrame = new LispStackFrame("<root>", null);
 
         public LispHost()
         {
@@ -92,7 +92,7 @@ namespace IxMilia.Lisp
                 lastValue = Eval(node);
                 if (lastValue is LispError error)
                 {
-                    TryApplyStackFrame(error, node.FirstToken);
+                    TryApplyStackFrame(error);
                     break;
                 }
             }
@@ -102,6 +102,7 @@ namespace IxMilia.Lisp
 
         public LispObject Eval(LispSyntax syntax)
         {
+            UpdateCallStackLocation(syntax.FirstToken);
             switch (syntax)
             {
                 case LispNilSyntax _:
@@ -129,11 +130,12 @@ namespace IxMilia.Lisp
             var functionName = functionNameToken.Value;
             var args = list.Elements.Skip(1).ToArray();
             var value = GetValue(functionName);
+            UpdateCallStackLocation(functionNameToken);
             if (value is LispFunction)
             {
                 // TODO: what if it's a regular variable?
                 var function = (LispFunction)value;
-                PushStackFrame(functionNameToken.Line, functionNameToken.Column);
+                PushStackFrame(functionNameToken.Value);
                 IncreaseScope();
                 // bind arguments
                 // TODO: validate argument count
@@ -158,31 +160,34 @@ namespace IxMilia.Lisp
             }
         }
 
-        private void PushStackFrame(int line, int column)
+        private void UpdateCallStackLocation(LispToken token)
         {
-            _currentFrame = new LispStackFrame(_currentFrame, line, column);
+            _currentFrame.Line = token.Line;
+            _currentFrame.Column = token.Column;
+        }
+
+        private void PushStackFrame(string functionName)
+        {
+            _currentFrame = new LispStackFrame(functionName, _currentFrame);
         }
 
         private void PopStackFrame()
         {
-            if (_currentFrame != null)
-            {
-                _currentFrame = _currentFrame.Parent;
-            }
+            _currentFrame = _currentFrame.Parent;
         }
 
         private LispError GenerateError(string message, LispToken location)
         {
             var error = new LispError(message);
-            TryApplyStackFrame(error, location);
+            TryApplyStackFrame(error);
             return error;
         }
 
-        private void TryApplyStackFrame(LispError error, LispToken location)
+        private void TryApplyStackFrame(LispError error)
         {
             if (error.StackFrame == null)
             {
-                error.StackFrame = new LispStackFrame(_currentFrame, location.Line, location.Column);
+                error.StackFrame = _currentFrame;
             }
         }
     }

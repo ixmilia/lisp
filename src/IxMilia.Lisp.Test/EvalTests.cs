@@ -50,10 +50,12 @@ namespace IxMilia.Lisp.Test
     (add x 1))
 (inc 2)
 ");
-            Assert.Equal(3, result.StackFrame.Line); // (add x 1)
+            Assert.Equal(3, result.StackFrame.Line); // inc: (add x 1)
             Assert.Equal(6, result.StackFrame.Column);
-            Assert.Equal(4, result.StackFrame.Parent.Line); // (inc 2)
+            Assert.Equal("inc", result.StackFrame.FunctionName);
+            Assert.Equal(4, result.StackFrame.Parent.Line); // <root>: (inc 2)
             Assert.Equal(2, result.StackFrame.Parent.Column);
+            Assert.Equal("<root>", result.StackFrame.Parent.FunctionName);
             Assert.Null(result.StackFrame.Parent.Parent);
             Assert.Equal("Undefined function 'add'", result.Message);
         }
