@@ -101,11 +101,11 @@ namespace IxMilia.Lisp
         }
     }
 
-    public class LispAtom : LispObject
+    public class LispSymbol : LispObject
     {
         public string Value { get; set; }
 
-        public LispAtom(string value)
+        public LispSymbol(string value)
         {
             Value = value;
         }
@@ -115,19 +115,19 @@ namespace IxMilia.Lisp
             return Value;
         }
 
-        public static bool operator ==(LispAtom a, LispAtom b)
+        public static bool operator ==(LispSymbol a, LispSymbol b)
         {
             return a?.Value == b?.Value;
         }
 
-        public static bool operator !=(LispAtom a, LispAtom b)
+        public static bool operator !=(LispSymbol a, LispSymbol b)
         {
             return !(a == b);
         }
 
         public override bool Equals(object obj)
         {
-            return obj is LispAtom && this == (LispAtom)obj;
+            return obj is LispSymbol && this == (LispSymbol)obj;
         }
 
         public override int GetHashCode()

@@ -4,7 +4,7 @@ namespace IxMilia.Lisp.Tokens
     {
         LeftParen,
         RightParen,
-        Atom,
+        Symbol,
         Number,
         String,
     }

@@ -30,9 +30,9 @@ namespace IxMilia.Lisp.Parser
             {
                 switch (token)
                 {
-                    case LispAtomToken atom:
+                    case LispSymbolToken symbol:
                         Advance();
-                        result = new LispAtom(atom.Value);
+                        result = new LispSymbol(symbol.Value);
                         break;
                     case LispNumberToken num:
                         Advance();

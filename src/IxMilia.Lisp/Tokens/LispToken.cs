@@ -37,12 +37,12 @@ namespace IxMilia.Lisp.Tokens
         }
     }
 
-    public class LispAtomToken : LispToken
+    public class LispSymbolToken : LispToken
     {
-        public override LispTokenType Type => LispTokenType.Atom;
+        public override LispTokenType Type => LispTokenType.Symbol;
         public string Value { get; }
 
-        public LispAtomToken(string value)
+        public LispSymbolToken(string value)
         {
             Value = value;
         }

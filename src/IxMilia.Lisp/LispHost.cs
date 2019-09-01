@@ -110,8 +110,8 @@ namespace IxMilia.Lisp
                 case LispNumber _:
                 case LispString _:
                     return obj;
-                case LispAtom atom:
-                    return GetValue(atom.Value);
+                case LispSymbol symbol:
+                    return GetValue(symbol.Value);
                 case LispList list:
                     return EvalList(list);
                 default:
@@ -121,16 +121,16 @@ namespace IxMilia.Lisp
 
         private LispObject EvalList(LispList list)
         {
-            var functionNameAtom = (LispAtom)list.Value.First();
-            var functionName = functionNameAtom.Value;
+            var functionNameSymbol = (LispSymbol)list.Value.First();
+            var functionName = functionNameSymbol.Value;
             var args = list.Value.Skip(1).ToArray();
             var value = GetValue(functionName);
-            UpdateCallStackLocation(functionNameAtom);
+            UpdateCallStackLocation(functionNameSymbol);
             if (value is LispFunction)
             {
                 // TODO: what if it's a regular variable?
                 var function = (LispFunction)value;
-                PushStackFrame(functionNameAtom.Value);
+                PushStackFrame(functionNameSymbol.Value);
                 IncreaseScope();
                 // bind arguments
                 // TODO: validate argument count

@@ -57,7 +57,7 @@ namespace IxMilia.Lisp.Tokens
                     }
                     else
                     {
-                        yield return ApplyProperties(ParseAtom("-"));
+                        yield return ApplyProperties(ParseSymbol("-"));
                     }
                 }
                 else if (IsPlus(c))
@@ -70,7 +70,7 @@ namespace IxMilia.Lisp.Tokens
                     }
                     else
                     {
-                        yield return ApplyProperties(ParseAtom("+"));
+                        yield return ApplyProperties(ParseSymbol("+"));
                     }
                 }
                 else if (IsDigit(c))
@@ -87,7 +87,7 @@ namespace IxMilia.Lisp.Tokens
                 else
                 {
                     MarkTokenStart();
-                    yield return ApplyProperties(ParseAtom());
+                    yield return ApplyProperties(ParseSymbol());
                 }
             }
         }
@@ -228,7 +228,7 @@ namespace IxMilia.Lisp.Tokens
             return new LispRightParenToken();
         }
 
-        private LispAtomToken ParseAtom(string existing = null)
+        private LispSymbolToken ParseSymbol(string existing = null)
         {
             var builder = new StringBuilder(existing);
             while (TryPeek(out var c) && !IsEndOfToken(c))
@@ -238,7 +238,7 @@ namespace IxMilia.Lisp.Tokens
             }
 
             var text = builder.ToString();
-            return new LispAtomToken(text);
+            return new LispSymbolToken(text);
         }
 
         private LispNumberToken ParseNumber(string existing = null)

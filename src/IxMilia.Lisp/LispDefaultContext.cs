@@ -9,8 +9,8 @@ namespace IxMilia.Lisp
         public LispObject DefineFunction(LispHost host, LispObject[] args)
         {
             // TODO: properly validate types and arg counts
-            var name = ((LispAtom)args[0]).Value;
-            var functionArgs = ((LispList)args[1]).Value.Cast<LispAtom>().Select(a => a.Value);
+            var name = ((LispSymbol)args[0]).Value;
+            var functionArgs = ((LispList)args[1]).Value.Cast<LispSymbol>().Select(a => a.Value);
             var commands = args.Skip(2);
             var function = new LispFunction(functionArgs, commands);
             host.SetValue(name, function);
@@ -23,7 +23,7 @@ namespace IxMilia.Lisp
             // TODO: properly validate types
             for (int i = 0; i < args.Length - 1; i += 2)
             {
-                var name = ((LispAtom)args[i]).Value;
+                var name = ((LispSymbol)args[i]).Value;
                 var value = host.Eval(args[i + 1]);
                 host.SetValue(name, value);
             }
