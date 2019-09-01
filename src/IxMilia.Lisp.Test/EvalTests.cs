@@ -10,7 +10,6 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             Assert.Equal(new LispNumber(3.0), host.Eval("3.0"));
             Assert.Equal(new LispString("a"), host.Eval("\"a\""));
-            Assert.Equal(new LispList(new LispString("a"), new LispNumber(3.0)), host.Eval("'(\"a\" 3.0)"));
         }
 
         [Fact]

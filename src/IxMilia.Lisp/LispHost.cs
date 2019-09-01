@@ -7,7 +7,7 @@ using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
 {
-    public delegate LispObject LispDelegate(LispHost host, LispSyntax[] args);
+    public delegate LispObject LispDelegate(LispHost host, LispObject[] args);
 
     public class LispHost
     {
@@ -41,7 +41,7 @@ namespace IxMilia.Lisp
                     var parameterInfo = methodInfo.GetParameters();
                     if (parameterInfo.Length == 2 &&
                         parameterInfo[0].ParameterType == typeof(LispHost) &&
-                        parameterInfo[1].ParameterType == typeof(LispSyntax[]) &&
+                        parameterInfo[1].ParameterType == typeof(LispObject[]) &&
                         methodInfo.ReturnType== typeof(LispObject))
                     {
                         var del = (LispDelegate)methodInfo.CreateDelegate(typeof(LispDelegate), context);
@@ -84,7 +84,7 @@ namespace IxMilia.Lisp
             return Eval(nodes);
         }
 
-        public LispObject Eval(IEnumerable<LispSyntax> nodes)
+        public LispObject Eval(IEnumerable<LispObject> nodes)
         {
             LispObject lastValue = LispObject.Nil;
             foreach (var node in nodes)
@@ -100,42 +100,37 @@ namespace IxMilia.Lisp
             return lastValue;
         }
 
-        public LispObject Eval(LispSyntax syntax)
+        public LispObject Eval(LispObject obj)
         {
-            UpdateCallStackLocation(syntax.FirstToken);
-            switch (syntax)
+            UpdateCallStackLocation(obj);
+            switch (obj)
             {
-                case LispNilSyntax _:
-                    return LispObject.Nil;
-                case LispTSyntax _:
-                    return LispObject.T;
-                case LispAtomSyntax atom:
-                    return GetValue(atom.Atom.Value);
-                case LispNumberSyntax num:
-                    return new LispNumber(num.Number.Value);
-                case LispStringSyntax str:
-                    return new LispString(str.String.Text);
-                case LispListSyntax list:
+                case LispNil _:
+                case LispT _:
+                case LispNumber _:
+                case LispString _:
+                    return obj;
+                case LispAtom atom:
+                    return GetValue(atom.Value);
+                case LispList list:
                     return EvalList(list);
-                case LispRawListSyntax list:
-                    return new LispList(list.Elements.Select(e => Eval(e)));
                 default:
                     return LispObject.Nil;
             }
         }
 
-        private LispObject EvalList(LispListSyntax list)
+        private LispObject EvalList(LispList list)
         {
-            var functionNameToken = ((LispAtomSyntax)list.Elements.First()).Atom;
-            var functionName = functionNameToken.Value;
-            var args = list.Elements.Skip(1).ToArray();
+            var functionNameAtom = (LispAtom)list.Value.First();
+            var functionName = functionNameAtom.Value;
+            var args = list.Value.Skip(1).ToArray();
             var value = GetValue(functionName);
-            UpdateCallStackLocation(functionNameToken);
+            UpdateCallStackLocation(functionNameAtom);
             if (value is LispFunction)
             {
                 // TODO: what if it's a regular variable?
                 var function = (LispFunction)value;
-                PushStackFrame(functionNameToken.Value);
+                PushStackFrame(functionNameAtom.Value);
                 IncreaseScope();
                 // bind arguments
                 // TODO: validate argument count
@@ -156,14 +151,14 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return GenerateError($"Undefined function '{functionName}'", functionNameToken);
+                return GenerateError($"Undefined function '{functionName}'");
             }
         }
 
-        private void UpdateCallStackLocation(LispToken token)
+        private void UpdateCallStackLocation(LispObject obj)
         {
-            _currentFrame.Line = token.Line;
-            _currentFrame.Column = token.Column;
+            _currentFrame.Line = obj.Line;
+            _currentFrame.Column = obj.Column;
         }
 
         private void PushStackFrame(string functionName)
@@ -176,7 +171,7 @@ namespace IxMilia.Lisp
             _currentFrame = _currentFrame.Parent;
         }
 
-        private LispError GenerateError(string message, LispToken location)
+        private LispError GenerateError(string message)
         {
             var error = new LispError(message);
             TryApplyStackFrame(error);

@@ -1,17 +1,16 @@
 ﻿using System;
 using System.Linq;
-using IxMilia.Lisp.Parser;
 
 namespace IxMilia.Lisp
 {
     public class LispDefaultContext
     {
         [LispValue("defun")]
-        public LispObject DefineFunction(LispHost host, LispSyntax[] args)
+        public LispObject DefineFunction(LispHost host, LispObject[] args)
         {
             // TODO: properly validate types and arg counts
-            var name = ((LispAtomSyntax)args[0]).Atom.Value;
-            var functionArgs = ((LispListSyntax)args[1]).Elements.Cast<LispAtomSyntax>().Select(a => a.Atom.Value);
+            var name = ((LispAtom)args[0]).Value;
+            var functionArgs = ((LispList)args[1]).Value.Cast<LispAtom>().Select(a => a.Value);
             var commands = args.Skip(2);
             var function = new LispFunction(functionArgs, commands);
             host.SetValue(name, function);
@@ -19,12 +18,12 @@ namespace IxMilia.Lisp
         }
 
         [LispValue("setq")]
-        public LispObject SetValue(LispHost host, LispSyntax[] args)
+        public LispObject SetValue(LispHost host, LispObject[] args)
         {
             // TODO: properly validate types
             for (int i = 0; i < args.Length - 1; i += 2)
             {
-                var name = ((LispAtomSyntax)args[i]).Atom.Value;
+                var name = ((LispAtom)args[i]).Value;
                 var value = host.Eval(args[i + 1]);
                 host.SetValue(name, value);
             }
@@ -33,55 +32,55 @@ namespace IxMilia.Lisp
         }
 
         [LispValue("<")]
-        public LispObject LessThan(LispHost host, LispSyntax[] args)
+        public LispObject LessThan(LispHost host, LispObject[] args)
         {
             return Fold(host, args, (a, b) => a < b);
         }
 
         [LispValue("<=")]
-        public LispObject LessThanOrEqual(LispHost host, LispSyntax[] args)
+        public LispObject LessThanOrEqual(LispHost host, LispObject[] args)
         {
             return Fold(host, args, (a, b) => a <= b);
         }
 
         [LispValue(">")]
-        public LispObject GreaterThan(LispHost host, LispSyntax[] args)
+        public LispObject GreaterThan(LispHost host, LispObject[] args)
         {
             return Fold(host, args, (a, b) => a > b);
         }
 
         [LispValue(">=")]
-        public LispObject GreaterThanOrEqual(LispHost host, LispSyntax[] args)
+        public LispObject GreaterThanOrEqual(LispHost host, LispObject[] args)
         {
             return Fold(host, args, (a, b) => a >= b);
         }
 
         [LispValue("=")]
-        public LispObject Equal(LispHost host, LispSyntax[] args)
+        public LispObject Equal(LispHost host, LispObject[] args)
         {
             return Fold(host, args, (a, b) => a == b);
         }
 
         [LispValue("!=")]
-        public LispObject NotEqual(LispHost host, LispSyntax[] args)
+        public LispObject NotEqual(LispHost host, LispObject[] args)
         {
             return Fold(host, args, (a, b) => a != b);
         }
 
         [LispValue("&&")]
-        public LispObject And(LispHost host, LispSyntax[] args)
+        public LispObject And(LispHost host, LispObject[] args)
         {
             return Fold(host, args, true, (a, b) => a && b);
         }
 
         [LispValue("||")]
-        public LispObject Or(LispHost host, LispSyntax[] args)
+        public LispObject Or(LispHost host, LispObject[] args)
         {
             return Fold(host, args, true, (a, b) => a || b);
         }
 
         [LispValue("if")]
-        public LispObject If(LispHost host, LispSyntax[] args)
+        public LispObject If(LispHost host, LispObject[] args)
         {
             if (args.Length != 3)
             {
@@ -90,21 +89,21 @@ namespace IxMilia.Lisp
 
             var condition = host.Eval(args[0]);
             var resultExpressions = condition is LispNil
-                ? (LispListSyntax)args[2] // nil means follow the false path
-                : (LispListSyntax)args[1]; // everything else is true
+                ? (LispList)args[2] // nil means follow the false path
+                : (LispList)args[1]; // everything else is true
             // TODO: numerical 0 should probably follow the false path
-            var result = host.Eval(resultExpressions.Elements);
+            var result = host.Eval(resultExpressions.Value);
             return result;
         }
 
         [LispValue("+")]
-        public LispObject Add(LispHost host, LispSyntax[] args)
+        public LispObject Add(LispHost host, LispObject[] args)
         {
             return Fold(host, args, 0.0, (a, b) => a + b);
         }
 
         [LispValue("-")]
-        public LispObject Subtract(LispHost host, LispSyntax[] args)
+        public LispObject Subtract(LispHost host, LispObject[] args)
         {
             if (args.Length == 1)
             {
@@ -127,18 +126,18 @@ namespace IxMilia.Lisp
         }
 
         [LispValue("*")]
-        public LispObject Multiply(LispHost host, LispSyntax[] args)
+        public LispObject Multiply(LispHost host, LispObject[] args)
         {
             return Fold(host, args, 1.0, (a, b) => a * b);
         }
 
         [LispValue("/")]
-        public LispObject Divide(LispHost host, LispSyntax[] args)
+        public LispObject Divide(LispHost host, LispObject[] args)
         {
             return Fold(host, args, 1.0, (a, b) => a / b, useFirstAsInit: true);
         }
 
-        private static LispObject Fold(LispHost host, LispSyntax[] args, double init, Func<double, double, double> operation, bool useFirstAsInit = false)
+        private static LispObject Fold(LispHost host, LispObject[] args, double init, Func<double, double, double> operation, bool useFirstAsInit = false)
         {
             if (args.Length == 0)
             {
@@ -186,7 +185,7 @@ namespace IxMilia.Lisp
             return new LispNumber(result);
         }
 
-        private static LispObject Fold(LispHost host, LispSyntax[] args, bool init, Func<bool, bool, bool> operation)
+        private static LispObject Fold(LispHost host, LispObject[] args, bool init, Func<bool, bool, bool> operation)
         {
             if (args.Length == 0)
             {
@@ -214,7 +213,7 @@ namespace IxMilia.Lisp
             return result ? (LispObject)LispObject.T : LispObject.Nil;
         }
 
-        private static LispObject Fold(LispHost host, LispSyntax[] args, Func<double, double, bool> operation)
+        private static LispObject Fold(LispHost host, LispObject[] args, Func<double, double, bool> operation)
         {
             if (args.Length < 2)
             {

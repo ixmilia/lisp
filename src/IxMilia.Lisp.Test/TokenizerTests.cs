@@ -67,7 +67,6 @@ namespace IxMilia.Lisp.Test
             CheckTokenTypes("(", LispTokenType.LeftParen);
             CheckTokenTypes("()", LispTokenType.LeftParen, LispTokenType.RightParen);
             CheckTokenTypes(" ( ) ", LispTokenType.LeftParen, LispTokenType.RightParen);
-            CheckTokenTypes("('((", LispTokenType.LeftParen, LispTokenType.SingleQuotedLeftParen, LispTokenType.LeftParen);
             CheckTokenTypes("''(", LispTokenType.Atom, LispTokenType.LeftParen);
             CheckTokenTypes("- 3", LispTokenType.Atom, LispTokenType.Number);
         }
@@ -92,14 +91,7 @@ namespace IxMilia.Lisp.Test
         public void Strings(string code, string text)
         {
             var str = (LispStringToken)SingleToken(code);
-            Assert.Equal(text, str.Text);
-        }
-
-        [Fact]
-        public void SpecialTokens()
-        {
-            Assert.IsType<LispNilToken>(SingleToken("nil"));
-            Assert.IsType<LispTToken>(SingleToken("t"));
+            Assert.Equal(text, str.Value);
         }
     }
 }

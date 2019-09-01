@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using IxMilia.Lisp.Parser;
 
 namespace IxMilia.Lisp
 {
@@ -8,6 +7,8 @@ namespace IxMilia.Lisp
     {
         public static LispNil Nil => LispNil.Instance;
         public static LispT T => LispT.Instance;
+        public int Line { get; internal set; }
+        public int Column { get; internal set; }
     }
 
     public class LispNil : LispObject
@@ -282,9 +283,9 @@ namespace IxMilia.Lisp
     {
         // TODO: make these read only collections
         public string[] Arguments { get; }
-        public LispSyntax[] Commands { get; }
+        public LispObject[] Commands { get; }
 
-        public LispFunction(IEnumerable<string> arguments, IEnumerable<LispSyntax> commands)
+        public LispFunction(IEnumerable<string> arguments, IEnumerable<LispObject> commands)
         {
             Arguments = arguments.ToArray();
             Commands = commands.ToArray();

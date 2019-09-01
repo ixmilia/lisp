@@ -47,20 +47,6 @@ namespace IxMilia.Lisp.Tokens
                     MarkTokenStart();
                     yield return ApplyProperties(ParseRightParen());
                 }
-                else if (IsSingleQuote(c))
-                {
-                    MarkTokenStart();
-                    Advance();
-                    if (TryPeek(out c) && IsLeftParen(c))
-                    {
-                        Advance();
-                        yield return ApplyProperties(new LispSingleQuotedLeftParenToken());
-                    }
-                    else
-                    {
-                        yield return ApplyProperties(ParseAtom("'"));
-                    }
-                }
                 else if (IsMinus(c))
                 {
                     MarkTokenStart();
@@ -252,15 +238,7 @@ namespace IxMilia.Lisp.Tokens
             }
 
             var text = builder.ToString();
-            switch (text)
-            {
-                case "nil":
-                    return new LispNilToken();
-                case "t":
-                    return new LispTToken();
-                default:
-                    return new LispAtomToken(text);
-            }
+            return new LispAtomToken(text);
         }
 
         private LispNumberToken ParseNumber(string existing = null)
@@ -428,11 +406,6 @@ namespace IxMilia.Lisp.Tokens
         private static bool IsRightParen(char c)
         {
             return c == ')';
-        }
-
-        private static bool IsSingleQuote(char c)
-        {
-            return c == '\'';
         }
 
         private static bool IsMinus(char c)

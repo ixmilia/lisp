@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using IxMilia.Lisp.Tokens;
@@ -16,7 +15,7 @@ namespace IxMilia.Lisp.Parser
             _tokens = tokens.ToArray();
         }
 
-        public IEnumerable<LispSyntax> Parse()
+        public IEnumerable<LispObject> Parse()
         {
             while (TryParseExpression(out var expression))
             {
@@ -24,46 +23,35 @@ namespace IxMilia.Lisp.Parser
             }
         }
 
-        private bool TryParseExpression(out LispSyntax result)
+        private bool TryParseExpression(out LispObject result)
         {
-            result = default(LispSyntax);
+            result = default(LispObject);
             while (TryPeek(out var token))
             {
-                switch (token.Type)
+                switch (token)
                 {
-                    case LispTokenType.Atom:
+                    case LispAtomToken atom:
                         Advance();
-                        switch (token)
-                        {
-                            case LispNilToken nil:
-                                result = new LispNilSyntax(nil);
-                                break;
-                            case LispTToken t:
-                                result = new LispTSyntax(t);
-                                break;
-                            default:
-                                result = new LispAtomSyntax((LispAtomToken)token);
-                                break;
-                        }
-
+                        result = new LispAtom(atom.Value);
                         break;
-                    case LispTokenType.Number:
+                    case LispNumberToken num:
                         Advance();
-                        result = new LispNumberSyntax((LispNumberToken)token);
+                        result = new LispNumber(num.Value);
                         break;
-                    case LispTokenType.String:
+                    case LispStringToken str:
                         Advance();
-                        result = new LispStringSyntax((LispStringToken)token);
+                        result = new LispString(str.Value);
                         break;
-                    case LispTokenType.LeftParen:
-                    case LispTokenType.SingleQuotedLeftParen:
+                    case LispLeftParenToken _:
                         Advance();
-                        result = ParseList(token);
+                        result = ParseList();
                         break;
                 }
 
                 if (result != null)
                 {
+                    result.Line = token.Line;
+                    result.Column = token.Column;
                     return true;
                 }
             }
@@ -71,9 +59,9 @@ namespace IxMilia.Lisp.Parser
             return false;
         }
 
-        private LispSyntax ParseList(LispToken first)
+        private LispObject ParseList()
         {
-            var elements = new List<LispSyntax>();
+            var elements = new List<LispObject>();
             LispRightParenToken rightParen = null;
             while (rightParen == null && TryPeek(out var token))
             {
@@ -92,15 +80,7 @@ namespace IxMilia.Lisp.Parser
                 }
             }
 
-            switch (first.Type)
-            {
-                case LispTokenType.LeftParen:
-                    return new LispListSyntax((LispLeftParenToken)first, elements, rightParen);
-                case LispTokenType.SingleQuotedLeftParen:
-                    return new LispRawListSyntax((LispSingleQuotedLeftParenToken)first, elements, rightParen);
-                default:
-                    throw new Exception("improper list start");
-            }
+            return new LispList(elements);
         }
 
         private bool TryPeek(out LispToken token)

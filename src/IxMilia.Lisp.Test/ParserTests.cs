@@ -7,7 +7,7 @@ namespace IxMilia.Lisp.Test
 {
     public class ParserTests
     {
-        private static LispSyntax SingleSyntaxNode(string code)
+        private static LispObject SingleSyntaxNode(string code)
         {
             var tokens = new LispTokenizer(code).GetTokens();
             var nodes = new LispParser(tokens).Parse();
@@ -17,22 +17,20 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public void ParseConstants()
         {
-            Assert.Equal("a", ((LispAtomSyntax)SingleSyntaxNode("a")).Atom.Value);
-            Assert.Equal(3.0, ((LispNumberSyntax)SingleSyntaxNode("3")).Number.Value);
-            Assert.Equal("a", ((LispStringSyntax)SingleSyntaxNode("\"a\"")).String.Text);
+            Assert.Equal("a", ((LispAtom)SingleSyntaxNode("a")).Value);
+            Assert.Equal(3.0, ((LispNumber)SingleSyntaxNode("3")).Value);
+            Assert.Equal("a", ((LispString)SingleSyntaxNode("\"a\"")).Value);
         }
 
         [Fact]
         public void ParseList()
         {
-            Assert.Empty(((LispListSyntax)SingleSyntaxNode("()")).Elements);
-            Assert.Empty(((LispRawListSyntax)SingleSyntaxNode("'()")).Elements);
-            Assert.Equal(new[] { "a" }, ((LispListSyntax)SingleSyntaxNode("(a)")).Elements.Cast<LispAtomSyntax>().Select(n => n.Atom.Value).ToArray());
-            Assert.Equal(new[] { 1.0 }, ((LispListSyntax)SingleSyntaxNode("(1)")).Elements.Cast<LispNumberSyntax>().Select(n => n.Number.Value).ToArray());
-            Assert.Equal(new[] { 1.0, 2.0 }, ((LispListSyntax)SingleSyntaxNode("(1 2)")).Elements.Cast<LispNumberSyntax>().Select(n => n.Number.Value).ToArray());
-            Assert.Equal(new[] { 1.0, 2.0, 3.0 }, ((LispListSyntax)SingleSyntaxNode("( 1 2 3 )")).Elements.Cast<LispNumberSyntax>().Select(n => n.Number.Value).ToArray());
-            Assert.Equal(new[] { 1.0 }, ((LispRawListSyntax)SingleSyntaxNode("'( 1 )")).Elements.Cast<LispNumberSyntax>().Select(n => n.Number.Value).ToArray());
-            Assert.Equal(new[] { LispSyntaxType.Number, LispSyntaxType.Atom }, ((LispRawListSyntax)SingleSyntaxNode("'( 1 x )")).Elements.Select(e => e.Type).ToArray());
+            Assert.Empty(((LispList)SingleSyntaxNode("()")).Value);
+            Assert.Equal(new[] { "a" }, ((LispList)SingleSyntaxNode("(a)")).Value.Cast<LispAtom>().Select(n => n.Value).ToArray());
+            Assert.Equal(new[] { 1.0 }, ((LispList)SingleSyntaxNode("(1)")).Value.Cast<LispNumber>().Select(n => n.Value).ToArray());
+            Assert.Equal(new[] { 1.0, 2.0 }, ((LispList)SingleSyntaxNode("(1 2)")).Value.Cast<LispNumber>().Select(n => n.Value).ToArray());
+            Assert.Equal(new[] { 1.0, 2.0, 3.0 }, ((LispList)SingleSyntaxNode("( 1 2 3 )")).Value.Cast<LispNumber>().Select(n => n.Value).ToArray());
+            Assert.Equal(new[] { typeof(LispNumber), typeof(LispAtom)}, ((LispList)SingleSyntaxNode("( 1 x )")).Value.Select(e => e.GetType()).ToArray());
         }
     }
 }

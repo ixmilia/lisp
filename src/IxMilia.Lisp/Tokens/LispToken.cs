@@ -37,16 +37,6 @@ namespace IxMilia.Lisp.Tokens
         }
     }
 
-    public class LispSingleQuotedLeftParenToken : LispToken
-    {
-        public override LispTokenType Type => LispTokenType.SingleQuotedLeftParen;
-
-        public override string ToString()
-        {
-            return "'(";
-        }
-    }
-
     public class LispAtomToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.Atom;
@@ -60,22 +50,6 @@ namespace IxMilia.Lisp.Tokens
         public override string ToString()
         {
             return Value;
-        }
-    }
-
-    public class LispNilToken : LispAtomToken
-    {
-        public LispNilToken()
-            : base("nil")
-        {
-        }
-    }
-
-    public class LispTToken : LispAtomToken
-    {
-        public LispTToken()
-            : base("t")
-        {
         }
     }
 
@@ -100,16 +74,16 @@ namespace IxMilia.Lisp.Tokens
     public class LispStringToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.String;
-        public string Text { get; }
+        public string Value { get; }
 
         public LispStringToken(string text)
         {
-            Text = text;
+            Value = text;
         }
 
         public override string ToString()
         {
-            return Text;
+            return Value;
         }
     }
 }
