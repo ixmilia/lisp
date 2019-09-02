@@ -5,10 +5,12 @@ namespace IxMilia.Lisp
     internal class LispScope
     {
         private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
+        private LispHost _host;
         public LispScope Parent { get; }
 
-        public LispScope(LispScope parent = null)
+        public LispScope(LispHost host, LispScope parent = null)
         {
+            _host = host;
             Parent = parent;
         }
 
@@ -26,7 +28,7 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return LispObject.Nil;
+                    return _host.Nil;
                 }
             }
             set => _values[key] = value;

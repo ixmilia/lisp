@@ -14,7 +14,7 @@ namespace IxMilia.Lisp
             var commands = args.Skip(2);
             var function = new LispFunction(functionArgs, commands);
             host.SetValue(name, function);
-            return LispObject.Nil;
+            return host.Nil;
         }
 
         [LispValue("setq")]
@@ -28,7 +28,7 @@ namespace IxMilia.Lisp
                 host.SetValue(name, value);
             }
 
-            return LispObject.Nil;
+            return host.Nil;
         }
 
         [LispValue("<")]
@@ -88,7 +88,7 @@ namespace IxMilia.Lisp
             }
 
             var condition = host.Eval(args[0]);
-            var resultExpressions = condition is LispNil
+            var resultExpressions = condition.Equals(host.Nil)
                 ? (LispList)args[2] // nil means follow the false path
                 : (LispList)args[1]; // everything else is true
             // TODO: numerical 0 should probably follow the false path
@@ -200,17 +200,15 @@ namespace IxMilia.Lisp
                 {
                     case LispError error:
                         return error;
-                    case LispNil _:
-                        result = operation(result, false);
-                        break;
                     default:
                         // TODO: non zero
-                        result = operation(result, true);
+                        var next = value.Equals(host.Nil) ? false : true;
+                        result = operation(result, next);
                         break;
                 }
             }
 
-            return result ? (LispObject)LispObject.T : LispObject.Nil;
+            return result ? host.T : host.Nil;
         }
 
         private static LispObject Fold(LispHost host, LispObject[] args, Func<double, double, bool> operation)
@@ -242,7 +240,7 @@ namespace IxMilia.Lisp
                         var result = operation(lastValue, num.Value);
                         if (!result)
                         {
-                            return LispObject.Nil;
+                            return host.Nil;
                         }
                         lastValue = num.Value;
                         break;
@@ -253,7 +251,7 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return LispObject.T;
+            return host.T;
         }
     }
 }

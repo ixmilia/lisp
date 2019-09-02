@@ -17,24 +17,18 @@ namespace IxMilia.Lisp.Test
                 }
 
                 var condition = h.Eval(args[0]);
-                switch (condition)
+                if (condition.Equals(host.T))
                 {
-                    case LispT t:
-                        return t;
-                    default:
-                        var message = h.Eval(args[1]);
-                        return new LispError($"Assert failed: {message}\nWith value: {condition}");
+                    return condition;
+                }
+                else
+                {
+                    var message = h.Eval(args[1]);
+                    return new LispError($"Assert failed: {message}\nWith value: {condition}");
                 }
             });
             var result = host.Eval(contents);
-            switch (result)
-            {
-                case LispT _:
-                    break;
-                default:
-                    Assert.True(false, result.ToString());
-                    break;
-            }
+            Assert.True(result.Equals(host.T), result.ToString());
         }
 
         [Fact]

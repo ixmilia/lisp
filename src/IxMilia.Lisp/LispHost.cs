@@ -11,13 +11,30 @@ namespace IxMilia.Lisp
 
     public class LispHost
     {
+        private const string NilString = "nil";
+        private const string TString = "t";
         private readonly Dictionary<string, LispDelegate> _delegateMap = new Dictionary<string, LispDelegate>();
-        private LispScope _scope = new LispScope();
+        private LispScope _scope;
         private LispStackFrame _currentFrame = new LispStackFrame("<root>", null);
+
+        public LispSymbol Nil => GetValue<LispSymbol>(NilString);
+        public LispSymbol T => GetValue<LispSymbol>(TString);
 
         public LispHost()
         {
+            _scope = new LispScope(this);
+            AddWellKnownSymbols();
             AddContextObject(new LispDefaultContext());
+        }
+
+        private void AddWellKnownSymbols()
+        {
+            void addSymbol(string name)
+            {
+                SetValue(name, new LispSymbol(name));
+            }
+            addSymbol(NilString);
+            addSymbol(TString);
         }
 
         public void AddFunction(string name, LispDelegate del)
@@ -61,9 +78,14 @@ namespace IxMilia.Lisp
             return _scope[name];
         }
 
+        public TObject GetValue<TObject>(string name) where TObject: LispObject
+        {
+            return (TObject)GetValue(name);
+        }
+
         private void IncreaseScope()
         {
-            _scope = new LispScope(_scope);
+            _scope = new LispScope(this, _scope);
         }
 
         private void DecreaseScope()
@@ -86,7 +108,7 @@ namespace IxMilia.Lisp
 
         public LispObject Eval(IEnumerable<LispObject> nodes)
         {
-            LispObject lastValue = LispObject.Nil;
+            LispObject lastValue = Nil;
             foreach (var node in nodes)
             {
                 lastValue = Eval(node);
@@ -105,8 +127,6 @@ namespace IxMilia.Lisp
             UpdateCallStackLocation(obj);
             switch (obj)
             {
-                case LispNil _:
-                case LispT _:
                 case LispNumber _:
                 case LispString _:
                     return obj;
@@ -115,7 +135,7 @@ namespace IxMilia.Lisp
                 case LispList list:
                     return EvalList(list);
                 default:
-                    return LispObject.Nil;
+                    return Nil;
             }
         }
 

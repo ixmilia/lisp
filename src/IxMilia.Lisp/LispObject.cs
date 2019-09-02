@@ -5,78 +5,8 @@ namespace IxMilia.Lisp
 {
     public abstract class LispObject
     {
-        public static LispNil Nil => LispNil.Instance;
-        public static LispT T => LispT.Instance;
         public int Line { get; internal set; }
         public int Column { get; internal set; }
-    }
-
-    public class LispNil : LispObject
-    {
-        public static LispNil Instance = new LispNil();
-
-        private LispNil()
-        {
-        }
-
-        public override string ToString()
-        {
-            return "nil";
-        }
-
-        public static bool operator ==(LispNil a, LispNil b)
-        {
-            return true;
-        }
-
-        public static bool operator !=(LispNil a, LispNil b)
-        {
-            return false;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is LispNil;
-        }
-
-        public override int GetHashCode()
-        {
-            return 0;
-        }
-    }
-
-    public class LispT : LispObject
-    {
-        public static LispT Instance = new LispT();
-
-        private LispT()
-        {
-        }
-
-        public override string ToString()
-        {
-            return "t";
-        }
-
-        public static bool operator ==(LispT a, LispT b)
-        {
-            return true;
-        }
-
-        public static bool operator !=(LispT a, LispT b)
-        {
-            return false;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is LispT;
-        }
-
-        public override int GetHashCode()
-        {
-            return 1;
-        }
     }
 
     public class LispError : LispObject
