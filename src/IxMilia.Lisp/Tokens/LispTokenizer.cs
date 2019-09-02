@@ -13,6 +13,7 @@ namespace IxMilia.Lisp.Tokens
         private int _tokenStartColumn;
         private int _offset;
         private char[] _characters;
+        private bool _isQuoting;
         private List<LispTrivia> _triviaBuilder;
 
         public LispTokenizer(char[] chars)
@@ -36,6 +37,11 @@ namespace IxMilia.Lisp.Tokens
                 if (IsTrivia(c))
                 {
                     ConsumeTrivia();
+                }
+                else if (IsSingleQuote(c))
+                {
+                    Advance();
+                    _isQuoting = true;
                 }
                 else if (IsLeftParen(c))
                 {
@@ -218,7 +224,9 @@ namespace IxMilia.Lisp.Tokens
         {
             Debug.Assert(TryPeek(out var c) && IsLeftParen(c));
             Advance();
-            return new LispLeftParenToken();
+            var left = new LispLeftParenToken(_isQuoting);
+            _isQuoting = false;
+            return left;
         }
 
         private LispRightParenToken ParseRightParen()
@@ -238,7 +246,9 @@ namespace IxMilia.Lisp.Tokens
             }
 
             var text = builder.ToString();
-            return new LispSymbolToken(text);
+            var token = new LispSymbolToken(_isQuoting, text);
+            _isQuoting = false;
+            return token;
         }
 
         private LispNumberToken ParseNumber(string existing = null)
@@ -406,6 +416,11 @@ namespace IxMilia.Lisp.Tokens
         private static bool IsRightParen(char c)
         {
             return c == ')';
+        }
+
+        private static bool IsSingleQuote(char c)
+        {
+            return c == '\'';
         }
 
         private static bool IsMinus(char c)

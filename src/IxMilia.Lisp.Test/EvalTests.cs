@@ -21,6 +21,14 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void Quoted()
+        {
+            var host = new LispHost();
+            Assert.Equal(new LispSymbol("a"), host.Eval("'a"));
+            Assert.Equal(new LispList(new LispNumber(1.0)), host.Eval("'(1)"));
+        }
+
+        [Fact]
         public void Variables()
         {
             var host = new LispHost();

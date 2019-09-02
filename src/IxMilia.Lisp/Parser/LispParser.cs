@@ -32,7 +32,7 @@ namespace IxMilia.Lisp.Parser
                 {
                     case LispSymbolToken symbol:
                         Advance();
-                        result = new LispSymbol(symbol.Value);
+                        result = new LispSymbol(symbol.IsQuoted, symbol.Value);
                         break;
                     case LispNumberToken num:
                         Advance();
@@ -42,9 +42,9 @@ namespace IxMilia.Lisp.Parser
                         Advance();
                         result = new LispString(str.Value);
                         break;
-                    case LispLeftParenToken _:
+                    case LispLeftParenToken left:
                         Advance();
-                        result = ParseList();
+                        result = ParseList(left);
                         break;
                 }
 
@@ -59,7 +59,7 @@ namespace IxMilia.Lisp.Parser
             return false;
         }
 
-        private LispObject ParseList()
+        private LispObject ParseList(LispLeftParenToken left)
         {
             var elements = new List<LispObject>();
             LispRightParenToken rightParen = null;
@@ -80,7 +80,7 @@ namespace IxMilia.Lisp.Parser
                 }
             }
 
-            return new LispList(elements);
+            return new LispList(left.IsQuoted, elements);
         }
 
         private bool TryPeek(out LispToken token)

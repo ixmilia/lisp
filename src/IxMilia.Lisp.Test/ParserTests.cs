@@ -32,5 +32,14 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(new[] { 1.0, 2.0, 3.0 }, ((LispList)SingleSyntaxNode("( 1 2 3 )")).Value.Cast<LispNumber>().Select(n => n.Value).ToArray());
             Assert.Equal(new[] { typeof(LispNumber), typeof(LispSymbol)}, ((LispList)SingleSyntaxNode("( 1 x )")).Value.Select(e => e.GetType()).ToArray());
         }
+
+        [Fact]
+        public void Quoted()
+        {
+            Assert.False(((LispSymbol)SingleSyntaxNode("a")).IsQuoted);
+            Assert.True(((LispSymbol)SingleSyntaxNode("'a")).IsQuoted);
+            Assert.False(((LispList)SingleSyntaxNode("(1)")).IsQuoted);
+            Assert.True(((LispList)SingleSyntaxNode("'(1)")).IsQuoted);
+        }
     }
 }

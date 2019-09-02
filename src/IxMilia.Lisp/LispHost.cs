@@ -131,9 +131,13 @@ namespace IxMilia.Lisp
                 case LispString _:
                     return obj;
                 case LispSymbol symbol:
-                    return GetValue(symbol.Value);
+                    return symbol.IsQuoted
+                        ? symbol
+                        : GetValue(symbol.Value);
                 case LispList list:
-                    return EvalList(list);
+                    return list.IsQuoted
+                        ? list
+                        : EvalList(list);
                 default:
                     return Nil;
             }

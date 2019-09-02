@@ -65,9 +65,9 @@ namespace IxMilia.Lisp.Test
         public void TokenTypes()
         {
             CheckTokenTypes("(", LispTokenType.LeftParen);
+            CheckTokenTypes("'(", LispTokenType.LeftParen);
             CheckTokenTypes("()", LispTokenType.LeftParen, LispTokenType.RightParen);
             CheckTokenTypes(" ( ) ", LispTokenType.LeftParen, LispTokenType.RightParen);
-            CheckTokenTypes("''(", LispTokenType.Symbol, LispTokenType.LeftParen);
             CheckTokenTypes("- 3", LispTokenType.Symbol, LispTokenType.Number);
         }
 

@@ -33,10 +33,17 @@ namespace IxMilia.Lisp
 
     public class LispSymbol : LispObject
     {
+        public bool IsQuoted { get; set; }
         public string Value { get; set; }
 
         public LispSymbol(string value)
+            : this(false, value)
         {
+        }
+
+        public LispSymbol(bool isQuoted, string value)
+        {
+            IsQuoted = isQuoted;
             Value = value;
         }
 
@@ -158,21 +165,28 @@ namespace IxMilia.Lisp
 
     public class LispList : LispObject
     {
+        public bool IsQuoted { get; set; }
         public List<LispObject> Value { get; set; }
 
-        public LispList(params LispObject[] values)
-            : this((IEnumerable<LispObject>)values)
+        public LispList(params LispObject[] value)
+            : this((IEnumerable<LispObject>)value)
         {
         }
 
         public LispList(IEnumerable<LispObject> value)
+            : this(false, value)
         {
+        }
+
+        public LispList(bool isQuoted, IEnumerable<LispObject> value)
+        {
+            IsQuoted = isQuoted;
             Value = value.ToList();
         }
 
         public override string ToString()
         {
-            return $"({string.Join(" ", Value)})";
+            return $"{(IsQuoted ? "'" : string.Empty)}({string.Join(" ", Value)})";
         }
 
         public static bool operator ==(LispList a, LispList b)

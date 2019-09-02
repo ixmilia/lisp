@@ -20,6 +20,12 @@ namespace IxMilia.Lisp.Tokens
     public class LispLeftParenToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.LeftParen;
+        public bool IsQuoted { get; }
+
+        public LispLeftParenToken(bool isQuoted)
+        {
+            IsQuoted = isQuoted;
+        }
 
         public override string ToString()
         {
@@ -40,10 +46,12 @@ namespace IxMilia.Lisp.Tokens
     public class LispSymbolToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.Symbol;
+        public bool IsQuoted { get; }
         public string Value { get; }
 
-        public LispSymbolToken(string value)
+        public LispSymbolToken(bool isQuoted, string value)
         {
+            IsQuoted = isQuoted;
             Value = value;
         }
 
