@@ -2,11 +2,21 @@
 
 namespace IxMilia.Lisp
 {
-    public class LispValueAttribute : Attribute
+    public class LispMacroAttribute : Attribute
     {
         public string Name { get; }
 
-        public LispValueAttribute(string methodName)
+        public LispMacroAttribute(string methodName)
+        {
+            Name = methodName;
+        }
+    }
+
+    public class LispFunctionAttribute : Attribute
+    {
+        public string Name { get; }
+
+        public LispFunctionAttribute(string methodName)
         {
             Name = methodName;
         }

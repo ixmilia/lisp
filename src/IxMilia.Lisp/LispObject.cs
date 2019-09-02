@@ -178,6 +178,11 @@ namespace IxMilia.Lisp
         {
         }
 
+        public LispList(bool isQuoted, params LispObject[] value)
+            : this(isQuoted, (IEnumerable<LispObject>)value)
+        {
+        }
+
         public LispList(bool isQuoted, IEnumerable<LispObject> value)
         {
             IsQuoted = isQuoted;
@@ -226,18 +231,40 @@ namespace IxMilia.Lisp
     public class LispFunction : LispObject
     {
         // TODO: make these read only collections
+        public string Name { get; }
         public string[] Arguments { get; }
         public LispObject[] Commands { get; }
 
-        public LispFunction(IEnumerable<string> arguments, IEnumerable<LispObject> commands)
+        public LispFunction(string name, IEnumerable<string> arguments, IEnumerable<LispObject> commands)
         {
+            Name = name;
             Arguments = arguments.ToArray();
             Commands = commands.ToArray();
         }
 
         public override string ToString()
         {
-            return "(function)";
+            return Name;
+        }
+    }
+
+    public class LispMacro : LispObject
+    {
+        // TODO: make these read only collections
+        public string Name { get; }
+        public string[] Arguments { get; }
+        public LispObject[] Body { get; }
+
+        public LispMacro(string name, IEnumerable<string> arguments, IEnumerable<LispObject> body)
+        {
+            Name = name;
+            Arguments = arguments.ToArray();
+            Body = body.ToArray();
+        }
+
+        public override string ToString()
+        {
+            return Name;
         }
     }
 }

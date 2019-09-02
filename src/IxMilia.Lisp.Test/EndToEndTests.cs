@@ -9,7 +9,7 @@ namespace IxMilia.Lisp.Test
         {
             var contents = File.ReadAllText(fileName);
             var host = new LispHost();
-            host.AddFunction("assert", (h, args) =>
+            host.AddMacro("assert", (h, args) =>
             {
                 if (args.Length != 2)
                 {

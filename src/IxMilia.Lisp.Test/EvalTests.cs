@@ -16,7 +16,7 @@ namespace IxMilia.Lisp.Test
         public void ExternalFunction()
         {
             var host = new LispHost();
-            host.AddFunction("add", (h, args) => (LispNumber)h.Eval(args[0]) + (LispNumber)h.Eval(args[1]));
+            host.AddFunction("add", (h, args) => (LispNumber)args[0] + (LispNumber)args[1]);
             Assert.Equal(new LispNumber(3.0), host.Eval("(add 1 2)"));
         }
 
@@ -33,6 +33,21 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             Assert.Equal(new LispNumber(3.0), host.Eval("(setq x 3) x"));
+        }
+
+        [Fact]
+        public void Macros()
+        {
+            var host = new LispHost();
+            var code = @"
+(defmacro setToOnePlusExtra (n)
+    (setq n 1)
+    (setq x 2))
+(setToOnePlusExtra a)
+(+ a x)
+";
+            var result = host.Eval(code);
+            Assert.Equal(new LispNumber(3.0), result);
         }
 
         [Fact]
@@ -63,7 +78,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(2, result.StackFrame.Parent.Column);
             Assert.Equal("<root>", result.StackFrame.Parent.FunctionName);
             Assert.Null(result.StackFrame.Parent.Parent);
-            Assert.Equal("Undefined function 'add'", result.Message);
+            Assert.Equal("Undefined macro/function 'add'", result.Message);
         }
 
         [Fact]
