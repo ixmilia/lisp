@@ -90,13 +90,13 @@ namespace IxMilia.Lisp
         [LispMacro("&&")]
         public LispObject And(LispHost host, LispObject[] args)
         {
-            return Fold(host, args, true, (a, b) => a && b);
+            return Fold(host, args, true, false, (a, b) => a && b);
         }
 
         [LispMacro("||")]
         public LispObject Or(LispHost host, LispObject[] args)
         {
-            return Fold(host, args, true, (a, b) => a || b);
+            return Fold(host, args, true, true, (a, b) => a || b);
         }
 
         [LispMacro("if")]
@@ -208,7 +208,7 @@ namespace IxMilia.Lisp
             return new LispNumber(result);
         }
 
-        private static LispObject Fold(LispHost host, LispObject[] args, bool init, Func<bool, bool, bool> operation)
+        private static LispObject Fold(LispHost host, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation)
         {
             LispObject result;
             if (args.Length == 0)
@@ -227,7 +227,13 @@ namespace IxMilia.Lisp
                             goto done;
                         default:
                             // TODO: non zero
-                            var next = value.Equals(host.Nil) ? false : true;
+                            var nextValue = host.Eval(value);
+                            var next = nextValue.Equals(host.Nil) ? false : true;
+                            if (next == shortCircuitValue)
+                            {
+                                collected = shortCircuitValue;
+                                goto done;
+                            }
                             collected = operation(collected, next);
                             break;
                     }

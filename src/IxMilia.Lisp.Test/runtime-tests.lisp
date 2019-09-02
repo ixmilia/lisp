@@ -23,8 +23,24 @@
         (= -1 (- 1))
         "neg"))
 
+(defun short-circuit-and ()
+    (assert
+        (=
+            (&& nil
+                (undefined-function)))
+            nil)
+        "short-circuit-and")
+
+(defun short-circuit-or ()
+    (assert
+        (|| t
+            (undefined-function)))
+        "short-circuit-or")
+
 (&& (add-list)
     (sub-list)
     (mul-list)
     (div-list)
-    (neg))
+    (neg)
+    (short-circuit-and)
+    (short-circuit-or))
