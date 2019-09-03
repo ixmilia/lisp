@@ -158,6 +158,11 @@ namespace IxMilia.Lisp
 
         public LispObject Eval(LispObject obj)
         {
+            if (obj is LispError)
+            {
+                return obj;
+            }
+
             UpdateCallStackLocation(obj);
             switch (obj)
             {
@@ -192,6 +197,7 @@ namespace IxMilia.Lisp
             var args = list.Value.Skip(1).Select(GetMacroExpansion).ToArray();
             var value = GetValue(functionName);
             UpdateCallStackLocation(functionNameSymbol);
+            LispObject result;
             if (value is LispMacro)
             {
                 var macro = (LispMacro)value;
@@ -207,15 +213,14 @@ namespace IxMilia.Lisp
                 }
 
                 // expand body
-                var lastValue = (LispObject)Nil;
+                var lastValue = Nil;
                 foreach (var item in macro.Body)
                 {
                     lastValue = Eval(item);
                 }
 
                 PopStackFrame();
-
-                return lastValue;
+                result = lastValue;
             }
             else if (value is LispFunction)
             {
@@ -225,35 +230,60 @@ namespace IxMilia.Lisp
                 IncreaseScope();
 
                 // bind arguments
-                // TODO: validate argument count
-                for (int i = 0; i < function.Arguments.Length; i++)
+                var evaluatedArgs = args.Select(a => Eval(a)).ToArray();
+                var firstError = evaluatedArgs.OfType<LispError>().FirstOrDefault();
+                if (firstError != null)
                 {
-                    SetValue(function.Arguments[i], Eval(args[i]));
+                    result = firstError;
                 }
+                else
+                {
+                    // TODO: validate argument count
+                    for (int i = 0; i < function.Arguments.Length; i++)
+                    {
+                        SetValue(function.Arguments[i], evaluatedArgs[i]);
+                    }
 
-                // eval values
-                var result = Eval(function.Commands);
-                DecreaseScope();
-                PopStackFrame();
-                return result;
+                    // eval values
+                    result = Eval(function.Commands);
+                    DecreaseScope();
+                    PopStackFrame();
+                }
             }
             else if (_macroMap.TryGetValue(functionName, out var macro))
             {
                 PushStackFrame(functionName);
-                var body = macro.Invoke(this, args);
-                var result = Eval(body);
+                result = macro.Invoke(this, args);
                 PopStackFrame();
-                return result;
             }
             else if (_delegateMap.TryGetValue(functionName, out var function))
             {
                 var evaluatedArgs = args.Select(a => Eval(a)).ToArray();
-                var result = function.Invoke(this, evaluatedArgs);
-                return result;
+                var firstError = evaluatedArgs.OfType<LispError>().FirstOrDefault();
+                if (firstError != null)
+                {
+                    result = firstError;
+                }
+                else
+                {
+                    result = function.Invoke(this, evaluatedArgs);
+                }
             }
             else
             {
-                return GenerateError($"Undefined macro/function '{functionName}'");
+                result = GenerateError($"Undefined macro/function '{functionName}'");
+            }
+
+            TryApplyLocation(result, functionNameSymbol);
+            return result;
+        }
+
+        private static void TryApplyLocation(LispObject obj, LispObject parent)
+        {
+            if (obj.Line == 0 && obj.Column == 0)
+            {
+                obj.Line = parent.Line;
+                obj.Column = parent.Column;
             }
         }
 

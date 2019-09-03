@@ -15,7 +15,7 @@
 
         public override string ToString()
         {
-            return $"{FunctionName}: ({Line}, {Column})\n{Parent}";
+            return $"  at {FunctionName}: ({Line}, {Column})\n{Parent}";
         }
     }
 }

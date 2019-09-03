@@ -27,7 +27,8 @@ namespace IxMilia.Lisp
 
         public override string ToString()
         {
-            return $"{Message}: {StackFrame}";
+            var frame = StackFrame == null ? string.Empty : $":\n{StackFrame}";
+            return $"{Message}{frame}";
         }
     }
 

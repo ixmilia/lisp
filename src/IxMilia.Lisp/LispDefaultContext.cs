@@ -230,25 +230,25 @@ namespace IxMilia.Lisp
         [LispFunction("<")]
         public LispObject LessThan(LispHost host, LispObject[] args)
         {
-            return Fold(host, args, (a, b) => a < b);
+            return FoldComparison(host, args, (a, b) => a < b);
         }
 
         [LispFunction("<=")]
         public LispObject LessThanOrEqual(LispHost host, LispObject[] args)
         {
-            return Fold(host, args, (a, b) => a <= b);
+            return FoldComparison(host, args, (a, b) => a <= b);
         }
 
         [LispFunction(">")]
         public LispObject GreaterThan(LispHost host, LispObject[] args)
         {
-            return Fold(host, args, (a, b) => a > b);
+            return FoldComparison(host, args, (a, b) => a > b);
         }
 
         [LispFunction(">=")]
         public LispObject GreaterThanOrEqual(LispHost host, LispObject[] args)
         {
-            return Fold(host, args, (a, b) => a >= b);
+            return FoldComparison(host, args, (a, b) => a >= b);
         }
 
         [LispFunction("=")]
@@ -260,19 +260,19 @@ namespace IxMilia.Lisp
         [LispFunction("!=")]
         public LispObject NotEqual(LispHost host, LispObject[] args)
         {
-            return Fold(host, args, (a, b) => a != b);
+            return FoldObj(host, args, (a, b) => !a.Equals(b));
         }
 
         [LispMacro("&&")]
         public LispObject And(LispHost host, LispObject[] args)
         {
-            return Fold(host, args, true, false, (a, b) => a && b);
+            return FoldBoolean(host, args, true, false, (a, b) => a && b);
         }
 
         [LispMacro("||")]
         public LispObject Or(LispHost host, LispObject[] args)
         {
-            return Fold(host, args, true, true, (a, b) => a || b);
+            return FoldBoolean(host, args, true, true, (a, b) => a || b);
         }
 
         [LispMacro("if")]
@@ -299,7 +299,7 @@ namespace IxMilia.Lisp
         [LispFunction("+")]
         public LispObject Add(LispHost host, LispObject[] args)
         {
-            return Fold(args, 0.0, (a, b) => a + b);
+            return FoldNumber(args, 0.0, (a, b) => a + b);
         }
 
         [LispFunction("-")]
@@ -311,8 +311,6 @@ namespace IxMilia.Lisp
                 var value = args[0];
                 switch (value)
                 {
-                    case LispError error:
-                        return error;
                     case LispNumber num:
                         return new LispNumber(num.Value * -1);
                     default:
@@ -321,23 +319,23 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return Fold(args, 0.0, (a, b) => a - b, useFirstAsInit: true);
+                return FoldNumber(args, 0.0, (a, b) => a - b, useFirstAsInit: true);
             }
         }
 
         [LispFunction("*")]
         public LispObject Multiply(LispHost host, LispObject[] args)
         {
-            return Fold(args, 1.0, (a, b) => a * b);
+            return FoldNumber(args, 1.0, (a, b) => a * b);
         }
 
         [LispFunction("/")]
         public LispObject Divide(LispHost host, LispObject[] args)
         {
-            return Fold(args, 1.0, (a, b) => a / b, useFirstAsInit: true);
+            return FoldNumber(args, 1.0, (a, b) => a / b, useFirstAsInit: true);
         }
 
-        private static LispObject Fold(LispObject[] args, double init, Func<double, double, double> operation, bool useFirstAsInit = false)
+        private static LispObject FoldNumber(LispObject[] args, double init, Func<double, double, double> operation, bool useFirstAsInit = false)
         {
             if (args.Length == 0)
             {
@@ -352,8 +350,6 @@ namespace IxMilia.Lisp
                 var first = args[0];
                 switch (first)
                 {
-                    case LispError error:
-                        return error;
                     case LispNumber num:
                         result = num.Value;
                         break;
@@ -371,8 +367,6 @@ namespace IxMilia.Lisp
             {
                 switch (value)
                 {
-                    case LispError error:
-                        return error;
                     case LispNumber num:
                         result = operation(result, num.Value);
                         break;
@@ -384,7 +378,7 @@ namespace IxMilia.Lisp
             return new LispNumber(result);
         }
 
-        private static LispObject Fold(LispHost host, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation)
+        private static LispObject FoldBoolean(LispHost host, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation)
         {
             LispObject result;
             if (args.Length == 0)
@@ -396,23 +390,19 @@ namespace IxMilia.Lisp
                 var collected = init;
                 foreach (var value in args)
                 {
-                    switch (value)
+                    var evaluated = host.Eval(value);
+                    if (evaluated is LispError)
                     {
-                        case LispError error:
-                            result = error;
-                            goto done;
-                        default:
-                            // TODO: non zero
-                            var nextValue = host.Eval(value);
-                            var next = nextValue.Equals(host.Nil) ? false : true;
-                            if (next == shortCircuitValue)
-                            {
-                                collected = shortCircuitValue;
-                                goto done;
-                            }
-                            collected = operation(collected, next);
-                            break;
+                        return evaluated;
                     }
+                    // TODO: non zero
+                    var next = evaluated.Equals(host.Nil) ? false : true;
+                    if (next == shortCircuitValue)
+                    {
+                        collected = shortCircuitValue;
+                        goto done;
+                    }
+                    collected = operation(collected, next);
                 }
             done:
                 result = collected ? host.T : host.Nil;
@@ -428,11 +418,6 @@ namespace IxMilia.Lisp
                 return new LispError("At least 2 arguments needed");
             }
 
-            if (args[0] is LispError)
-            {
-                return args[0];
-            }
-
             var result = true;
             for (int i = 0; i < args.Length - 1; i++)
             {
@@ -446,7 +431,7 @@ namespace IxMilia.Lisp
             return host.T;
         }
 
-        private static LispObject Fold(LispHost host, LispObject[] args, Func<double, double, bool> operation)
+        private static LispObject FoldComparison(LispHost host, LispObject[] args, Func<double, double, bool> operation)
         {
             if (args.Length < 2)
             {
@@ -460,15 +445,13 @@ namespace IxMilia.Lisp
                 case LispNumber num:
                     lastValue = num.Value;
                     break;
-                case LispError error:
-                    return error;
                 default:
                     return new LispError($"Expected type number but found {value.GetType()}");
             }
 
             foreach (var arg in args.Skip(1))
             {
-                value = host.Eval(arg);
+                value = arg;
                 switch (value)
                 {
                     case LispNumber num:
@@ -479,8 +462,6 @@ namespace IxMilia.Lisp
                         }
                         lastValue = num.Value;
                         break;
-                    case LispError error:
-                        return error;
                     default:
                         return new LispError($"Expected type number but found {value.GetType()}");
                 }
