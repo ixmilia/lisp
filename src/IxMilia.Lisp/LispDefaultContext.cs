@@ -125,6 +125,104 @@ namespace IxMilia.Lisp
                 : host.Nil;
         }
 
+        [LispFunction("length")]
+        public LispObject Length(LispHost host, LispObject[] args)
+        {
+            // TODO: validate single argument
+            if (args[0] is LispList list)
+            {
+                return new LispNumber(list.Value.Count);
+            }
+            else
+            {
+                return new LispError("Expected a list");
+            }
+        }
+
+        [LispFunction("first")]
+        public LispObject First(LispHost host, LispObject[] args)
+        {
+            // TODO: validate single argument
+            if (args[0] is LispList list)
+            {
+                if (list.Value.Count >= 1)
+                {
+                    return list.Value[0];
+                }
+                else
+                {
+                    return new LispError("Not enough items in list");
+                }
+            }
+            else
+            {
+                return new LispError("Expected a list");
+            }
+        }
+
+        [LispFunction("second")]
+        public LispObject Second(LispHost host, LispObject[] args)
+        {
+            // TODO: validate single argument
+            if (args[0] is LispList list)
+            {
+                if (list.Value.Count >= 2)
+                {
+                    return list.Value[1];
+                }
+                else
+                {
+                    return new LispError("Not enough items in list");
+                }
+            }
+            else
+            {
+                return new LispError("Expected a list");
+            }
+        }
+
+        [LispFunction("third")]
+        public LispObject Third(LispHost host, LispObject[] args)
+        {
+            // TODO: validate single argument
+            if (args[0] is LispList list)
+            {
+                if (list.Value.Count >= 3)
+                {
+                    return list.Value[2];
+                }
+                else
+                {
+                    return new LispError("Not enough items in list");
+                }
+            }
+            else
+            {
+                return new LispError("Expected a list");
+            }
+        }
+
+        [LispFunction("rest")]
+        public LispObject Rest(LispHost host, LispObject[] args)
+        {
+            // TODO: validate single argument
+            if (args[0] is LispList list)
+            {
+                if (list.Value.Count >= 1)
+                {
+                    return new LispList(list.Value.Skip(1));
+                }
+                else
+                {
+                    return new LispError("Not enough items in list");
+                }
+            }
+            else
+            {
+                return new LispError("Expected a list");
+            }
+        }
+
         [LispFunction("<")]
         public LispObject LessThan(LispHost host, LispObject[] args)
         {

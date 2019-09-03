@@ -56,6 +56,14 @@
         (= nil ())
         "nil-equality"))
 
+(defun list-helpers ()
+    (setq l '(4 5 6))
+    (assert (= 3 (length l)) "list length")
+    (assert (= 4 (first l)) "list first")
+    (assert (= 5 (second l)) "list second")
+    (assert (= 6 (third l)) "list third")
+    (assert (= '(5 6) (rest l)) "list rest"))
+
 (&& (add-list)
     (sub-list)
     (mul-list)
@@ -65,4 +73,5 @@
     (short-circuit-or)
     (built-in-predicates)
     (nil-equality)
+    (list-helpers)
 )
