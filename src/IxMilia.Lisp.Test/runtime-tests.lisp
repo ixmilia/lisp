@@ -63,7 +63,11 @@
     (assert (= 5 (second l)) "list second")
     (assert (= 6 (third l)) "list third")
     (assert (= '(5 6) (rest l)) "list rest")
-    (assert (= 4 (car l)) "list car"))
+    (assert (= 4 (car l)) "list car")
+    (assert (= nil (car ())) "() car")
+    (assert (= nil (cdr ())) "() cdr")
+    (assert (= nil (third ())) "() third")
+    (assert (= nil (third nil)) "nil third"))
 
 (&& (add-list)
     (sub-list)

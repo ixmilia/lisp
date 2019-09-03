@@ -152,7 +152,7 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return new LispError("Not enough items in list");
+                    return host.Nil;
                 }
             }
             else
@@ -174,7 +174,7 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return new LispError("Not enough items in list");
+                    return host.Nil;
                 }
             }
             else
@@ -196,7 +196,7 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return new LispError("Not enough items in list");
+                    return host.Nil;
                 }
             }
             else
@@ -218,7 +218,7 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return new LispError("Not enough items in list");
+                    return host.Nil;
                 }
             }
             else
