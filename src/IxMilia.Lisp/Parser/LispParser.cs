@@ -8,6 +8,7 @@ namespace IxMilia.Lisp.Parser
     {
         private int _index;
         private LispToken[] _tokens;
+        private Stack<LispLeftParenToken> _leftParens = new Stack<LispLeftParenToken>();
 
         public LispParser(IEnumerable<LispToken> tokens)
         {
@@ -44,7 +45,13 @@ namespace IxMilia.Lisp.Parser
                         break;
                     case LispLeftParenToken left:
                         Advance();
+                        _leftParens.Push(left);
                         result = ParseList(left);
+                        break;
+                    case LispRightParenToken _:
+                        // This should have been handled in `ParseList()`
+                        Advance();
+                        result = new LispError($"Unexpected ')' at ({token.Line}, {token.Column})");
                         break;
                 }
 
@@ -69,6 +76,7 @@ namespace IxMilia.Lisp.Parser
                 {
                     case LispTokenType.RightParen:
                         Advance();
+                        _leftParens.Pop();
                         rightParen = (LispRightParenToken)token;
                         break;
                     default:
@@ -78,6 +86,11 @@ namespace IxMilia.Lisp.Parser
                         }
                         break;
                 }
+            }
+
+            if (rightParen == null)
+            {
+                return new LispError($"Unmatched '(' at ({_leftParens.Peek().Line}, {_leftParens.Peek().Column}) (depth {_leftParens.Count})");
             }
 
             return new LispList(left.IsQuoted, elements);
