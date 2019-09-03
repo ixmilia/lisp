@@ -82,6 +82,10 @@ namespace IxMilia.Lisp
             Value = value;
         }
 
+        public bool IsZero => Value == 0.0;
+        public bool IsEven => (Value - (int)Value == 0.0) && (int)Value % 2 == 0;
+        public bool IsOdd => (Value - (int)Value == 0.0) && (int)Value % 2 != 0;
+
         public override string ToString()
         {
             return Value.ToString();

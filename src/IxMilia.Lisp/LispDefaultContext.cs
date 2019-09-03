@@ -51,6 +51,80 @@ namespace IxMilia.Lisp
             return last;
         }
 
+        [LispFunction("numberp")]
+        public LispObject NumberP(LispHost host, LispObject[] args)
+        {
+            // TODO: validate argument count
+            switch (args[0])
+            {
+                case LispNumber _:
+                    return host.T;
+                default:
+                    return host.Nil;
+            }
+        }
+
+        [LispFunction("symbolp")]
+        public LispObject SymbolP(LispHost host, LispObject[] args)
+        {
+            // TODO: validate argument count
+            switch (args[0])
+            {
+                case LispSymbol _:
+                    return host.T;
+                default:
+                    return host.Nil;
+            }
+        }
+
+        [LispFunction("zerop")]
+        public LispObject ZeroP(LispHost host, LispObject[] args)
+        {
+            // TODO: validate argument count
+            switch (args[0])
+            {
+                case LispNumber num when num.IsZero:
+                    return host.T;
+                default:
+                    return host.Nil;
+            }
+        }
+
+        [LispFunction("evenp")]
+        public LispObject EvenP(LispHost host, LispObject[] args)
+        {
+            // TODO: validate argument count
+            switch (args[0])
+            {
+                case LispNumber num when num.IsEven:
+                    return host.T;
+                default:
+                    return host.Nil;
+            }
+        }
+
+        [LispFunction("oddp")]
+        public LispObject OddP(LispHost host, LispObject[] args)
+        {
+            // TODO: validate argument count
+            switch (args[0])
+            {
+                case LispNumber num when num.IsOdd:
+                    return host.T;
+                default:
+                    return host.Nil;
+            }
+        }
+
+        [LispFunction("not")]
+        public LispObject Not(LispHost host, LispObject[] args)
+        {
+            // TODO: validate argument count
+            return host.Nil.Equals(args[0])
+                ? host.T
+                : host.Nil;
+        }
+
         [LispFunction("<")]
         public LispObject LessThan(LispHost host, LispObject[] args)
         {
