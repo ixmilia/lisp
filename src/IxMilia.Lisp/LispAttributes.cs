@@ -2,6 +2,7 @@
 
 namespace IxMilia.Lisp
 {
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
     public class LispMacroAttribute : Attribute
     {
         public string Name { get; }
@@ -12,6 +13,7 @@ namespace IxMilia.Lisp
         }
     }
 
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
     public class LispFunctionAttribute : Attribute
     {
         public string Name { get; }

@@ -63,19 +63,25 @@ namespace IxMilia.Lisp
                     methodInfo.ReturnType == typeof(LispObject))
                 {
                     // native macros (unevaluated arguments)
-                    var macroAttribute = methodInfo.GetCustomAttribute<LispMacroAttribute>(inherit: true);
-                    if (macroAttribute != null)
+                    var macroNames = methodInfo.GetCustomAttributes<LispMacroAttribute>(inherit: true).Select(a => a.Name).ToList();
+                    if (macroNames.Any())
                     {
                         var del = (LispMacroDelegate)methodInfo.CreateDelegate(typeof(LispMacroDelegate), context);
-                        AddMacro(macroAttribute.Name, del);
+                        foreach (var name in macroNames)
+                        {
+                            AddMacro(name, del);
+                        }
                     }
 
                     // native functions (evaluated arguments)
-                    var functionAttribute = methodInfo.GetCustomAttribute<LispFunctionAttribute>(inherit: true);
-                    if (functionAttribute != null)
+                    var functionNames = methodInfo.GetCustomAttributes<LispFunctionAttribute>(inherit: true).Select(a => a.Name).ToList();
+                    if (functionNames.Any())
                     {
                         var del = (LispFunctionDelegate)methodInfo.CreateDelegate(typeof(LispFunctionDelegate), context);
-                        AddFunction(functionAttribute.Name, del);
+                        foreach (var name in functionNames)
+                        {
+                            AddFunction(name, del);
+                        }
                     }
                 }
             }

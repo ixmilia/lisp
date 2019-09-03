@@ -62,7 +62,8 @@
     (assert (= 4 (first l)) "list first")
     (assert (= 5 (second l)) "list second")
     (assert (= 6 (third l)) "list third")
-    (assert (= '(5 6) (rest l)) "list rest"))
+    (assert (= '(5 6) (rest l)) "list rest")
+    (assert (= 4 (car l)) "list car"))
 
 (&& (add-list)
     (sub-list)

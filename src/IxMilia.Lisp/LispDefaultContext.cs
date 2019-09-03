@@ -139,6 +139,7 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("car")]
         [LispFunction("first")]
         public LispObject First(LispHost host, LispObject[] args)
         {
@@ -160,6 +161,7 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("cadr")]
         [LispFunction("second")]
         public LispObject Second(LispHost host, LispObject[] args)
         {
@@ -181,6 +183,7 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("caddr")]
         [LispFunction("third")]
         public LispObject Third(LispHost host, LispObject[] args)
         {
@@ -202,6 +205,7 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("cdr")]
         [LispFunction("rest")]
         public LispObject Rest(LispHost host, LispObject[] args)
         {
