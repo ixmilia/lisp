@@ -27,15 +27,15 @@
     (assert
         (=
             (&& nil
-                (undefined-function)))
+                (undefined-function))
             nil)
-        "short-circuit-and")
+        "short-circuit-and"))
 
 (defun short-circuit-or ()
     (assert
         (|| t
-            (undefined-function)))
-        "short-circuit-or")
+            (undefined-function))
+        "short-circuit-or"))
 
 (defun built-in-predicates ()
     (assert
@@ -51,6 +51,11 @@
             (not (oddp 2)))
         "built-in-predicates"))
 
+(defun nil-equality ()
+    (assert
+        (= nil ())
+        "nil-equality"))
+
 (&& (add-list)
     (sub-list)
     (mul-list)
@@ -59,4 +64,5 @@
     (short-circuit-and)
     (short-circuit-or)
     (built-in-predicates)
+    (nil-equality)
 )

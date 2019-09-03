@@ -20,8 +20,8 @@ namespace IxMilia.Lisp
         private LispScope _scope;
         private LispStackFrame _currentFrame = new LispStackFrame("<root>", null);
 
-        public LispSymbol Nil => GetValue<LispSymbol>(NilString);
-        public LispSymbol T => GetValue<LispSymbol>(TString);
+        public LispObject Nil => GetValue<LispList>(NilString);
+        public LispObject T => GetValue<LispSymbol>(TString);
 
         public LispHost()
         {
@@ -32,12 +32,8 @@ namespace IxMilia.Lisp
 
         private void AddWellKnownSymbols()
         {
-            void addSymbol(string name)
-            {
-                SetValue(name, new LispSymbol(name));
-            }
-            addSymbol(NilString);
-            addSymbol(TString);
+            SetValue(TString, new LispSymbol(TString));
+            SetValue(NilString, new LispList());
         }
 
         public void AddMacro(string name, LispMacroDelegate del)
@@ -180,7 +176,7 @@ namespace IxMilia.Lisp
 
         private LispObject EvalList(LispList list)
         {
-            if (list.IsQuoted)
+            if (list.IsQuoted || list.IsNil)
             {
                 return list;
             }

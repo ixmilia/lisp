@@ -152,7 +152,7 @@ namespace IxMilia.Lisp
         [LispFunction("=")]
         public LispObject Equal(LispHost host, LispObject[] args)
         {
-            return Fold(host, args, (a, b) => a == b);
+            return FoldObj(host, args, (a, b) => a.Equals(b));
         }
 
         [LispFunction("!=")]
@@ -317,6 +317,31 @@ namespace IxMilia.Lisp
             }
 
             return result;
+        }
+
+        private static LispObject FoldObj(LispHost host, LispObject[] args, Func<LispObject, LispObject, bool> operation)
+        {
+            if (args.Length < 2)
+            {
+                return new LispError("At least 2 arguments needed");
+            }
+
+            if (args[0] is LispError)
+            {
+                return args[0];
+            }
+
+            var result = true;
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                result &= operation(args[i], args[i + 1]);
+                if (!result)
+                {
+                    return host.Nil;
+                }
+            }
+
+            return host.T;
         }
 
         private static LispObject Fold(LispHost host, LispObject[] args, Func<double, double, bool> operation)

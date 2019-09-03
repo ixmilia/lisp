@@ -172,6 +172,9 @@ namespace IxMilia.Lisp
         public bool IsQuoted { get; set; }
         public List<LispObject> Value { get; set; }
 
+        public bool IsEmpty => Value.Count == 0;
+        public bool IsNil => IsEmpty;
+
         public LispList(params LispObject[] value)
             : this((IEnumerable<LispObject>)value)
         {
