@@ -45,7 +45,7 @@ namespace IxMilia.Lisp.Test
         public void DottedList()
         {
             var list = (LispList)SingleSyntaxNode("(1 . 2)");
-            Assert.Equal(2, list.Length);
+            Assert.Equal(1, list.Length);
             Assert.Equal(new[] { 1.0, 2.0 }, list.ToList().Cast<LispNumber>().Select(n => n.Value).ToArray());
             Assert.False(list.IsProperList);
         }

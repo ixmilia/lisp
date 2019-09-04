@@ -223,7 +223,7 @@ namespace IxMilia.Lisp
             }
             else
             {
-                Length = 2; // `Value` + `Next`
+                Length = 1; // `Value`; improper tail isn't counted
             }
         }
 
