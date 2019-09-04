@@ -11,7 +11,7 @@ namespace IxMilia.Lisp
             // TODO: validate arg types and count
             var macroNameSymbol = (LispSymbol)args[0];
             var macroName = macroNameSymbol.Value;
-            var macroArgs = ((LispList)args[1]).Value.Cast<LispSymbol>().Select(s => s.Value);
+            var macroArgs = ((LispList)args[1]).ToList().Cast<LispSymbol>().Select(s => s.Value);
             // TODO: allow docstring
             var macroBody = args.Skip(2);
             var macro = new LispMacro(macroName, macroArgs, macroBody)
@@ -28,7 +28,7 @@ namespace IxMilia.Lisp
         {
             // TODO: properly validate types and arg counts
             var name = ((LispSymbol)args[0]).Value;
-            var functionArgs = ((LispList)args[1]).Value.Cast<LispSymbol>().Select(a => a.Value);
+            var functionArgs = ((LispList)args[1]).ToList().Cast<LispSymbol>().Select(s => s.Value);
             var commands = args.Skip(2);
             var function = new LispFunction(name, functionArgs, commands);
             host.SetValue(name, function);
@@ -131,7 +131,7 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                return new LispNumber(list.Value.Count);
+                return new LispNumber(list.Length);
             }
             else
             {
@@ -146,14 +146,7 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                if (list.Value.Count >= 1)
-                {
-                    return list.Value[0];
-                }
-                else
-                {
-                    return host.Nil;
-                }
+                return list.Value;
             }
             else
             {
@@ -168,14 +161,7 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                if (list.Value.Count >= 2)
-                {
-                    return list.Value[1];
-                }
-                else
-                {
-                    return host.Nil;
-                }
+                return list.Rest.Value;
             }
             else
             {
@@ -190,14 +176,7 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                if (list.Value.Count >= 3)
-                {
-                    return list.Value[2];
-                }
-                else
-                {
-                    return host.Nil;
-                }
+                return list.Rest.Rest.Value;
             }
             else
             {
@@ -212,14 +191,7 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                if (list.Value.Count >= 1)
-                {
-                    return new LispList(list.Value.Skip(1));
-                }
-                else
-                {
-                    return host.Nil;
-                }
+                return list.Rest;
             }
             else
             {

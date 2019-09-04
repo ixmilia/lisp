@@ -93,7 +93,16 @@ namespace IxMilia.Lisp.Parser
                 return new LispError($"Unmatched '(' at ({_leftParens.Peek().Line}, {_leftParens.Peek().Column}) (depth {_leftParens.Count})");
             }
 
-            return new LispList(left.IsQuoted, elements);
+            if (elements.Any())
+            {
+                var result = LispList.FromEnumerable(elements);
+                result.IsQuoted = left.IsQuoted;
+                return result;
+            }
+            else
+            {
+                return LispNilList.Instance;
+            }
         }
 
         private bool TryPeek(out LispToken token)

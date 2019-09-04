@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -170,54 +171,100 @@ namespace IxMilia.Lisp
 
     public class LispList : LispObject
     {
-        public bool IsQuoted { get; set; }
-        public List<LispObject> Value { get; set; }
+        public bool IsQuoted { get; internal set; }
+        public virtual LispObject Value { get; }
+        public virtual LispList Rest { get; }
+        public virtual int Length { get; }
+        public virtual bool IsNil { get; }
 
-        public bool IsEmpty => Value.Count == 0;
-        public bool IsNil => IsEmpty;
-
-        public LispList(params LispObject[] value)
-            : this((IEnumerable<LispObject>)value)
+        protected LispList()
         {
         }
 
-        public LispList(IEnumerable<LispObject> value)
-            : this(false, value)
+        public LispList(LispObject value)
+            : this(value, LispNilList.Instance, false)
         {
         }
 
-        public LispList(bool isQuoted, params LispObject[] value)
-            : this(isQuoted, (IEnumerable<LispObject>)value)
+        public LispList(LispObject value, LispList rest)
+            : this(value, rest, false)
         {
         }
 
-        public LispList(bool isQuoted, IEnumerable<LispObject> value)
+        public LispList(LispObject value, LispList rest, bool isQuoted)
         {
+            Value = value;
+            Rest = rest;
             IsQuoted = isQuoted;
-            Value = value.ToList();
+            Length = rest.Length + 1;
+            IsNil = false;
+        }
+
+        public static LispList FromItems(params LispObject[] items)
+        {
+            return FromEnumerable(items);
+        }
+
+        public static LispList FromEnumerable(IEnumerable<LispObject> items)
+        {
+            LispList list = LispNilList.Instance;
+            foreach (var item in items.Reverse())
+            {
+                list = new LispList(item, list);
+            }
+
+            return list;
+        }
+
+        public IList<LispObject> ToList()
+        {
+            var items = new List<LispObject>();
+            var head = this;
+            while (!head.IsNil)
+            {
+                items.Add(head.Value);
+                head = head.Rest;
+            }
+
+            return items;
         }
 
         public override string ToString()
         {
-            return $"{(IsQuoted ? "'" : string.Empty)}({string.Join(" ", Value)})";
+            return $"{(IsQuoted ? "'" : string.Empty)}({Value}{Rest.ToStringTail()}";
+        }
+
+        protected virtual string ToStringTail()
+        {
+            return $" {Value}{Rest.ToStringTail()}";
         }
 
         public static bool operator ==(LispList a, LispList b)
         {
-            if (a?.Value.Count == b?.Value.Count)
+            if ((object)a == null && (object)b == null)
             {
-                for (int i = 0; i < a.Value.Count; i++)
-                {
-                    if (!a.Value[i].Equals(b.Value[i]))
-                    {
-                        return false;
-                    }
-                }
-
                 return true;
             }
-
-            return false;
+            if ((object)a == null || (object)b == null)
+            {
+                return false;
+            }
+            if (ReferenceEquals(a, b))
+            {
+                return true;
+            }
+            if (a.IsNil && b.IsNil)
+            {
+                return true;
+            }
+            if (a.Value.Equals(b.Value))
+            {
+                return a.Rest.Equals(b.Rest);
+            }
+            else
+            {
+                return false;
+            }
         }
 
         public static bool operator !=(LispList a, LispList b)
@@ -233,6 +280,30 @@ namespace IxMilia.Lisp
         public override int GetHashCode()
         {
             return Value.GetHashCode();
+        }
+    }
+
+    public class LispNilList : LispList
+    {
+        public readonly static LispNilList Instance = new LispNilList();
+
+        public override LispObject Value => this;
+        public override LispList Rest => this;
+        public override int Length => 0;
+        public override bool IsNil => true;
+
+        private LispNilList()
+        {
+        }
+
+        public override string ToString()
+        {
+            return "()";
+        }
+
+        protected override string ToStringTail()
+        {
+            return ")";
         }
     }
 

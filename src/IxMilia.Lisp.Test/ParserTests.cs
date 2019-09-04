@@ -32,12 +32,12 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public void ParseList()
         {
-            Assert.Empty(((LispList)SingleSyntaxNode("()")).Value);
-            Assert.Equal(new[] { "a" }, ((LispList)SingleSyntaxNode("(a)")).Value.Cast<LispSymbol>().Select(n => n.Value).ToArray());
-            Assert.Equal(new[] { 1.0 }, ((LispList)SingleSyntaxNode("(1)")).Value.Cast<LispNumber>().Select(n => n.Value).ToArray());
-            Assert.Equal(new[] { 1.0, 2.0 }, ((LispList)SingleSyntaxNode("(1 2)")).Value.Cast<LispNumber>().Select(n => n.Value).ToArray());
-            Assert.Equal(new[] { 1.0, 2.0, 3.0 }, ((LispList)SingleSyntaxNode("( 1 2 3 )")).Value.Cast<LispNumber>().Select(n => n.Value).ToArray());
-            Assert.Equal(new[] { typeof(LispNumber), typeof(LispSymbol)}, ((LispList)SingleSyntaxNode("( 1 x )")).Value.Select(e => e.GetType()).ToArray());
+            Assert.Empty(((LispList)SingleSyntaxNode("()")).ToList());
+            Assert.Equal(new[] { "a" }, ((LispList)SingleSyntaxNode("(a)")).ToList().Cast<LispSymbol>().Select(n => n.Value).ToArray());
+            Assert.Equal(new[] { 1.0 }, ((LispList)SingleSyntaxNode("(1)")).ToList().Cast<LispNumber>().Select(n => n.Value).ToArray());
+            Assert.Equal(new[] { 1.0, 2.0 }, ((LispList)SingleSyntaxNode("(1 2)")).ToList().Cast<LispNumber>().Select(n => n.Value).ToArray());
+            Assert.Equal(new[] { 1.0, 2.0, 3.0 }, ((LispList)SingleSyntaxNode("( 1 2 3 )")).ToList().Cast<LispNumber>().Select(n => n.Value).ToArray());
+            Assert.Equal(new[] { typeof(LispNumber), typeof(LispSymbol)}, ((LispList)SingleSyntaxNode("( 1 x )")).ToList().Select(e => e.GetType()).ToArray());
         }
 
         [Fact]

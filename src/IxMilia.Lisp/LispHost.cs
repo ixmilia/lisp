@@ -33,7 +33,7 @@ namespace IxMilia.Lisp
         private void AddWellKnownSymbols()
         {
             SetValue(TString, new LispSymbol(TString));
-            SetValue(NilString, new LispList());
+            SetValue(NilString, LispNilList.Instance);
         }
 
         public void AddMacro(string name, LispMacroDelegate del)
@@ -192,9 +192,9 @@ namespace IxMilia.Lisp
                 return list;
             }
 
-            var functionNameSymbol = (LispSymbol)list.Value.First();
+            var functionNameSymbol = (LispSymbol)list.Value;
             var functionName = functionNameSymbol.Value;
-            var args = list.Value.Skip(1).Select(GetMacroExpansion).ToArray();
+            var args = list.Rest.ToList().Select(GetMacroExpansion).ToArray();
             var value = GetValue(functionName);
             UpdateCallStackLocation(functionNameSymbol);
             LispObject result;
