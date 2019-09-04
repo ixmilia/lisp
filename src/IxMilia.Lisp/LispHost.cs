@@ -194,7 +194,7 @@ namespace IxMilia.Lisp
 
             var functionNameSymbol = (LispSymbol)list.Value;
             var functionName = functionNameSymbol.Value;
-            var args = list.Rest.ToList().Select(GetMacroExpansion).ToArray();
+            var args = list.ToList().Skip(1).Select(GetMacroExpansion).ToArray();
             var value = GetValue(functionName);
             UpdateCallStackLocation(functionNameSymbol);
             LispObject result;

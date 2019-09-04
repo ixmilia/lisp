@@ -79,7 +79,8 @@
     (assert (= nil (third nil)) "nil third")
     (assert (= '(1) (cons 1 nil)) "nil cons")
     (assert (= '(1 2 3) (cons 1 '(2 3))) "list cons")
-    (assert (= '(1 2 3) (list 1 2 3)) "create list"))
+    (assert (= '(1 2 3) (list 1 2 3)) "create list")
+    (assert (= '(1 . 2) (cons 1 2)) "dotted list"))
 
 (&& (add-list)
     (sub-list)

@@ -53,6 +53,12 @@ namespace IxMilia.Lisp.Tokens
                     MarkTokenStart();
                     yield return ApplyProperties(ParseRightParen());
                 }
+                else if (IsDot(c))
+                {
+                    MarkTokenStart();
+                    Advance();
+                    yield return ApplyProperties(new LispDotToken());
+                }
                 else if (IsMinus(c))
                 {
                     MarkTokenStart();

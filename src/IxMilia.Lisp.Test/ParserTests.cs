@@ -38,6 +38,25 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(new[] { 1.0, 2.0 }, ((LispList)SingleSyntaxNode("(1 2)")).ToList().Cast<LispNumber>().Select(n => n.Value).ToArray());
             Assert.Equal(new[] { 1.0, 2.0, 3.0 }, ((LispList)SingleSyntaxNode("( 1 2 3 )")).ToList().Cast<LispNumber>().Select(n => n.Value).ToArray());
             Assert.Equal(new[] { typeof(LispNumber), typeof(LispSymbol)}, ((LispList)SingleSyntaxNode("( 1 x )")).ToList().Select(e => e.GetType()).ToArray());
+            Assert.True(((LispList)SingleSyntaxNode("(1 2)")).IsProperList);
+        }
+
+        [Fact]
+        public void DottedList()
+        {
+            var list = (LispList)SingleSyntaxNode("(1 . 2)");
+            Assert.Equal(2, list.Length);
+            Assert.Equal(new[] { 1.0, 2.0 }, list.ToList().Cast<LispNumber>().Select(n => n.Value).ToArray());
+            Assert.False(list.IsProperList);
+        }
+
+        [Fact]
+        public void BadDottedList()
+        {
+            var error = (LispError)Parse("(1 2 . 3 . 4)").First();
+            Assert.Equal(1, error.Line);
+            Assert.Equal(10, error.Column);
+            Assert.Equal("Unexpected duplicate '.' in list at (1, 10); first '.' at (1, 6)", error.Message);
         }
 
         [Fact]

@@ -43,6 +43,16 @@ namespace IxMilia.Lisp.Tokens
         }
     }
 
+    public class LispDotToken : LispToken
+    {
+        public override LispTokenType Type => LispTokenType.Dot;
+
+        public override string ToString()
+        {
+            return ".";
+        }
+    }
+
     public class LispSymbolToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.Symbol;

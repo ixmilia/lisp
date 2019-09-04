@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -173,9 +172,30 @@ namespace IxMilia.Lisp
     {
         public bool IsQuoted { get; internal set; }
         public virtual LispObject Value { get; }
-        public virtual LispList Rest { get; }
+        public virtual LispObject Next { get; }
         public virtual int Length { get; }
         public virtual bool IsNil { get; }
+
+        public bool IsProperList
+        {
+            get
+            {
+                var list = this;
+                while (!list.IsNil)
+                {
+                    if (list.Next is LispList next)
+                    {
+                        list = next;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+        }
 
         protected LispList()
         {
@@ -186,18 +206,25 @@ namespace IxMilia.Lisp
         {
         }
 
-        public LispList(LispObject value, LispList rest)
-            : this(value, rest, false)
+        public LispList(LispObject value, LispObject next)
+            : this(value, next, false)
         {
         }
 
-        public LispList(LispObject value, LispList rest, bool isQuoted)
+        public LispList(LispObject value, LispObject next, bool isQuoted)
         {
             Value = value;
-            Rest = rest;
+            Next = next;
             IsQuoted = isQuoted;
-            Length = rest.Length + 1;
             IsNil = false;
+            if (next is LispList list)
+            {
+                Length = list.Length + 1;
+            }
+            else
+            {
+                Length = 2; // `Value` + `Next`
+            }
         }
 
         public static LispList FromItems(params LispObject[] items)
@@ -216,6 +243,25 @@ namespace IxMilia.Lisp
             return list;
         }
 
+        public static LispList FromItemsImproper(LispObject first, LispObject second, params LispObject[] rest)
+        {
+            return FromEnumerableImproper(first, second, rest);
+        }
+
+        public static LispList FromEnumerableImproper(LispObject first, LispObject second, IEnumerable<LispObject> rest)
+        {
+            // guaranteed to contain at least 2 items
+            var allItems = new[] { first, second }.Concat(rest).ToList();
+
+            var list = new LispList(allItems[allItems.Count - 2], allItems[allItems.Count - 1]);
+            for (int i = allItems.Count - 3; i >= 0; i--)
+            {
+                list = new LispList(allItems[i], list);
+            }
+
+            return list;
+        }
+
         public IList<LispObject> ToList()
         {
             var items = new List<LispObject>();
@@ -223,7 +269,15 @@ namespace IxMilia.Lisp
             while (!head.IsNil)
             {
                 items.Add(head.Value);
-                head = head.Rest;
+                if (head.Next is LispList next)
+                {
+                    head = next;
+                }
+                else
+                {
+                    items.Add(head.Next);
+                    break;
+                }
             }
 
             return items;
@@ -231,12 +285,27 @@ namespace IxMilia.Lisp
 
         public override string ToString()
         {
-            return $"{(IsQuoted ? "'" : string.Empty)}({Value}{Rest.ToStringTail()}";
+            return $"{(IsQuoted ? "'" : string.Empty)}({Value}{NextToString()}";
         }
 
         protected virtual string ToStringTail()
         {
-            return $" {Value}{Rest.ToStringTail()}";
+            return $" {Value}{NextToString()}";
+        }
+
+        private string NextToString()
+        {
+            string nextString;
+            if (Next is LispList list)
+            {
+                nextString = list.ToStringTail();
+            }
+            else
+            {
+                nextString = $" . {Next})";
+            }
+
+            return nextString;
         }
 
         public static bool operator ==(LispList a, LispList b)
@@ -259,7 +328,7 @@ namespace IxMilia.Lisp
             }
             if (a.Value.Equals(b.Value))
             {
-                return a.Rest.Equals(b.Rest);
+                return a.Next.Equals(b.Next);
             }
             else
             {
@@ -288,7 +357,7 @@ namespace IxMilia.Lisp
         public readonly static LispNilList Instance = new LispNilList();
 
         public override LispObject Value => this;
-        public override LispList Rest => this;
+        public override LispObject Next => this;
         public override int Length => 0;
         public override bool IsNil => true;
 

@@ -153,7 +153,7 @@ namespace IxMilia.Lisp
         public LispObject Cons(LispHost host, LispObject[] args)
         {
             // TODO: validate arguments
-            return new LispList(args[0], (LispList)args[1]);
+            return new LispList(args[0], args[1]);
         }
 
         [LispFunction("list")]
@@ -198,7 +198,19 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                return list.Rest.Value;
+                for (int i = 1; i < 2; i++)
+                {
+                    if (list.Next is LispList next)
+                    {
+                        list = next;
+                    }
+                    else
+                    {
+                        return new LispError($"Expected a list at index {i}");
+                    }
+                }
+
+                return list.Value;
             }
             else
             {
@@ -213,7 +225,19 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                return list.Rest.Rest.Value;
+                for (int i = 1; i < 3; i++)
+                {
+                    if (list.Next is LispList next)
+                    {
+                        list = next;
+                    }
+                    else
+                    {
+                        return new LispError($"Expected a list at index {i}");
+                    }
+                }
+
+                return list.Value;
             }
             else
             {
@@ -228,7 +252,7 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                return list.Rest;
+                return list.Next;
             }
             else
             {

@@ -48,6 +48,11 @@ namespace IxMilia.Lisp.Parser
                         _leftParens.Push(left);
                         result = ParseList(left);
                         break;
+                    case LispDotToken _:
+                        // This should have been handled in `ParseList()`
+                        Advance();
+                        result = new LispError($"Unexpected '.' at ({token.Line}, {token.Column})");
+                        break;
                     case LispRightParenToken _:
                         // This should have been handled in `ParseList()`
                         Advance();
@@ -57,8 +62,12 @@ namespace IxMilia.Lisp.Parser
 
                 if (result != null)
                 {
-                    result.Line = token.Line;
-                    result.Column = token.Column;
+                    if (result.Line == 0 && result.Column == 0)
+                    {
+                        result.Line = token.Line;
+                        result.Column = token.Column;
+                    }
+
                     return true;
                 }
             }
@@ -69,11 +78,28 @@ namespace IxMilia.Lisp.Parser
         private LispObject ParseList(LispLeftParenToken left)
         {
             var elements = new List<LispObject>();
+            var tailElements = new List<LispObject>();
+            LispDotToken dot = null;
             LispRightParenToken rightParen = null;
             while (rightParen == null && TryPeek(out var token))
             {
                 switch (token.Type)
                 {
+                    case LispTokenType.Dot:
+                        Advance();
+                        if (dot == null)
+                        {
+                            dot = (LispDotToken)token;
+                        }
+                        else
+                        {
+                            return new LispError($"Unexpected duplicate '.' in list at ({token.Line}, {token.Column}); first '.' at ({dot.Line}, {dot.Column})")
+                            {
+                                Line = token.Line,
+                                Column = token.Column
+                            };
+                        }
+                        break;
                     case LispTokenType.RightParen:
                         Advance();
                         _leftParens.Pop();
@@ -82,7 +108,14 @@ namespace IxMilia.Lisp.Parser
                     default:
                         if (TryParseExpression(out var element))
                         {
-                            elements.Add(element);
+                            if (dot == null)
+                            {
+                                elements.Add(element);
+                            }
+                            else
+                            {
+                                tailElements.Add(element);
+                            }
                         }
                         break;
                 }
@@ -93,9 +126,31 @@ namespace IxMilia.Lisp.Parser
                 return new LispError($"Unmatched '(' at ({_leftParens.Peek().Line}, {_leftParens.Peek().Column}) (depth {_leftParens.Count})");
             }
 
-            if (elements.Any())
+            if (elements.Any() || tailElements.Any())
             {
-                var result = LispList.FromEnumerable(elements);
+                LispList result;
+                if (dot == null)
+                {
+                    result = LispList.FromEnumerable(elements);
+                }
+                else
+                {
+                    if (!tailElements.Any())
+                    {
+                        return new LispError("");
+                    }
+                    else if (tailElements.Count > 1)
+                    {
+                        return new LispError("");
+                    }
+                    else
+                    {
+                        // there are at least 2 items in total here
+                        var allItems = elements.Concat(tailElements).ToList();
+                        result = LispList.FromEnumerableImproper(allItems[0], allItems[1], allItems.Skip(2));
+                    }
+                }
+
                 result.IsQuoted = left.IsQuoted;
                 return result;
             }
