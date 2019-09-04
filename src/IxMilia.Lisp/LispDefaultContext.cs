@@ -116,6 +116,30 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("listp")]
+        public LispObject ListP(LispHost host, LispObject[] args)
+        {
+            // TODO: validate single argument
+            return args[0] is LispList
+                ? host.T
+                : host.Nil;
+        }
+
+        [LispFunction("consp")]
+        public LispObject ConsP(LispHost host, LispObject[] args)
+        {
+            return args[0] is LispList list && !list.IsNil
+                ? host.T
+                : host.Nil;
+        }
+
+        [LispFunction("atom")]
+        public LispObject Atom(LispHost host, LispObject[] args)
+        {
+            // anything other than a cons cell
+            return Not(host, new[] { ConsP(host, args) });
+        }
+
         [LispFunction("not")]
         public LispObject Not(LispHost host, LispObject[] args)
         {
@@ -123,6 +147,19 @@ namespace IxMilia.Lisp
             return host.Nil.Equals(args[0])
                 ? host.T
                 : host.Nil;
+        }
+
+        [LispFunction("cons")]
+        public LispObject Cons(LispHost host, LispObject[] args)
+        {
+            // TODO: validate arguments
+            return new LispList(args[0], (LispList)args[1]);
+        }
+
+        [LispFunction("list")]
+        public LispObject List(LispHost host, LispObject[] args)
+        {
+            return LispList.FromEnumerable(args);
         }
 
         [LispFunction("length")]
