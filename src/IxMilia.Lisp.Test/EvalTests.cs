@@ -109,16 +109,19 @@ namespace IxMilia.Lisp.Test
             Assert.False(list.IsProperList);
             Assert.Equal(-3, list.Length); // not dictated anywhere, simply convention
             Assert.Equal(new LispNumber(3), list.Value);
+            Assert.Equal("#1=(3 4 5 . #1#)", list.ToString());
 
             list = (LispList)host.Eval("#1=(#1# . 2)");
             Assert.False(list.IsProperList);
             Assert.Equal(-1, list.Length);
             Assert.Equal(new LispNumber(2), list.Next);
             Assert.True(ReferenceEquals(list, list.Value));
+            Assert.Equal("#1=(#1# . 2)", list.ToString());
 
             list = (LispList)host.Eval("#1=(2 3 #1#)");
             Assert.True(list.IsProperList);
             Assert.Equal(-3, list.Length);
+            Assert.Equal("#1=(2 3 #1#)", list.ToString());
         }
     }
 }

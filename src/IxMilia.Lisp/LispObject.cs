@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using IxMilia.Lisp.Tokens;
 
@@ -366,8 +367,11 @@ namespace IxMilia.Lisp
         }
     }
 
+    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     internal class LispCircularList : LispList
     {
+        private static int _refNumber = 1;
+
         private LispObject _value;
         private LispObject _next;
         private int _length;
@@ -377,6 +381,8 @@ namespace IxMilia.Lisp
         public override LispObject Next => _next;
         public override int Length => _length;
         public override bool IsProperList => _isProperList;
+
+        private string DebuggerDisplay => "(...)";
 
         public LispCircularList()
         {
@@ -392,14 +398,73 @@ namespace IxMilia.Lisp
 
         public override string ToString()
         {
-            // TODO: find a better way of displaying this
-            return "(...)";
+            var isFirstInvocation = _refNumber == 1;
+            var thisRefNumber = _refNumber++;
+
+            var selfWrittenIndices = new List<int>();
+            var values = new List<string>();
+            var current = (LispObject)this;
+            var itemCount = Math.Abs(Length);
+            if (!IsProperList)
+            {
+                itemCount++;
+            }
+
+            for (int i = 0; i < itemCount; i++)
+            {
+                LispObject currentValue;
+                LispObject next;
+                if (current is LispList list)
+                {
+                    currentValue = list.Value;
+                    next = list.Next;
+                }
+                else
+                {
+                    currentValue = current;
+                    next = null;
+                }
+
+                if (ReferenceEquals(this, current) || ReferenceEquals(this, currentValue))
+                {
+                    selfWrittenIndices.Add(i);
+                    values.Add($"#{thisRefNumber}#");
+                }
+                else
+                {
+                    values.Add(currentValue.ToString());
+                }
+
+                current = next;
+            }
+
+            if (selfWrittenIndices.Count > 1 && !ReferenceEquals(this, Value))
+            {
+                values[selfWrittenIndices[0]] = Value.ToString();
+            }
+
+            if (!IsProperList && values.Count >= 2)
+            {
+                var penult = values[values.Count - 2];
+                var ultima = values[values.Count - 1];
+                values.RemoveAt(values.Count - 1);
+                values.RemoveAt(values.Count - 1);
+                values.Add($"{penult} . {ultima}");
+            }
+
+            if (isFirstInvocation)
+            {
+                _refNumber = 1;
+            }
+
+            var result = $"#{thisRefNumber}=({string.Join(" ", values)})";
+            return result;
         }
 
         protected override string ToStringTail()
         {
             // TODO: find a better way of displaying this
-            return "...)";
+            return " ...)";
         }
     }
 
