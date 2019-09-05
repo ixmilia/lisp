@@ -31,6 +31,10 @@ namespace IxMilia.Lisp.Parser
             {
                 switch (token)
                 {
+                    case LispErrorToken error:
+                        Advance();
+                        result = new LispError(error.Message);
+                        break;
                     case LispSymbolToken symbol:
                         Advance();
                         result = new LispSymbol(symbol.IsQuoted, symbol.Value);
@@ -47,6 +51,10 @@ namespace IxMilia.Lisp.Parser
                         Advance();
                         _leftParens.Push(left);
                         result = ParseList(left);
+                        break;
+                    case LispForwardReferenceToken forwardRef:
+                        Advance();
+                        result = ParseForwardReferenceList(forwardRef);
                         break;
                     case LispDotToken _:
                         // This should have been handled in `ParseList()`
@@ -73,6 +81,23 @@ namespace IxMilia.Lisp.Parser
             }
 
             return false;
+        }
+
+        private LispObject ParseForwardReferenceList(LispForwardReferenceToken forwardRef)
+        {
+            if (TryPeek(out var token) && token is LispLeftParenToken leftParen)
+            {
+                Advance();
+                _leftParens.Push(leftParen);
+                var next = ParseList(leftParen);
+                if (next is LispList innerList)
+                {
+                    //innerList.IsQuoted = true; // force this so it's not evaluated later
+                    return new LispForwardListReference(forwardRef, innerList);
+                }
+            }
+
+            return new LispError("Expected following list");
         }
 
         private LispObject ParseList(LispLeftParenToken left)

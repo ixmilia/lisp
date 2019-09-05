@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -58,6 +59,11 @@ namespace IxMilia.Lisp.Tokens
                     MarkTokenStart();
                     Advance();
                     yield return ApplyProperties(new LispDotToken());
+                }
+                else if (IsHash(c))
+                {
+                    MarkTokenStart();
+                    yield return ApplyProperties(ParseForwardReference());
                 }
                 else if (IsMinus(c))
                 {
@@ -240,6 +246,36 @@ namespace IxMilia.Lisp.Tokens
             Debug.Assert(TryPeek(out var c) && IsRightParen(c));
             Advance();
             return new LispRightParenToken();
+        }
+
+        private LispToken ParseForwardReference()
+        {
+            Debug.Assert(TryPeek(out var c) && IsHash(c));
+            var builder = new StringBuilder();
+            builder.Append(c);
+            Advance();
+            while (TryPeek(out c) && IsDigit(c))
+            {
+                builder.Append(c);
+                Advance();
+            }
+
+            if (TryPeek(out c) && IsEquals(c))
+            {
+                builder.Append(c);
+                Advance();
+                return new LispForwardReferenceToken(builder.ToString());
+            }
+            else if (TryPeek(out c) && IsHash(c))
+            {
+                builder.Append(c);
+                Advance();
+                return new LispSymbolToken(false, builder.ToString());
+            }
+            else
+            {
+                return new LispErrorToken(builder.ToString(), "Expected either '#' or '='.");
+            }
         }
 
         private LispSymbolToken ParseSymbol(string existing = null)
@@ -478,6 +514,16 @@ namespace IxMilia.Lisp.Tokens
         private static bool IsDoubleQuote(char c)
         {
             return c == '"';
+        }
+
+        private static bool IsHash(char c)
+        {
+            return c == '#';
+        }
+
+        private static bool IsEquals(char c)
+        {
+            return c == '=';
         }
     }
 }

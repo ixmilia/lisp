@@ -173,6 +173,8 @@ namespace IxMilia.Lisp
                     return EvalSymbol(symbol);
                 case LispList list:
                     return EvalList(list);
+                case LispForwardListReference forwardRef:
+                    return EvalForwardReference(forwardRef);
                 default:
                     return Nil;
             }
@@ -275,6 +277,31 @@ namespace IxMilia.Lisp
             }
 
             TryApplyLocation(result, functionNameSymbol);
+            return result;
+        }
+
+        private LispObject EvalForwardReference(LispForwardListReference forwardRef)
+        {
+            LispObject result;
+            var finalList = new LispCircularList();
+            SetValue(forwardRef.ForwardReference.SymbolReference, finalList);
+            var values = forwardRef.List.ToList();
+            var evaluatedValues = values.Select(Eval);
+            var firstError = evaluatedValues.OfType<LispError>().FirstOrDefault();
+            if (firstError != null)
+            {
+                result = firstError;
+            }
+            else
+            {
+                var tempList = forwardRef.List.IsProperList
+                    ? LispList.FromEnumerable(evaluatedValues)
+                    : LispList.FromEnumerableImproper(evaluatedValues.First(), evaluatedValues.Skip(1).First(), evaluatedValues.Skip(2));
+                finalList.ApplyForCircularReference(tempList, isProperList: forwardRef.List.IsProperList);
+                result = finalList;
+            }
+
+            TryApplyLocation(result, forwardRef);
             return result;
         }
 

@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace IxMilia.Lisp.Tokens
 {
     public abstract class LispToken
@@ -14,6 +16,19 @@ namespace IxMilia.Lisp.Tokens
             Column = 0;
             LeadingTrivia = new LispTriviaCollection();
             TrailingTrivia = new LispTriviaCollection();
+        }
+    }
+
+    public class LispErrorToken : LispToken
+    {
+        public override LispTokenType Type => LispTokenType.Error;
+        public string Value { get; }
+        public string Message { get; }
+
+        public LispErrorToken(string value, string message)
+        {
+            Value = value;
+            Message = message;
         }
     }
 
@@ -50,6 +65,20 @@ namespace IxMilia.Lisp.Tokens
         public override string ToString()
         {
             return ".";
+        }
+    }
+
+    internal class LispForwardReferenceToken : LispToken
+    {
+        public override LispTokenType Type => (LispTokenType)(-1); // not used
+        public string SymbolReference { get; }
+
+        public LispForwardReferenceToken(string value)
+        {
+            // e.g., value = "#123="
+            Debug.Assert(value.StartsWith("#"));
+            Debug.Assert(value.EndsWith("="));
+            SymbolReference = value.Substring(0, value.Length - 1) + "#"; // e.g., #123#
         }
     }
 

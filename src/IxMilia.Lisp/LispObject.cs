@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
 {
@@ -168,6 +170,18 @@ namespace IxMilia.Lisp
         }
     }
 
+    internal class LispForwardListReference : LispObject
+    {
+        public LispForwardReferenceToken ForwardReference { get; }
+        public LispList List { get; }
+
+        public LispForwardListReference(LispForwardReferenceToken forwardReference, LispList list)
+        {
+            ForwardReference = forwardReference;
+            List = list;
+        }
+    }
+
     public class LispList : LispObject
     {
         public bool IsQuoted { get; internal set; }
@@ -176,7 +190,7 @@ namespace IxMilia.Lisp
         public virtual int Length { get; }
         public virtual bool IsNil { get; }
 
-        public bool IsProperList
+        public virtual bool IsProperList
         {
             get
             {
@@ -197,7 +211,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        protected LispList()
+        internal LispList()
         {
         }
 
@@ -349,6 +363,43 @@ namespace IxMilia.Lisp
         public override int GetHashCode()
         {
             return Value.GetHashCode();
+        }
+    }
+
+    internal class LispCircularList : LispList
+    {
+        private LispObject _value;
+        private LispObject _next;
+        private int _length;
+        private bool _isProperList;
+
+        public override LispObject Value => _value;
+        public override LispObject Next => _next;
+        public override int Length => _length;
+        public override bool IsProperList => _isProperList;
+
+        public LispCircularList()
+        {
+        }
+
+        public void ApplyForCircularReference(LispList otherList, bool isProperList)
+        {
+            _value = otherList.Value;
+            _next = otherList.Next;
+            _length = -Math.Abs(otherList.Length);
+            _isProperList = isProperList;
+        }
+
+        public override string ToString()
+        {
+            // TODO: find a better way of displaying this
+            return "(...)";
+        }
+
+        protected override string ToStringTail()
+        {
+            // TODO: find a better way of displaying this
+            return "...)";
         }
     }
 

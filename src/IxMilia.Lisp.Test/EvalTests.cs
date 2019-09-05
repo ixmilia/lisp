@@ -100,5 +100,25 @@ namespace IxMilia.Lisp.Test
     (""two""))");
             Assert.Equal("two", result.Value);
         }
+
+        [Fact]
+        public void CircularLists()
+        {
+            var host = new LispHost();
+            var list = (LispList)host.Eval("#1=(3 4 5 . #1#)");
+            Assert.False(list.IsProperList);
+            Assert.Equal(-3, list.Length); // not dictated anywhere, simply convention
+            Assert.Equal(new LispNumber(3), list.Value);
+
+            list = (LispList)host.Eval("#1=(#1# . 2)");
+            Assert.False(list.IsProperList);
+            Assert.Equal(-1, list.Length);
+            Assert.Equal(new LispNumber(2), list.Next);
+            Assert.True(ReferenceEquals(list, list.Value));
+
+            list = (LispList)host.Eval("#1=(2 3 #1#)");
+            Assert.True(list.IsProperList);
+            Assert.Equal(-3, list.Length);
+        }
     }
 }
