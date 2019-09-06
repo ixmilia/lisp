@@ -35,6 +35,19 @@ namespace IxMilia.Lisp
             return host.Nil;
         }
 
+        [LispFunction("eval")]
+        public LispObject Eval(LispHost host, LispObject[] args)
+        {
+            if (args.Length == 1)
+            {
+                return host.Eval(args[0]);
+            }
+            else
+            {
+                return new LispError("Expected single argument");
+            }
+        }
+
         [LispMacro("setq")]
         public LispObject SetValue(LispHost host, LispObject[] args)
         {

@@ -169,6 +169,8 @@ namespace IxMilia.Lisp
                 case LispNumber _:
                 case LispString _:
                     return obj;
+                case LispQuotedObject quote:
+                    return quote.Value;
                 case LispSymbol symbol:
                     return EvalSymbol(symbol);
                 case LispList list:
@@ -182,14 +184,12 @@ namespace IxMilia.Lisp
 
         private LispObject EvalSymbol(LispSymbol symbol)
         {
-            return symbol.IsQuoted
-                ? symbol
-                : GetValue(symbol.Value);
+            return GetValue(symbol.Value);
         }
 
         private LispObject EvalList(LispList list)
         {
-            if (list.IsQuoted || list.IsNil)
+            if (list.IsNil)
             {
                 return list;
             }

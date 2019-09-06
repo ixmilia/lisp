@@ -12,6 +12,52 @@ namespace IxMilia.Lisp
         public int Column { get; internal set; }
     }
 
+    public class LispQuotedObject : LispObject
+    {
+        public LispObject Value { get; }
+
+        public LispQuotedObject(LispObject value)
+        {
+            Value = value;
+        }
+
+        public override string ToString()
+        {
+            return string.Concat("'", Value.ToString());
+        }
+
+        public static bool operator ==(LispQuotedObject a, LispQuotedObject b)
+        {
+            if (a is null && b is null)
+            {
+                return true;
+            }
+            else if (a is null || b is null)
+            {
+                return false;
+            }
+            else
+            {
+                return a.Value.Equals(b.Value);
+            }
+        }
+
+        public static bool operator !=(LispQuotedObject a, LispQuotedObject b)
+        {
+            return !(a == b);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is LispQuotedObject && this == (LispQuotedObject)obj;
+        }
+
+        public override int GetHashCode()
+        {
+            return Value.GetHashCode();
+        }
+    }
+
     public class LispError : LispObject
     {
         public string Message { get; }
@@ -37,17 +83,10 @@ namespace IxMilia.Lisp
 
     public class LispSymbol : LispObject
     {
-        public bool IsQuoted { get; set; }
         public string Value { get; set; }
 
         public LispSymbol(string value)
-            : this(false, value)
         {
-        }
-
-        public LispSymbol(bool isQuoted, string value)
-        {
-            IsQuoted = isQuoted;
             Value = value;
         }
 
@@ -185,7 +224,6 @@ namespace IxMilia.Lisp
 
     public class LispList : LispObject
     {
-        public bool IsQuoted { get; internal set; }
         public virtual LispObject Value { get; }
         public virtual LispObject Next { get; }
         public virtual int Length { get; }
@@ -217,20 +255,14 @@ namespace IxMilia.Lisp
         }
 
         public LispList(LispObject value)
-            : this(value, LispNilList.Instance, false)
+            : this(value, LispNilList.Instance)
         {
         }
 
         public LispList(LispObject value, LispObject next)
-            : this(value, next, false)
-        {
-        }
-
-        public LispList(LispObject value, LispObject next, bool isQuoted)
         {
             Value = value;
             Next = next;
-            IsQuoted = isQuoted;
             IsNil = false;
             if (next is LispList list)
             {
@@ -300,7 +332,7 @@ namespace IxMilia.Lisp
 
         public override string ToString()
         {
-            return $"{(IsQuoted ? "'" : string.Empty)}({Value}{NextToString()}";
+            return $"({Value}{NextToString()}";
         }
 
         protected virtual string ToStringTail()

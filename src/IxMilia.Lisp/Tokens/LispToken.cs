@@ -35,12 +35,6 @@ namespace IxMilia.Lisp.Tokens
     public class LispLeftParenToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.LeftParen;
-        public bool IsQuoted { get; }
-
-        public LispLeftParenToken(bool isQuoted)
-        {
-            IsQuoted = isQuoted;
-        }
 
         public override string ToString()
         {
@@ -55,6 +49,16 @@ namespace IxMilia.Lisp.Tokens
         public override string ToString()
         {
             return ")";
+        }
+    }
+
+    public class LispSingleQuoteToken : LispToken
+    {
+        public override LispTokenType Type => LispTokenType.SingleQuote;
+
+        public override string ToString()
+        {
+            return "'";
         }
     }
 
@@ -85,12 +89,10 @@ namespace IxMilia.Lisp.Tokens
     public class LispSymbolToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.Symbol;
-        public bool IsQuoted { get; }
         public string Value { get; }
 
-        public LispSymbolToken(bool isQuoted, string value)
+        public LispSymbolToken(string value)
         {
-            IsQuoted = isQuoted;
             Value = value;
         }
 

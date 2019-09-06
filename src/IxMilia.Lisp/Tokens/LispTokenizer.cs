@@ -14,7 +14,6 @@ namespace IxMilia.Lisp.Tokens
         private int _tokenStartColumn;
         private int _offset;
         private char[] _characters;
-        private bool _isQuoting;
         private List<LispTrivia> _triviaBuilder;
 
         public LispTokenizer(char[] chars)
@@ -41,8 +40,9 @@ namespace IxMilia.Lisp.Tokens
                 }
                 else if (IsSingleQuote(c))
                 {
+                    MarkTokenStart();
                     Advance();
-                    _isQuoting = true;
+                    yield return ApplyProperties(new LispSingleQuoteToken());
                 }
                 else if (IsLeftParen(c))
                 {
@@ -236,8 +236,7 @@ namespace IxMilia.Lisp.Tokens
         {
             Debug.Assert(TryPeek(out var c) && IsLeftParen(c));
             Advance();
-            var left = new LispLeftParenToken(_isQuoting);
-            _isQuoting = false;
+            var left = new LispLeftParenToken();
             return left;
         }
 
@@ -270,7 +269,7 @@ namespace IxMilia.Lisp.Tokens
             {
                 builder.Append(c);
                 Advance();
-                return new LispSymbolToken(false, builder.ToString());
+                return new LispSymbolToken(builder.ToString());
             }
             else
             {
@@ -288,8 +287,7 @@ namespace IxMilia.Lisp.Tokens
             }
 
             var text = builder.ToString();
-            var token = new LispSymbolToken(_isQuoting, text);
-            _isQuoting = false;
+            var token = new LispSymbolToken(text);
             return token;
         }
 

@@ -83,7 +83,8 @@
     (assert (= '(1 . 2) (cons 1 2)) "dotted list"))
 
 (defun common-helpers ()
-    (assert (= '(1 2) (quote (1 2))) "quote"))
+    (assert (= '(1 2) (quote (1 2))) "quote")
+    (assert (= 3 (eval '(+ 1 2))) "eval"))
 
 (&& (add-list)
     (sub-list)

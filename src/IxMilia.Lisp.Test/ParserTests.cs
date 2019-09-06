@@ -62,10 +62,10 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public void Quoted()
         {
-            Assert.False(((LispSymbol)SingleSyntaxNode("a")).IsQuoted);
-            Assert.True(((LispSymbol)SingleSyntaxNode("'a")).IsQuoted);
-            Assert.False(((LispList)SingleSyntaxNode("(1)")).IsQuoted);
-            Assert.True(((LispList)SingleSyntaxNode("'(1)")).IsQuoted);
+            Assert.Equal(new LispSymbol("a"), SingleSyntaxNode("a"));
+            Assert.Equal(new LispQuotedObject(new LispSymbol("a")), SingleSyntaxNode("'a"));
+            Assert.Equal(new LispQuotedObject(new LispQuotedObject(new LispSymbol("a"))), SingleSyntaxNode("''a"));
+            Assert.Equal(new LispQuotedObject(new LispList(new LispNumber(1))), SingleSyntaxNode("'(1)"));
         }
 
         [Fact]

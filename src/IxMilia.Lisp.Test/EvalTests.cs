@@ -25,7 +25,9 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             Assert.Equal(new LispSymbol("a"), host.Eval("'a"));
+            Assert.Equal(new LispQuotedObject(new LispSymbol("a")), host.Eval("''a"));
             Assert.Equal(LispList.FromItems(new LispNumber(1.0)), host.Eval("'(1)"));
+            Assert.Equal("'a", host.Eval("(eval '''a)").ToString());
         }
 
         [Fact]

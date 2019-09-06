@@ -35,9 +35,13 @@ namespace IxMilia.Lisp.Parser
                         Advance();
                         result = new LispError(error.Message);
                         break;
+                    case LispSingleQuoteToken _:
+                        Advance();
+                        result = ParseQuotedObject();
+                        break;
                     case LispSymbolToken symbol:
                         Advance();
-                        result = new LispSymbol(symbol.IsQuoted, symbol.Value);
+                        result = new LispSymbol(symbol.Value);
                         break;
                     case LispNumberToken num:
                         Advance();
@@ -50,7 +54,7 @@ namespace IxMilia.Lisp.Parser
                     case LispLeftParenToken left:
                         Advance();
                         _leftParens.Push(left);
-                        result = ParseList(left);
+                        result = ParseList();
                         break;
                     case LispForwardReferenceToken forwardRef:
                         Advance();
@@ -83,13 +87,25 @@ namespace IxMilia.Lisp.Parser
             return false;
         }
 
+        private LispObject ParseQuotedObject()
+        {
+            if (TryParseExpression(out var value))
+            {
+                return new LispQuotedObject(value);
+            }
+            else
+            {
+                return new LispError("Expected expression");
+            }
+        }
+
         private LispObject ParseForwardReferenceList(LispForwardReferenceToken forwardRef)
         {
             if (TryPeek(out var token) && token is LispLeftParenToken leftParen)
             {
                 Advance();
                 _leftParens.Push(leftParen);
-                var next = ParseList(leftParen);
+                var next = ParseList();
                 if (next is LispList innerList)
                 {
                     //innerList.IsQuoted = true; // force this so it's not evaluated later
@@ -100,7 +116,7 @@ namespace IxMilia.Lisp.Parser
             return new LispError("Expected following list");
         }
 
-        private LispObject ParseList(LispLeftParenToken left)
+        private LispObject ParseList()
         {
             var elements = new List<LispObject>();
             var tailElements = new List<LispObject>();
@@ -176,7 +192,6 @@ namespace IxMilia.Lisp.Parser
                     }
                 }
 
-                result.IsQuoted = left.IsQuoted;
                 return result;
             }
             else

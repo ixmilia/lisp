@@ -5,6 +5,7 @@ namespace IxMilia.Lisp.Tokens
         Error,
         LeftParen,
         RightParen,
+        SingleQuote,
         Dot,
         Symbol,
         Number,
