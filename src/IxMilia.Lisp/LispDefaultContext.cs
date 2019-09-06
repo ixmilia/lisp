@@ -328,6 +328,38 @@ namespace IxMilia.Lisp
             return FoldBoolean(host, args, true, true, (a, b) => a || b);
         }
 
+        [LispMacro("cond")]
+        public LispObject Cond(LispHost host, LispObject[] args)
+        {
+            foreach (var arg in args)
+            {
+                if (arg is LispList list && list.Length == 2)
+                {
+                    var values = list.ToList();
+                    var predicate = host.Eval(values[0]);
+                    switch (predicate)
+                    {
+                        case LispError error:
+                            return predicate;
+                        case LispNilList _:
+                            break;
+                        default:
+                            return host.Eval(values[1]);
+                    }
+                }
+                else
+                {
+                    return new LispError("Expected list of length 2")
+                    {
+                        Line = arg.Line,
+                        Column = arg.Column
+                    };
+                }
+            }
+
+            return host.Nil;
+        }
+
         [LispMacro("if")]
         public LispObject If(LispHost host, LispObject[] args)
         {

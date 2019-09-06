@@ -86,6 +86,14 @@
     (assert (= '(1 2) (quote (1 2))) "quote")
     (assert (= 3 (eval '(+ 1 2))) "eval"))
 
+(defun test-cond ()
+    (assert (= 'a (cond ((< 1 2) 'a)
+                        ((not-a-function-and-will-error) 'b))) "cond only evals as far as necessary")
+    (assert (= 'b (cond ((< 2 1) 'a)
+                        ((< 1 2) 'b))) "cond falls through to find proper value")
+    (assert (= () (cond ((< 2 1) 'a)
+                        ((= 1 2) 'b))) "cond defaults to nil"))
+
 (&& (add-list)
     (sub-list)
     (mul-list)
@@ -97,4 +105,5 @@
     (nil-equality)
     (list-helpers)
     (common-helpers)
+    (test-cond)
 )
