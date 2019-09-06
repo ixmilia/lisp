@@ -149,6 +149,13 @@ namespace IxMilia.Lisp
                 : host.Nil;
         }
 
+        [LispMacro("quote")]
+        public LispObject Quote(LispHost host, LispObject[] args)
+        {
+            // TODO: validate argument count
+            return args[0];
+        }
+
         [LispFunction("cons")]
         public LispObject Cons(LispHost host, LispObject[] args)
         {

@@ -82,6 +82,9 @@
     (assert (= '(1 2 3) (list 1 2 3)) "create list")
     (assert (= '(1 . 2) (cons 1 2)) "dotted list"))
 
+(defun common-helpers ()
+    (assert (= '(1 2) (quote (1 2))) "quote"))
+
 (&& (add-list)
     (sub-list)
     (mul-list)
@@ -92,4 +95,5 @@
     (built-in-predicates)
     (nil-equality)
     (list-helpers)
+    (common-helpers)
 )
