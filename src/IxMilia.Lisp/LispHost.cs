@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using IxMilia.Lisp.Parser;
@@ -28,6 +29,7 @@ namespace IxMilia.Lisp
             _scope = new LispScope(this);
             AddWellKnownSymbols();
             AddContextObject(new LispDefaultContext());
+            ApplyInitScript();
         }
 
         private void AddWellKnownSymbols()
@@ -87,6 +89,24 @@ namespace IxMilia.Lisp
             }
         }
 
+        private void ApplyInitScript()
+        {
+            var type = GetType();
+            var lastDotIndex = type.FullName.LastIndexOf('.');
+            var namespacePrefix = type.FullName.Substring(0, lastDotIndex);
+            var assembly = type.GetTypeInfo().Assembly;
+            using (var initStream = assembly.GetManifestResourceStream($"{namespacePrefix}.init.lisp"))
+            using (var reader = new StreamReader(initStream))
+            {
+                var content = reader.ReadToEnd();
+                var result = Eval(content);
+                if (result != T)
+                {
+                    throw new Exception($"Expected 't' but found '{result}' at ({result.Line}, {result.Column}).");
+                }
+            }
+        }
+
         private void SetMacroExpansion(string name, LispObject expansion)
         {
             _scope.SetMacroExpansion(name, expansion);
@@ -99,7 +119,15 @@ namespace IxMilia.Lisp
 
         public LispObject GetValue(string name)
         {
-            return _scope.GetMacroExpansion(name) ?? _scope[name];
+            var expansion = _scope.GetMacroExpansion(name);
+            if (expansion != null)
+            {
+                return Eval(expansion);
+            }
+            else
+            {
+                return _scope[name];
+            }
         }
 
         public TObject GetValue<TObject>(string name) where TObject: LispObject

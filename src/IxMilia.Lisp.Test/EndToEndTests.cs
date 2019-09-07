@@ -1,13 +1,28 @@
 ﻿using System.IO;
+using System.Reflection;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
 {
     public class EndToEndTests
     {
-        private static void EvalFile(string fileName)
+        private string GetScriptContents(string name)
         {
-            var contents = File.ReadAllText(fileName);
+            var type = GetType();
+            var lastDotIndex = type.FullName.LastIndexOf('.');
+            var namespacePrefix = type.FullName.Substring(0, lastDotIndex);
+            var assembly = type.GetTypeInfo().Assembly;
+            using (var initStream = assembly.GetManifestResourceStream($"{namespacePrefix}.{name}"))
+            using (var reader = new StreamReader(initStream))
+            {
+                var content = reader.ReadToEnd();
+                return content;
+            }
+        }
+
+        private void EvalFile(string fileName)
+        {
+            var contents = GetScriptContents(fileName);
             var host = new LispHost();
             host.AddMacro("assert", (h, args) =>
             {

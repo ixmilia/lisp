@@ -360,27 +360,6 @@ namespace IxMilia.Lisp
             return host.Nil;
         }
 
-        [LispMacro("if")]
-        public LispObject If(LispHost host, LispObject[] args)
-        {
-            LispObject result;
-            if (args.Length != 3)
-            {
-                result = new LispError("Expected 3 arguments");
-            }
-            else
-            {
-                var condition = host.Eval(args[0]);
-                var resultExpressions = condition.Equals(host.Nil)
-                    ? (LispList)args[2] // nil means follow the false path
-                    : (LispList)args[1]; // everything else is true
-                                         // TODO: numerical 0 should probably follow the false path
-                result = host.Eval(resultExpressions.Value);
-            }
-
-            return result;
-        }
-
         [LispFunction("+")]
         public LispObject Add(LispHost host, LispObject[] args)
         {

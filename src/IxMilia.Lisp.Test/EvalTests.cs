@@ -90,15 +90,15 @@ namespace IxMilia.Lisp.Test
             // 'true' branch
             var result = (LispString)host.Eval(@"
 (if (< 1 2)
-    (""one"")
-    (""two""))");
+    ""one""
+    ""two"")");
             Assert.Equal("one", result.Value);
 
             // 'false' branch
             result = (LispString)host.Eval(@"
 (if (< 2 1)
-    (""one"")
-    (""two""))");
+    ""one""
+    ""two"")");
             Assert.Equal("two", result.Value);
         }
 
