@@ -249,7 +249,11 @@ namespace IxMilia.Lisp.Tokens
 
         private LispToken ParseForwardReference()
         {
-            Debug.Assert(TryPeek(out var c) && IsHash(c));
+            if (!TryPeek(out var c) || !IsHash(c))
+            {
+                return new LispErrorToken(c.ToString(), "Expected hash '#'");
+            }
+
             var builder = new StringBuilder();
             builder.Append(c);
             Advance();
