@@ -92,18 +92,6 @@ namespace IxMilia.Lisp
             _scope.SetMacroExpansion(name, expansion);
         }
 
-        private LispObject GetMacroExpansion(LispObject obj)
-        {
-            if (obj is LispSymbol symbol)
-            {
-                return _scope.GetMacroExpansion(symbol.Value) ?? symbol;
-            }
-            else
-            {
-                return obj;
-            }
-        }
-
         public void SetValue(string name, LispObject value)
         {
             _scope[name] = value;
@@ -111,7 +99,7 @@ namespace IxMilia.Lisp
 
         public LispObject GetValue(string name)
         {
-            return _scope[name];
+            return _scope.GetMacroExpansion(name) ?? _scope[name];
         }
 
         public TObject GetValue<TObject>(string name) where TObject: LispObject
@@ -196,7 +184,7 @@ namespace IxMilia.Lisp
 
             var functionNameSymbol = (LispSymbol)list.Value;
             var functionName = functionNameSymbol.Value;
-            var args = list.ToList().Skip(1).Select(GetMacroExpansion).ToArray();
+            var args = list.ToList().Skip(1).ToArray();
             var value = GetValue(functionName);
             UpdateCallStackLocation(functionNameSymbol);
             LispObject result;

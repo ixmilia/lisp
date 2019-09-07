@@ -42,14 +42,13 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             var code = @"
-(defmacro setToOnePlusExtra (n)
-    (setq n 1)
-    (setq x 2))
-(setToOnePlusExtra a)
-(+ a x)
+(defmacro if2 (pred tv fv)
+    (cond (pred tv)
+          (t fv)))
+(if2 (= 1 1) ""one"" ""two"")
 ";
             var result = host.Eval(code);
-            Assert.Equal(new LispNumber(3.0), result);
+            Assert.Equal("one", ((LispString)result).Value);
         }
 
         [Fact]
