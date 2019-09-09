@@ -152,13 +152,13 @@ namespace IxMilia.Lisp
             var tokenizer = new LispTokenizer(code);
             var tokens = tokenizer.GetTokens();
             var parser = new LispParser(tokens);
-            var nodes = parser.Parse();
+            var nodes = parser.Parse().Nodes;
             return Eval(nodes);
         }
 
         public LispObject Eval(IEnumerable<LispObject> nodes)
         {
-            LispObject lastValue = Nil;
+            LispObject lastValue = null;
             foreach (var node in nodes)
             {
                 lastValue = Eval(node);

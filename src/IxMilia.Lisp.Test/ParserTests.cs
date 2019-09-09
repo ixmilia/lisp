@@ -11,7 +11,7 @@ namespace IxMilia.Lisp.Test
         private static IEnumerable<LispObject> Parse(string code)
         {
             var tokens = new LispTokenizer(code).GetTokens();
-            var nodes = new LispParser(tokens).Parse();
+            var nodes = new LispParser(tokens).Parse().Nodes;
             return nodes;
         }
 

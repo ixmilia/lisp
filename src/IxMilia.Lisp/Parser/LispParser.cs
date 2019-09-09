@@ -7,26 +7,52 @@ namespace IxMilia.Lisp.Parser
     public class LispParser
     {
         private int _index;
-        private LispToken[] _tokens;
+        private List<LispToken> _tokens;
         private Stack<LispLeftParenToken> _leftParens = new Stack<LispLeftParenToken>();
+        private bool _errorOnIncompleteExpressions;
 
-        public LispParser(IEnumerable<LispToken> tokens)
+        public LispParser(IEnumerable<LispToken> tokens = null, bool errorOnIncompleteExpressions = true)
         {
+            tokens = tokens ?? Enumerable.Empty<LispToken>();
             _index = 0;
-            _tokens = tokens.ToArray();
+            _tokens = tokens.ToList();
+            _errorOnIncompleteExpressions = errorOnIncompleteExpressions;
         }
 
-        public IEnumerable<LispObject> Parse()
+        public LispParseResult Parse()
         {
-            while (TryParseExpression(out var expression))
+            _leftParens.Clear();
+            var nodes = ParseNodes().ToList();
+            return new LispParseResult(nodes, _leftParens.Count);
+        }
+
+        private IEnumerable<LispObject> ParseNodes()
+        {
+            var startIndex = _index;
+            while (TryParseNullExpression(out var expression) && expression != null)
             {
+                startIndex = _index;
                 yield return expression;
             }
+
+            _index = startIndex;
+            TrimUsedTokens();
         }
 
-        private bool TryParseExpression(out LispObject result)
+        private void TrimUsedTokens()
         {
-            result = default(LispObject);
+            _tokens.RemoveRange(0, _index);
+            _index = 0;
+        }
+
+        public void AddTokens(IEnumerable<LispToken> tokens)
+        {
+            _tokens.AddRange(tokens);
+        }
+
+        private bool TryParseNullExpression(out LispObject result)
+        {
+            result = null;
             while (TryPeek(out var token))
             {
                 switch (token)
@@ -82,6 +108,15 @@ namespace IxMilia.Lisp.Parser
 
                     return true;
                 }
+                else if (_errorOnIncompleteExpressions)
+                {
+                    result = new LispError("Expected expression");
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
 
             return false;
@@ -89,13 +124,17 @@ namespace IxMilia.Lisp.Parser
 
         private LispObject ParseQuotedObject()
         {
-            if (TryParseExpression(out var value))
+            if (TryParseNullExpression(out var value) && value != null)
             {
                 return new LispQuotedObject(value);
             }
-            else
+            else if (_errorOnIncompleteExpressions)
             {
                 return new LispError("Expected expression");
+            }
+            else
+            {
+                return null;
             }
         }
 
@@ -108,12 +147,25 @@ namespace IxMilia.Lisp.Parser
                 var next = ParseList();
                 if (next is LispList innerList)
                 {
-                    //innerList.IsQuoted = true; // force this so it's not evaluated later
                     return new LispForwardListReference(forwardRef, innerList);
                 }
+                else if (_errorOnIncompleteExpressions)
+                {
+                    return new LispError("Expected list");
+                }
+                else
+                {
+                    return null;
+                }
             }
-
-            return new LispError("Expected following list");
+            else if (_errorOnIncompleteExpressions)
+            {
+                return new LispError("Expected following list");
+            }
+            else
+            {
+                return null;
+            }
         }
 
         private LispObject ParseList()
@@ -147,9 +199,20 @@ namespace IxMilia.Lisp.Parser
                         rightParen = (LispRightParenToken)token;
                         break;
                     default:
-                        if (TryParseExpression(out var element))
+                        if (TryParseNullExpression(out var element))
                         {
-                            if (dot == null)
+                            if (element == null)
+                            {
+                                if (_errorOnIncompleteExpressions)
+                                {
+                                    return new LispError("Expected element");
+                                }
+                                else
+                                {
+                                    return null;
+                                }
+                            }
+                            else if (dot == null)
                             {
                                 elements.Add(element);
                             }
@@ -164,7 +227,14 @@ namespace IxMilia.Lisp.Parser
 
             if (rightParen == null)
             {
-                return new LispError($"Unmatched '(' at ({_leftParens.Peek().Line}, {_leftParens.Peek().Column}) (depth {_leftParens.Count})");
+                if (_errorOnIncompleteExpressions)
+                {
+                    return new LispError($"Unmatched '(' at ({_leftParens.Peek().Line}, {_leftParens.Peek().Column}) (depth {_leftParens.Count})");
+                }
+                else
+                {
+                    return null;
+                }
             }
 
             if (elements.Any() || tailElements.Any())
@@ -178,11 +248,11 @@ namespace IxMilia.Lisp.Parser
                 {
                     if (!tailElements.Any())
                     {
-                        return new LispError("");
+                        return new LispError("Unexpected trailing objects");
                     }
                     else if (tailElements.Count > 1)
                     {
-                        return new LispError("");
+                        return new LispError("Unexpected multiple trailing objects");
                     }
                     else
                     {
@@ -202,7 +272,7 @@ namespace IxMilia.Lisp.Parser
 
         private bool TryPeek(out LispToken token)
         {
-            if (_index < _tokens.Length)
+            if (_index < _tokens.Count)
             {
                 token = _tokens[_index];
                 return true;
