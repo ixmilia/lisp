@@ -80,7 +80,9 @@
     (assert (= '(1) (cons 1 nil)) "nil cons")
     (assert (= '(1 2 3) (cons 1 '(2 3))) "list cons")
     (assert (= '(1 2 3) (list 1 2 3)) "create list")
-    (assert (= '(1 . 2) (cons 1 2)) "dotted list"))
+    (assert (= '(1 . 2) (cons 1 2)) "dotted list")
+    (assert (= '(a b c d e f) (append '(a b c) '(d e f))) "append list")
+    (assert (= '(a b c . d) (append '(a b c) 'd)) "append value"))
 
 (defun common-helpers ()
     (assert (= '(1 2) (quote (1 2))) "quote")

@@ -254,6 +254,32 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("append")]
+        public LispObject Append(LispHost host, LispObject[] args)
+        {
+            if (args.Length != 2)
+            {
+                return new LispError("Expected exactly 2 arguments");
+            }
+
+            if (args[0] is LispList list)
+            {
+                var items = list.ToList();
+                var last = args[1];
+                foreach (var item in items.Reverse())
+                {
+                    var next = new LispList(item, last);
+                    last = next;
+                }
+
+                return last;
+            }
+            else
+            {
+                return new LispError("First argument must be a list");
+            }
+        }
+
         [LispFunction("<")]
         public LispObject LessThan(LispHost host, LispObject[] args)
         {
