@@ -46,6 +46,7 @@ namespace IxMilia.Lisp
         }
 
         [LispMacro("let")]
+        [LispMacro("let*")]
         public LispObject Let(LispHost host, LispObject[] args)
         {
             // TODO: validate arguments
