@@ -305,24 +305,26 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("=")]
+        [LispFunction("equal")]
         public LispObject Equal(LispHost host, LispObject[] args)
         {
             return FoldObj(host, args, (a, b) => a.Equals(b));
         }
 
         [LispFunction("!=")]
+        [LispFunction("<>")]
         public LispObject NotEqual(LispHost host, LispObject[] args)
         {
             return FoldObj(host, args, (a, b) => !a.Equals(b));
         }
 
-        [LispMacro("&&")]
+        [LispMacro("and")]
         public LispObject And(LispHost host, LispObject[] args)
         {
             return FoldBoolean(host, args, true, false, (a, b) => a && b);
         }
 
-        [LispMacro("||")]
+        [LispMacro("or")]
         public LispObject Or(LispHost host, LispObject[] args)
         {
             return FoldBoolean(host, args, true, true, (a, b) => a || b);

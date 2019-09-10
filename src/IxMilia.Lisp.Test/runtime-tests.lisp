@@ -26,20 +26,20 @@
 (defun short-circuit-and ()
     (assert
         (=
-            (&& nil
+            (and nil
                 (undefined-function))
             nil)
         "short-circuit-and"))
 
 (defun short-circuit-or ()
     (assert
-        (|| t
+        (or t
             (undefined-function))
         "short-circuit-or"))
 
 (defun built-in-predicates ()
     (assert
-        (&&      (symbolp 'a)
+        (and     (symbolp 'a)
             (not (symbolp 3))
                  (numberp 1)
             (not (numberp "one"))
@@ -94,16 +94,16 @@
     (assert (= () (cond ((< 2 1) 'a)
                         ((= 1 2) 'b))) "cond defaults to nil"))
 
-(&& (add-list)
-    (sub-list)
-    (mul-list)
-    (div-list)
-    (neg)
-    (short-circuit-and)
-    (short-circuit-or)
-    (built-in-predicates)
-    (nil-equality)
-    (list-helpers)
-    (common-helpers)
-    (test-cond)
+(and (add-list)
+     (sub-list)
+     (mul-list)
+     (div-list)
+     (neg)
+     (short-circuit-and)
+     (short-circuit-or)
+     (built-in-predicates)
+     (nil-equality)
+     (list-helpers)
+     (common-helpers)
+     (test-cond)
 )
