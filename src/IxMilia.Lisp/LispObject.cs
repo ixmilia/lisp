@@ -309,7 +309,7 @@ namespace IxMilia.Lisp
             return list;
         }
 
-        public IList<LispObject> ToList()
+        public virtual IList<LispObject> ToList()
         {
             var items = new List<LispObject>();
             var head = this;
@@ -426,6 +426,31 @@ namespace IxMilia.Lisp
             _next = otherList.Next;
             _length = -Math.Abs(otherList.Length);
             _isProperList = isProperList;
+        }
+
+        public override IList<LispObject> ToList()
+        {
+            var result = new List<LispObject>();
+            var itemCount = Math.Abs(Length);
+            var current = (LispObject)this;
+            for (int i = 0; i < itemCount; i++)
+            {
+                LispObject next;
+                if (current is LispList list)
+                {
+                    result.Add(list.Value);
+                    next = list.Next;
+                }
+                else
+                {
+                    result.Add(current);
+                    next = null;
+                }
+
+                current = next;
+            }
+
+            return result;
         }
 
         public override string ToString()

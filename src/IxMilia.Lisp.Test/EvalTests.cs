@@ -124,5 +124,18 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(-3, list.Length);
             Assert.Equal("#1=(2 3 #1#)", list.ToString());
         }
+
+        [Fact]
+        public void LetTest()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(defun avg (x y)
+    (let ((sum (+ x y)))
+        (/ sum 2)))
+(avg 3 7)
+");
+            Assert.Equal(new LispNumber(5.0), result);
+        }
     }
 }

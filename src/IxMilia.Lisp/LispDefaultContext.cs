@@ -45,6 +45,31 @@ namespace IxMilia.Lisp
             return symbol;
         }
 
+        [LispMacro("let")]
+        public LispObject Let(LispHost host, LispObject[] args)
+        {
+            // TODO: validate arguments
+            var values = ((LispList)args[0]).ToList();
+            var body = args[1];
+            foreach (var valuePair in values)
+            {
+                // TODO: validate shape
+                var valuePairList = (LispList)valuePair;
+                var varName = ((LispSymbol)valuePairList.Value).Value;
+                var varRawValue = ((LispList)valuePairList.Next).Value;
+                var varValue = host.Eval(varRawValue);
+                if (varValue is LispError error)
+                {
+                    return error;
+                }
+
+                host.SetValue(varName, varValue);
+            }
+
+            var result = host.Eval(body);
+            return result;
+        }
+
         [LispFunction("eval")]
         public LispObject Eval(LispHost host, LispObject[] args)
         {
