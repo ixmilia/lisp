@@ -146,22 +146,6 @@ namespace IxMilia.Lisp
                 : host.Nil;
         }
 
-        [LispFunction("atom")]
-        public LispObject Atom(LispHost host, LispObject[] args)
-        {
-            // anything other than a cons cell
-            return Not(host, new[] { ConsP(host, args) });
-        }
-
-        [LispFunction("not")]
-        public LispObject Not(LispHost host, LispObject[] args)
-        {
-            // TODO: validate argument count
-            return host.Nil.Equals(args[0])
-                ? host.T
-                : host.Nil;
-        }
-
         [LispMacro("quote")]
         public LispObject Quote(LispHost host, LispObject[] args)
         {
@@ -203,60 +187,6 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                return list.Value;
-            }
-            else
-            {
-                return new LispError("Expected a list");
-            }
-        }
-
-        [LispFunction("cadr")]
-        [LispFunction("second")]
-        public LispObject Second(LispHost host, LispObject[] args)
-        {
-            // TODO: validate single argument
-            if (args[0] is LispList list)
-            {
-                for (int i = 1; i < 2; i++)
-                {
-                    if (list.Next is LispList next)
-                    {
-                        list = next;
-                    }
-                    else
-                    {
-                        return new LispError($"Expected a list at index {i}");
-                    }
-                }
-
-                return list.Value;
-            }
-            else
-            {
-                return new LispError("Expected a list");
-            }
-        }
-
-        [LispFunction("caddr")]
-        [LispFunction("third")]
-        public LispObject Third(LispHost host, LispObject[] args)
-        {
-            // TODO: validate single argument
-            if (args[0] is LispList list)
-            {
-                for (int i = 1; i < 3; i++)
-                {
-                    if (list.Next is LispList next)
-                    {
-                        list = next;
-                    }
-                    else
-                    {
-                        return new LispError($"Expected a list at index {i}");
-                    }
-                }
-
                 return list.Value;
             }
             else
