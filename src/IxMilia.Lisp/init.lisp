@@ -21,5 +21,14 @@
 (defmacro caddr (list)
     (third list))
 
+(defun nthcdr (n list)
+    (if (= n 0)
+        list
+        (nthcdr (- n 1) (cdr list))))
+
+(defun nth (n x)
+    "Returns the Nth element of the list X, counting from 0"
+    (car (nthcdr n x)))
+
 ; just to ensure the script was properly loaded
 t
