@@ -82,7 +82,9 @@
     (assert (= '(1 2 3) (list 1 2 3)) "create list")
     (assert (= '(1 . 2) (cons 1 2)) "dotted list")
     (assert (= '(a b c d e f) (append '(a b c) '(d e f))) "append list")
-    (assert (= '(a b c . d) (append '(a b c) 'd)) "append value"))
+    (assert (= '(a b c . d) (append '(a b c) 'd)) "append value")
+    (assert (= '(c b a) (reverse '(a b c))) "reverse list")
+)
 
 (defun common-helpers ()
     (assert (= '(1 2) (quote (1 2))) "quote")

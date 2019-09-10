@@ -280,6 +280,21 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("reverse")]
+        public LispObject Reverse(LispHost host, LispObject[] args)
+        {
+            if (args.Length == 1 && args[0] is LispList list)
+            {
+                var values = list.ToList().Reverse();
+                var result = LispList.FromEnumerable(values);
+                return result;
+            }
+            else
+            {
+                return new LispError("Expected a single list");
+            }
+        }
+
         [LispFunction("<")]
         public LispObject LessThan(LispHost host, LispObject[] args)
         {
