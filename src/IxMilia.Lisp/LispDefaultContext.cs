@@ -35,6 +35,16 @@ namespace IxMilia.Lisp
             return host.Nil;
         }
 
+        [LispMacro("defvar")]
+        public LispObject DefineVariable(LispHost host, LispObject[] args)
+        {
+            // TODO: properly validage single symbol argument
+            var symbol = (LispSymbol)args[0];
+            var name = symbol.Value;
+            host.SetValue(name, symbol);
+            return symbol;
+        }
+
         [LispFunction("eval")]
         public LispObject Eval(LispHost host, LispObject[] args)
         {
