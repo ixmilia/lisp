@@ -615,23 +615,74 @@ namespace IxMilia.Lisp
         }
     }
 
-    public class LispMacro : LispObject
+    public abstract class LispMacro : LispObject
+    {
+        public string Name { get; }
+
+        public LispMacro(string name)
+        {
+            Name = name;
+        }
+
+        public abstract LispObject Execute(LispHost host, LispObject[] args);
+    }
+
+    public class LispCodeMacro : LispMacro
     {
         // TODO: make these read only collections
-        public string Name { get; }
         public string[] Arguments { get; }
         public LispObject[] Body { get; }
 
-        public LispMacro(string name, IEnumerable<string> arguments, IEnumerable<LispObject> body)
+        public LispCodeMacro(string name, IEnumerable<string> arguments, IEnumerable<LispObject> body)
+            : base(name)
         {
-            Name = name;
             Arguments = arguments.ToArray();
             Body = body.ToArray();
         }
 
         public override string ToString()
         {
-            return Name;
+            return $"{Name} ({string.Join(" ", Arguments)})";
+        }
+
+        public override LispObject Execute(LispHost host, LispObject[] args)
+        {
+            // bind arguments
+            // TODO: validate argument count
+            for (int i = 0; i < args.Length; i++)
+            {
+                host.SetMacroExpansion(Arguments[i], args[i]);
+            }
+
+            // expand body
+            var lastValue = host.Nil;
+            foreach (var item in Body)
+            {
+                lastValue = host.Eval(item);
+            }
+
+            return lastValue;
+        }
+    }
+
+    public class LispNativeMacro : LispMacro
+    {
+        public LispMacroDelegate Macro { get; }
+
+        public LispNativeMacro(string name, LispMacroDelegate macro)
+            : base(name)
+        {
+            Macro = macro;
+        }
+
+        public override string ToString()
+        {
+            return $"{Name} <native>";
+        }
+
+        public override LispObject Execute(LispHost host, LispObject[] args)
+        {
+            return Macro.Invoke(host, args);
         }
     }
 }

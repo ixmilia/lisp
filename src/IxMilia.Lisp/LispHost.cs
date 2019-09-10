@@ -16,7 +16,6 @@ namespace IxMilia.Lisp
     {
         private const string NilString = "nil";
         private const string TString = "t";
-        private readonly Dictionary<string, LispMacroDelegate> _macroMap = new Dictionary<string, LispMacroDelegate>();
         private LispScope _scope;
         private LispStackFrame _currentFrame = new LispStackFrame("<root>", null);
 
@@ -39,7 +38,8 @@ namespace IxMilia.Lisp
 
         public void AddMacro(string name, LispMacroDelegate del)
         {
-            _macroMap[name] = del;
+            var macro = new LispNativeMacro(name, del);
+            SetValue(name, macro);
         }
 
         public void AddFunction(string name, LispFunctionDelegate del)
@@ -112,7 +112,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        private void SetMacroExpansion(string name, LispObject expansion)
+        internal void SetMacroExpansion(string name, LispObject expansion)
         {
             _scope.SetMacroExpansion(name, expansion);
         }
@@ -225,25 +225,18 @@ namespace IxMilia.Lisp
             {
                 var macro = (LispMacro)value;
                 PushStackFrame(macro.Name);
-                // scope not modified when evaluating macros; stack is modified to give better errors
 
-                // TODO: bind arguments by replacement
-
-                // bind arguments
-                for (int i = 0; i < macro.Arguments.Length; i++)
+                var firstError = args.OfType<LispError>().FirstOrDefault();
+                if (firstError != null)
                 {
-                    SetMacroExpansion(macro.Arguments[i], args[i]);
+                    result = firstError;
                 }
-
-                // expand body
-                var lastValue = Nil;
-                foreach (var item in macro.Body)
+                else
                 {
-                    lastValue = Eval(item);
+                    result = macro.Execute(this, args);
                 }
 
                 PopStackFrame();
-                result = lastValue;
             }
             else if (value is LispFunction)
             {
@@ -265,12 +258,6 @@ namespace IxMilia.Lisp
                 }
 
                 DecreaseScope();
-                PopStackFrame();
-            }
-            else if (_macroMap.TryGetValue(functionName, out var macro))
-            {
-                PushStackFrame(functionName);
-                result = macro.Invoke(this, args);
                 PopStackFrame();
             }
             else

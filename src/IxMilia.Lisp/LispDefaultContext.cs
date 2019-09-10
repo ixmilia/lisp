@@ -14,7 +14,7 @@ namespace IxMilia.Lisp
             var macroArgs = ((LispList)args[1]).ToList().Cast<LispSymbol>().Select(s => s.Value);
             // TODO: allow docstring
             var macroBody = args.Skip(2);
-            var macro = new LispMacro(macroName, macroArgs, macroBody)
+            var macro = new LispCodeMacro(macroName, macroArgs, macroBody)
             {
                 Line = macroNameSymbol.Line,
                 Column = macroNameSymbol.Column
