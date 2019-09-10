@@ -48,6 +48,7 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispMacro("setf")]
         [LispMacro("setq")]
         public LispObject SetValue(LispHost host, LispObject[] args)
         {
