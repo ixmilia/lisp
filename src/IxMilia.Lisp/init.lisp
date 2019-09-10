@@ -1,4 +1,4 @@
-﻿(defmacro if (pred tv fv)
+(defmacro if (pred tv fv)
     (cond (pred tv)
           (t fv)))
 
