@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using Xunit;
 
@@ -24,24 +25,8 @@ namespace IxMilia.Lisp.Test
         {
             var contents = GetScriptContents(fileName);
             var host = new LispHost();
-            host.AddMacro("assert", (h, args) =>
-            {
-                if (args.Length != 2)
-                {
-                    return new LispError("Expected 2 arguments");
-                }
-
-                var condition = h.Eval(args[0]);
-                if (condition.Equals(host.T))
-                {
-                    return condition;
-                }
-                else
-                {
-                    var message = h.Eval(args[1]);
-                    return new LispError($"Assert failed: {message}\nWith value: {condition}");
-                }
-            });
+            host.AddFunction("join", (h, args) => new LispString(string.Join(" ", (IEnumerable<LispObject>)args)));
+            host.AddFunction("fail", (h, args) => new LispError(args[0].ToString()));
             var result = host.Eval(contents);
             Assert.True(result.Equals(host.T), result.ToString());
         }
