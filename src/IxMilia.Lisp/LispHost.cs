@@ -17,7 +17,6 @@ namespace IxMilia.Lisp
         private const string NilString = "nil";
         private const string TString = "t";
         private readonly Dictionary<string, LispMacroDelegate> _macroMap = new Dictionary<string, LispMacroDelegate>();
-        private readonly Dictionary<string, LispFunctionDelegate> _delegateMap = new Dictionary<string, LispFunctionDelegate>();
         private LispScope _scope;
         private LispStackFrame _currentFrame = new LispStackFrame("<root>", null);
 
@@ -45,7 +44,13 @@ namespace IxMilia.Lisp
 
         public void AddFunction(string name, LispFunctionDelegate del)
         {
-            _delegateMap[name] = del;
+            AddFunction(name, null, del);
+        }
+
+        public void AddFunction(string name, string documentation, LispFunctionDelegate del)
+        {
+            var function = new LispNativeFunction(name, documentation, del);
+            SetValue(name, function);
         }
 
         public void AddContextObject(object context)
@@ -247,7 +252,7 @@ namespace IxMilia.Lisp
                 PushStackFrame(function.Name);
                 IncreaseScope();
 
-                // bind arguments
+                // evaluate arguments
                 var evaluatedArgs = args.Select(a => Eval(a)).ToArray();
                 var firstError = evaluatedArgs.OfType<LispError>().FirstOrDefault();
                 if (firstError != null)
@@ -256,36 +261,17 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    // TODO: validate argument count
-                    for (int i = 0; i < function.Arguments.Length; i++)
-                    {
-                        SetValue(function.Arguments[i], evaluatedArgs[i]);
-                    }
-
-                    // eval values
-                    result = Eval(function.Commands);
-                    DecreaseScope();
-                    PopStackFrame();
+                    result = function.Execute(this, evaluatedArgs);
                 }
+
+                DecreaseScope();
+                PopStackFrame();
             }
             else if (_macroMap.TryGetValue(functionName, out var macro))
             {
                 PushStackFrame(functionName);
                 result = macro.Invoke(this, args);
                 PopStackFrame();
-            }
-            else if (_delegateMap.TryGetValue(functionName, out var function))
-            {
-                var evaluatedArgs = args.Select(a => Eval(a)).ToArray();
-                var firstError = evaluatedArgs.OfType<LispError>().FirstOrDefault();
-                if (firstError != null)
-                {
-                    result = firstError;
-                }
-                else
-                {
-                    result = function.Invoke(this, evaluatedArgs);
-                }
             }
             else
             {

@@ -3,6 +3,7 @@
           (t fv)))
 
 (defun not (pred)
+    "negates the predicate"
     (cond (pred nil)
           (t t)))
 

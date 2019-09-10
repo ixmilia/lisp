@@ -549,23 +549,69 @@ namespace IxMilia.Lisp
         }
     }
 
-    public class LispFunction : LispObject
+    public abstract class LispFunction : LispObject
+    {
+        public string Name { get; }
+        public string Documentation { get; }
+
+        public LispFunction(string name, string documentation)
+        {
+            Name = name;
+            Documentation = documentation;
+        }
+
+        public abstract LispObject Execute(LispHost host, LispObject[] args);
+    }
+
+    public class LispCodeFunction : LispFunction
     {
         // TODO: make these read only collections
-        public string Name { get; }
         public string[] Arguments { get; }
         public LispObject[] Commands { get; }
 
-        public LispFunction(string name, IEnumerable<string> arguments, IEnumerable<LispObject> commands)
+        public LispCodeFunction(string name, string documentation, IEnumerable<string> arguments, IEnumerable<LispObject> commands)
+            : base(name, documentation)
         {
-            Name = name;
             Arguments = arguments.ToArray();
             Commands = commands.ToArray();
         }
 
         public override string ToString()
         {
-            return Name;
+            return $"{Name} ({string.Join(" ", Arguments)})";
+        }
+
+        public override LispObject Execute(LispHost host, LispObject[] args)
+        {
+            // bind arguments
+            // TODO: validate argument count
+            for (int i = 0; i < args.Length; i++)
+            {
+                host.SetValue(Arguments[i], args[i]);
+            }
+
+            return host.Eval(Commands);
+        }
+    }
+
+    public class LispNativeFunction : LispFunction
+    {
+        public LispFunctionDelegate Function { get; }
+
+        public LispNativeFunction(string name, string documentation, LispFunctionDelegate function)
+            : base(name, documentation)
+        {
+            Function = function;
+        }
+
+        public override string ToString()
+        {
+            return $"{Name} <native>";
+        }
+
+        public override LispObject Execute(LispHost host, LispObject[] args)
+        {
+            return Function.Invoke(host, args);
         }
     }
 

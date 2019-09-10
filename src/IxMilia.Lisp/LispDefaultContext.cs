@@ -29,8 +29,15 @@ namespace IxMilia.Lisp
             // TODO: properly validate types and arg counts
             var name = ((LispSymbol)args[0]).Value;
             var functionArgs = ((LispList)args[1]).ToList().Cast<LispSymbol>().Select(s => s.Value);
-            var commands = args.Skip(2);
-            var function = new LispFunction(name, functionArgs, commands);
+            var commands = args.Skip(2).ToList();
+            string documentation = null;
+            if (commands[0] is LispString str)
+            {
+                documentation = str.Value;
+                commands.RemoveAt(0);
+            }
+
+            var function = new LispCodeFunction(name, documentation, functionArgs, commands);
             host.SetValue(name, function);
             return host.Nil;
         }
