@@ -30,5 +30,10 @@
     "Returns the Nth element of the list X, counting from 0"
     (car (nthcdr n x)))
 
+(defun last (list)
+    (cond ((= nil (cdr list)) list)                 ; last of a proper list
+          ((listp (cdr list)) (last (cdr list)))    ; not the end of still a list
+          (t                  list)))               ; end of improper list
+
 ; just to ensure the script was properly loaded
 t

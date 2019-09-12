@@ -84,6 +84,9 @@
     (assert-eq 'b (nth 1 '(a b c)) "nth 1")
     (assert-eq 'c (nth 2 '(a b c)) "nth 2")
     (assert-eq nil (nth 3 '(a b c)) "nth 3")
+    (assert-eq '(c) (last '(a b c)) "last proper")
+    (assert-eq nil (last nil) "last nil")
+    (assert-eq '(c . d) (last '(a b c . d)) "last improper")
 )
 
 (defun common-helpers ()
