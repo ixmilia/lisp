@@ -35,5 +35,10 @@
           ((listp (cdr list)) (last (cdr list)))    ; not the end of still a list
           (t                  list)))               ; end of improper list
 
+(defun remove (item list)
+    (cond ((= nil list)        ())                                              ; noop
+          ((= item (car list)) (remove item (cdr list)))                        ; skip item, remove from rest
+          (t                   (cons (car list) (remove item (cdr list))))))    ; keep first, remove from rest
+
 ; just to ensure the script was properly loaded
 t

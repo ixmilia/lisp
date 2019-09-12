@@ -87,6 +87,8 @@
     (assert-eq '(c) (last '(a b c)) "last proper")
     (assert-eq nil (last nil) "last nil")
     (assert-eq '(c . d) (last '(a b c . d)) "last improper")
+    (assert-eq '(b n n) (remove 'a '(b a n a n a)) "remove item")
+    (assert-eq '(b a n a n a) (remove 'x '(b a n a n a)) "remove nothing")
 )
 
 (defun common-helpers ()
