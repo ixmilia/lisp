@@ -40,5 +40,10 @@
           ((= item (car list)) (remove item (cdr list)))                        ; skip item, remove from rest
           (t                   (cons (car list) (remove item (cdr list))))))    ; keep first, remove from rest
 
+(defun member (item list)
+    (cond ((= nil list)        ())                          ; not found
+          ((= item (car list)) list)                        ; found it
+          (t                   (member item (cdr list)))))  ; check deeper
+
 ; just to ensure the script was properly loaded
 t
