@@ -1,6 +1,6 @@
-(defun assert (predicate message)
+(defun assert (pred message)
     "Asserts that the given predicate is true, otherwise fails"
-    (if predicate t (fail message)))
+    (if pred t (fail message)))
 
 (defun assert-eq (expected actual message)
     "Asserts the given values are equal, otherwise fails"

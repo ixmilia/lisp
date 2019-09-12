@@ -19,7 +19,7 @@ namespace IxMilia.Lisp
                 Line = macroNameSymbol.Line,
                 Column = macroNameSymbol.Column
             };
-            host.SetValue(macroName, macro);
+            host.SetValueInParentScope(macroName, macro);
             return macro;
         }
 
@@ -38,7 +38,7 @@ namespace IxMilia.Lisp
             }
 
             var function = new LispCodeFunction(name, documentation, functionArgs, commands);
-            host.SetValue(name, function);
+            host.SetValueInParentScope(name, function);
             return host.Nil;
         }
 
@@ -48,7 +48,7 @@ namespace IxMilia.Lisp
             // TODO: properly validage single symbol argument
             var symbol = (LispSymbol)args[0];
             var name = symbol.Value;
-            host.SetValue(name, symbol);
+            host.SetValueInParentScope(name, symbol);
             return symbol;
         }
 
@@ -101,7 +101,7 @@ namespace IxMilia.Lisp
             {
                 var name = ((LispSymbol)args[i]).Value;
                 var value = host.Eval(args[i + 1]);
-                host.SetValue(name, value);
+                host.SetValueInParentScope(name, value);
                 last = value;
             }
 

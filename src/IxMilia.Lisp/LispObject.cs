@@ -651,7 +651,7 @@ namespace IxMilia.Lisp
             // TODO: validate argument count
             for (int i = 0; i < args.Length; i++)
             {
-                host.SetMacroExpansion(Arguments[i], args[i]);
+                host.CurrentFrame.SetMacroExpansion(Arguments[i], args[i]);
             }
 
             // expand body

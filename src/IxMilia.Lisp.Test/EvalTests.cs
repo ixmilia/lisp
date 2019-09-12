@@ -137,5 +137,24 @@ namespace IxMilia.Lisp.Test
 ");
             Assert.Equal(new LispNumber(5.0), result);
         }
+
+        [Fact]
+        public void MacroFunctionVariableNames()
+        {
+            // redefined function variable names shadow previous macro expansion values
+            var host = new LispHost();
+            var result = host.Eval(@"
+(defmacro if2 (pred tv fv)
+    (cond (pred tv)
+          (t fv)))
+
+; argument `pred` shadows macro expansion with the same name
+; used to cause stack overflow in evaluating arguments
+(defun asrt (pred msg)
+    (if pred t msg))
+(asrt t ""not hit"")
+");
+            Assert.Equal(host.T, result);
+        }
     }
 }

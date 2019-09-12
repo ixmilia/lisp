@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -16,15 +15,14 @@ namespace IxMilia.Lisp
     {
         private const string NilString = "nil";
         private const string TString = "t";
-        private LispScope _scope;
-        private LispStackFrame _currentFrame = new LispStackFrame("<root>", null);
 
+        public LispStackFrame CurrentFrame { get; private set; }
         public LispObject Nil => GetValue<LispList>(NilString);
         public LispObject T => GetValue<LispSymbol>(TString);
 
         public LispHost()
         {
-            _scope = new LispScope(this);
+            CurrentFrame = new LispStackFrame("<root>", null);
             AddWellKnownSymbols();
             AddContextObject(new LispDefaultContext());
             ApplyInitScript();
@@ -112,44 +110,36 @@ namespace IxMilia.Lisp
             }
         }
 
-        internal void SetMacroExpansion(string name, LispObject expansion)
-        {
-            _scope.SetMacroExpansion(name, expansion);
-        }
-
         public void SetValue(string name, LispObject value)
         {
-            _scope[name] = value;
+            CurrentFrame.SetValue(name, value);
+        }
+
+        public void SetValueInParentScope(string name, LispObject value)
+        {
+            if (CurrentFrame.Parent is object)
+            {
+                CurrentFrame.Parent.SetValue(name, value);
+            }
+            else
+            {
+                SetValue(name, value);
+            }
         }
 
         public LispObject GetValue(string name)
         {
-            var expansion = _scope.GetMacroExpansion(name);
-            if (expansion != null)
-            {
-                return Eval(expansion);
-            }
-            else
-            {
-                return _scope[name];
-            }
+            return GetValueAtFrame(name, CurrentFrame);
+        }
+
+        private LispObject GetValueAtFrame(string name, LispStackFrame frame)
+        {
+            return frame.GetValue(this, name);
         }
 
         public TObject GetValue<TObject>(string name) where TObject: LispObject
         {
             return (TObject)GetValue(name);
-        }
-
-        private void IncreaseScope()
-        {
-            _scope = new LispScope(this, _scope);
-        }
-
-        private void DecreaseScope()
-        {
-            Debug.Assert(_scope != null);
-            Debug.Assert(_scope.Parent != null);
-            _scope = _scope.Parent;
         }
 
         public LispObject Eval(string code)
@@ -179,6 +169,11 @@ namespace IxMilia.Lisp
 
         public LispObject Eval(LispObject obj)
         {
+            return EvalAtStackFrame(obj, CurrentFrame);
+        }
+
+        internal LispObject EvalAtStackFrame(LispObject obj, LispStackFrame frame)
+        {
             if (obj is LispError)
             {
                 return obj;
@@ -193,9 +188,9 @@ namespace IxMilia.Lisp
                 case LispQuotedObject quote:
                     return quote.Value;
                 case LispSymbol symbol:
-                    return EvalSymbol(symbol);
+                    return EvalSymbol(symbol, frame);
                 case LispList list:
-                    return EvalList(list);
+                    return EvalList(list, frame);
                 case LispForwardListReference forwardRef:
                     return EvalForwardReference(forwardRef);
                 default:
@@ -203,12 +198,12 @@ namespace IxMilia.Lisp
             }
         }
 
-        private LispObject EvalSymbol(LispSymbol symbol)
+        private LispObject EvalSymbol(LispSymbol symbol, LispStackFrame frame)
         {
-            return GetValue(symbol.Value);
+            return GetValueAtFrame(symbol.Value, frame);
         }
 
-        private LispObject EvalList(LispList list)
+        private LispObject EvalList(LispList list, LispStackFrame frame)
         {
             if (list.IsNil)
             {
@@ -218,7 +213,7 @@ namespace IxMilia.Lisp
             var functionNameSymbol = (LispSymbol)list.Value;
             var functionName = functionNameSymbol.Value;
             var args = list.ToList().Skip(1).ToArray();
-            var value = GetValue(functionName);
+            var value = GetValueAtFrame(functionName, frame);
             UpdateCallStackLocation(functionNameSymbol);
             LispObject result;
             if (value is LispMacro)
@@ -243,10 +238,9 @@ namespace IxMilia.Lisp
                 // TODO: what if it's a regular variable?
                 var function = (LispFunction)value;
                 PushStackFrame(function.Name);
-                IncreaseScope();
 
                 // evaluate arguments
-                var evaluatedArgs = args.Select(a => Eval(a)).ToArray();
+                var evaluatedArgs = args.Select(a => EvalAtStackFrame(a, frame)).ToArray();
                 var firstError = evaluatedArgs.OfType<LispError>().FirstOrDefault();
                 if (firstError != null)
                 {
@@ -257,7 +251,6 @@ namespace IxMilia.Lisp
                     result = function.Execute(this, evaluatedArgs);
                 }
 
-                DecreaseScope();
                 PopStackFrame();
             }
             else
@@ -305,18 +298,18 @@ namespace IxMilia.Lisp
 
         private void UpdateCallStackLocation(LispObject obj)
         {
-            _currentFrame.Line = obj.Line;
-            _currentFrame.Column = obj.Column;
+            CurrentFrame.Line = obj.Line;
+            CurrentFrame.Column = obj.Column;
         }
 
         private void PushStackFrame(string functionName)
         {
-            _currentFrame = new LispStackFrame(functionName, _currentFrame);
+            CurrentFrame = new LispStackFrame(functionName, CurrentFrame);
         }
 
         private void PopStackFrame()
         {
-            _currentFrame = _currentFrame.Parent;
+            CurrentFrame = CurrentFrame.Parent;
         }
 
         private LispError GenerateError(string message)
@@ -330,7 +323,7 @@ namespace IxMilia.Lisp
         {
             if (error.StackFrame == null)
             {
-                error.StackFrame = _currentFrame;
+                error.StackFrame = CurrentFrame;
             }
         }
     }
