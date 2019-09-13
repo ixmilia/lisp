@@ -303,7 +303,7 @@ namespace IxMilia.Lisp
                 args[0] is LispList a &&
                 args[1] is LispList b)
             {
-                var valuesInOne = new HashSet<LispObject>(a.ToList());
+                var valuesInOne = new HashSet<LispObject>(a.ToList(), LispObject.Comparer);
                 var finalSet = b.ToList().Where(i => valuesInOne.Contains(i, LispObject.Comparer));
                 return LispList.FromEnumerable(finalSet);
             }
@@ -320,7 +320,7 @@ namespace IxMilia.Lisp
                 args[0] is LispList a &&
                 args[1] is LispList b)
             {
-                var finalSet = new HashSet<LispObject>(a.ToList());
+                var finalSet = new HashSet<LispObject>(a.ToList(), LispObject.Comparer);
                 foreach (var item in b.ToList())
                 {
                     finalSet.Add(item);
@@ -341,12 +341,31 @@ namespace IxMilia.Lisp
                 args[0] is LispList a &&
                 args[1] is LispList b)
             {
-                var finalSet = new HashSet<LispObject>(a.ToList());
+                var finalSet = new HashSet<LispObject>(a.ToList(), LispObject.Comparer);
                 foreach (var item in b.ToList())
                 {
                     finalSet.Remove(item);
                 }
 
+                return LispList.FromEnumerable(finalSet);
+            }
+            else
+            {
+                return new LispError("Expected 2 lists");
+            }
+        }
+
+        [LispFunction("set-exclusive-or")]
+        public LispObject SetExclusiveOr(LispHost host, LispObject[] args)
+        {
+            if (args.Length == 2 &&
+               args[0] is LispList a &&
+               args[1] is LispList b)
+            {
+                var inA = new HashSet<LispObject>(a.ToList(), LispObject.Comparer);
+                var inB = new HashSet<LispObject>(b.ToList(), LispObject.Comparer);
+                var inBoth = inA.Intersect(inB, LispObject.Comparer);
+                var finalSet = inA.Union(inB, LispObject.Comparer).Except(inBoth, LispObject.Comparer);
                 return LispList.FromEnumerable(finalSet);
             }
             else

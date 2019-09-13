@@ -135,6 +135,13 @@
     (assert-eq '(two . dos) (rassoc 'dos words) "rassoc 2")
     (assert-eq '(three . tres) (rassoc 'tres words) "rassoc 3")
     (assert-eq nil (rassoc 'seis words) "rassoc 6")
+    (let* ((l1 '(a b d))
+           (l2 '(b c d e))
+           (ex (set-exclusive-or l1 l2)))
+           (assert-eq 3 (length ex))
+           (assert (member 'a ex) "set xor 1")
+           (assert (member 'c ex) "set xor 2")
+           (assert (member 'e ex) "set xor 3"))
 )
 
 (defun common-helpers ()
