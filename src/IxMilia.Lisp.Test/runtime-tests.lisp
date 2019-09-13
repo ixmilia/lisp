@@ -110,6 +110,13 @@
         (assert (member 'e un) "union 1-4")
         (assert (member 'o un) "union 1-5")
         (assert (member 'l un) "union 1-6"))
+    (let* ((l1 '(a b c d))
+           (l2 '(b c))
+           (sd (set-difference l1 l2)))
+        (assert-eq 2 (length sd) "set-difference 1 length")
+        (assert (member 'a sd) "set-difference 1-1")
+        (assert (member 'd sd) "set-difference 1-2"))
+    (assert-eq nil (set-difference '(a b) '(b a)) "set-difference 2")
 )
 
 (defun common-helpers ()

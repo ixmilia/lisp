@@ -334,6 +334,27 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("set-difference")]
+        public LispObject SetDifference(LispHost host, LispObject[] args)
+        {
+            if (args.Length == 2 &&
+                args[0] is LispList a &&
+                args[1] is LispList b)
+            {
+                var finalSet = new HashSet<LispObject>(a.ToList());
+                foreach (var item in b.ToList())
+                {
+                    finalSet.Remove(item);
+                }
+
+                return LispList.FromEnumerable(finalSet);
+            }
+            else
+            {
+                return new LispError("Expected 2 lists");
+            }
+        }
+
         [LispFunction("<")]
         public LispObject LessThan(LispHost host, LispObject[] args)
         {
