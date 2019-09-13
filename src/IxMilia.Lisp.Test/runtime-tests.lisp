@@ -117,6 +117,8 @@
         (assert (member 'a sd) "set-difference 1-1")
         (assert (member 'd sd) "set-difference 1-2"))
     (assert-eq nil (set-difference '(a b) '(b a)) "set-difference 2")
+    (assert-eq t (subsetp '(a i) '(a e i o u)) "subsetp 1")
+    (assert-eq nil (subsetp '(a x) '(a e i o u)) "subsetp 2")
 )
 
 (defun common-helpers ()

@@ -45,5 +45,10 @@
           ((= item (car list)) list)                        ; found it
           (t                   (member item (cdr list)))))  ; check deeper
 
+(defun subsetp (subset superset)
+    (cond ((= nil subset)                   t)                                  ; always true
+          ((member (car subset) superset)   (subsetp (cdr subset) superset))    ; found first, check rest
+          (t                                nil)))                              ; missing element
+
 ; just to ensure the script was properly loaded
 t
