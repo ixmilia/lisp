@@ -119,6 +119,14 @@
     (assert-eq nil (set-difference '(a b) '(b a)) "set-difference 2")
     (assert-eq t (subsetp '(a i) '(a e i o u)) "subsetp 1")
     (assert-eq nil (subsetp '(a x) '(a e i o u)) "subsetp 2")
+    (setf words
+        '((one uno)
+          (two dos)
+          (three tres)
+          (four quatro)))
+    (assert-eq '(two dos) (assoc 'two words) "assoc 2")
+    (assert-eq '(three tres) (assoc 'three words) "assoc 3")
+    (assert-eq nil (assoc 'six words) "assoc 6")
 )
 
 (defun common-helpers ()
