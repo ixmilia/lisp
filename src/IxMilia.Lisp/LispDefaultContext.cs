@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace IxMilia.Lisp
@@ -292,6 +293,23 @@ namespace IxMilia.Lisp
             else
             {
                 return new LispError("Expected a single list");
+            }
+        }
+
+        [LispFunction("intersection")]
+        public LispObject Intersection(LispHost host, LispObject[] args)
+        {
+            if (args.Length == 2 &&
+                args[0] is LispList a &&
+                args[1] is LispList b)
+            {
+                var valuesInOne = new HashSet<LispObject>(a.ToList());
+                var finalSet = b.ToList().Where(i => valuesInOne.Contains(i, LispObject.Comparer));
+                return LispList.FromEnumerable(finalSet);
+            }
+            else
+            {
+                return new LispError("Expected 2 lists");
             }
         }
 

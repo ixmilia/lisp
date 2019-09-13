@@ -8,8 +8,23 @@ namespace IxMilia.Lisp
 {
     public abstract class LispObject
     {
+        public static IEqualityComparer<LispObject> Comparer { get; } = new LispObjectEqualityComparer();
+
         public int Line { get; internal set; }
         public int Column { get; internal set; }
+
+        private class LispObjectEqualityComparer : IEqualityComparer<LispObject>
+        {
+            public bool Equals(LispObject x, LispObject y)
+            {
+                return x.Equals(y);
+            }
+
+            public int GetHashCode(LispObject obj)
+            {
+                return obj.GetHashCode();
+            }
+        }
     }
 
     public class LispQuotedObject : LispObject

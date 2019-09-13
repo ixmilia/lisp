@@ -93,6 +93,13 @@
     (assert-eq '(b c) (member 'b '(a b c)) "member second")
     (assert-eq '(c) (member 'c '(a b c)) "member third")
     (assert-eq nil (member 'x '(a b c)) "member none")
+    (let ((l1 '(a b c))
+          (l2 '(d c a))
+          (int (intersection l1 l2)))
+        (assert-eq 2 (length int))
+        (assert (member 'a int) "intersection 1a")
+        (assert (member 'c int) "intersection 1c"))
+    (assert-eq nil (intersection '(a b c) '(d e f)) "intersection 2")
 )
 
 (defun common-helpers ()
