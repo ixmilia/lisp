@@ -54,5 +54,9 @@
     (cond ((= key (car (car table)))    (car table))                ; found it
           ((consp (cdr table))          (assoc key (cdr table)))))  ; check deeper if more items remain
 
+(defun rassoc (key table)
+    (cond ((= key (cdr (car table)))    (car table))                ; found it
+          ((consp (cdr table))          (rassoc key (cdr table))))) ; check deeper if more items remain
+
 ; just to ensure the script was properly loaded
 t

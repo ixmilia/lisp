@@ -127,6 +127,14 @@
     (assert-eq '(two dos) (assoc 'two words) "assoc 2")
     (assert-eq '(three tres) (assoc 'three words) "assoc 3")
     (assert-eq nil (assoc 'six words) "assoc 6")
+    (setf words
+        '((one . uno)
+          (two . dos)
+          (three . tres)
+          (four . quatro)))
+    (assert-eq '(two . dos) (rassoc 'dos words) "rassoc 2")
+    (assert-eq '(three . tres) (rassoc 'tres words) "rassoc 3")
+    (assert-eq nil (rassoc 'seis words) "rassoc 6")
 )
 
 (defun common-helpers ()
