@@ -374,6 +374,29 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("remove-duplicates")]
+        public LispObject RemoveDuplicates(LispHost host, LispObject[] args)
+        {
+            if (args.Length == 1 && args[0] is LispList list)
+            {
+                var finalItems = new List<LispObject>();
+                var seenItems = new HashSet<LispObject>();
+                foreach (var item in list.ToList())
+                {
+                    if (seenItems.Add(item))
+                    {
+                        finalItems.Add(item);
+                    }
+                }
+
+                return LispList.FromEnumerable(finalItems);
+            }
+            else
+            {
+                return new LispError("Expected a list");
+            }
+        }
+
         [LispFunction("<")]
         public LispObject LessThan(LispHost host, LispObject[] args)
         {
