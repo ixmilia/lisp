@@ -33,5 +33,16 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(new LispNumber(11.0), result.LastValue);
             Assert.Equal(0, result.ExpressionDepth);
         }
+
+        [Fact]
+        public void ReplErrorsArePropagated()
+        {
+            var repl = new LispRepl();
+            var result = repl.Eval("(+ 1 abcd)(+ 2 3)");
+            var error = (LispError)result.LastValue;
+            Assert.Equal("Symbol 'abcd' not found", error.Message);
+            Assert.Equal(1, error.Line);
+            Assert.Equal(6, error.Column);
+        }
     }
 }

@@ -7,7 +7,7 @@ namespace IxMilia.Lisp
     public class LispDefaultContext
     {
         [LispMacro("defmacro")]
-        public LispObject DefineMacro(LispHost host, LispObject[] args)
+        public LispObject DefineMacro(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate arg types and count
             var macroNameSymbol = (LispSymbol)args[0];
@@ -20,12 +20,12 @@ namespace IxMilia.Lisp
                 Line = macroNameSymbol.Line,
                 Column = macroNameSymbol.Column
             };
-            host.SetValueInParentScope(macroName, macro);
+            frame.SetValueInParentScope(macroName, macro);
             return macro;
         }
 
         [LispMacro("defun")]
-        public LispObject DefineFunction(LispHost host, LispObject[] args)
+        public LispObject DefineFunction(LispStackFrame frame, LispObject[] args)
         {
             // TODO: properly validate types and arg counts
             var name = ((LispSymbol)args[0]).Value;
@@ -39,23 +39,23 @@ namespace IxMilia.Lisp
             }
 
             var function = new LispCodeFunction(name, documentation, functionArgs, commands);
-            host.SetValueInParentScope(name, function);
-            return host.Nil;
+            frame.SetValueInParentScope(name, function);
+            return frame.Nil;
         }
 
         [LispMacro("defvar")]
-        public LispObject DefineVariable(LispHost host, LispObject[] args)
+        public LispObject DefineVariable(LispStackFrame frame, LispObject[] args)
         {
             // TODO: properly validage single symbol argument
             var symbol = (LispSymbol)args[0];
             var name = symbol.Value;
-            host.SetValueInParentScope(name, symbol);
+            frame.SetValueInParentScope(name, symbol);
             return symbol;
         }
 
         [LispMacro("let")]
         [LispMacro("let*")]
-        public LispObject Let(LispHost host, LispObject[] args)
+        public LispObject Let(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate arguments
             var values = ((LispList)args[0]).ToList();
@@ -66,25 +66,25 @@ namespace IxMilia.Lisp
                 var valuePairList = (LispList)valuePair;
                 var varName = ((LispSymbol)valuePairList.Value).Value;
                 var varRawValue = ((LispList)valuePairList.Next).Value;
-                var varValue = host.Eval(varRawValue);
+                var varValue = frame.Eval(varRawValue);
                 if (varValue is LispError error)
                 {
                     return error;
                 }
 
-                host.SetValue(varName, varValue);
+                frame.SetValue(varName, varValue);
             }
 
-            var result = host.Eval(body);
+            var result = frame.Eval(body);
             return result;
         }
 
         [LispFunction("eval")]
-        public LispObject Eval(LispHost host, LispObject[] args)
+        public LispObject Eval(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 1)
             {
-                return host.Eval(args[0]);
+                return frame.Eval(args[0]);
             }
             else
             {
@@ -94,15 +94,15 @@ namespace IxMilia.Lisp
 
         [LispMacro("setf")]
         [LispMacro("setq")]
-        public LispObject SetValue(LispHost host, LispObject[] args)
+        public LispObject SetValue(LispStackFrame frame, LispObject[] args)
         {
             // TODO: properly validate types
-            LispObject last = host.Nil;
+            LispObject last = frame.Nil;
             for (int i = 0; i < args.Length - 1; i += 2)
             {
                 var name = ((LispSymbol)args[i]).Value;
-                var value = host.Eval(args[i + 1]);
-                host.SetValueInParentScope(name, value);
+                var value = frame.Eval(args[i + 1]);
+                frame.SetValueInParentScope(name, value);
                 last = value;
             }
 
@@ -110,109 +110,109 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("numberp")]
-        public LispObject NumberP(LispHost host, LispObject[] args)
+        public LispObject NumberP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
             switch (args[0])
             {
                 case LispNumber _:
-                    return host.T;
+                    return frame.T;
                 default:
-                    return host.Nil;
+                    return frame.Nil;
             }
         }
 
         [LispFunction("symbolp")]
-        public LispObject SymbolP(LispHost host, LispObject[] args)
+        public LispObject SymbolP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
             switch (args[0])
             {
                 case LispSymbol _:
-                    return host.T;
+                    return frame.T;
                 default:
-                    return host.Nil;
+                    return frame.Nil;
             }
         }
 
         [LispFunction("zerop")]
-        public LispObject ZeroP(LispHost host, LispObject[] args)
+        public LispObject ZeroP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
             switch (args[0])
             {
                 case LispNumber num when num.IsZero:
-                    return host.T;
+                    return frame.T;
                 default:
-                    return host.Nil;
+                    return frame.Nil;
             }
         }
 
         [LispFunction("evenp")]
-        public LispObject EvenP(LispHost host, LispObject[] args)
+        public LispObject EvenP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
             switch (args[0])
             {
                 case LispNumber num when num.IsEven:
-                    return host.T;
+                    return frame.T;
                 default:
-                    return host.Nil;
+                    return frame.Nil;
             }
         }
 
         [LispFunction("oddp")]
-        public LispObject OddP(LispHost host, LispObject[] args)
+        public LispObject OddP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
             switch (args[0])
             {
                 case LispNumber num when num.IsOdd:
-                    return host.T;
+                    return frame.T;
                 default:
-                    return host.Nil;
+                    return frame.Nil;
             }
         }
 
         [LispFunction("listp")]
-        public LispObject ListP(LispHost host, LispObject[] args)
+        public LispObject ListP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate single argument
             return args[0] is LispList
-                ? host.T
-                : host.Nil;
+                ? frame.T
+                : frame.Nil;
         }
 
         [LispFunction("consp")]
-        public LispObject ConsP(LispHost host, LispObject[] args)
+        public LispObject ConsP(LispStackFrame frame, LispObject[] args)
         {
             return args[0] is LispList list && !list.IsNil
-                ? host.T
-                : host.Nil;
+                ? frame.T
+                : frame.Nil;
         }
 
         [LispMacro("quote")]
-        public LispObject Quote(LispHost host, LispObject[] args)
+        public LispObject Quote(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
             return args[0];
         }
 
         [LispFunction("cons")]
-        public LispObject Cons(LispHost host, LispObject[] args)
+        public LispObject Cons(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate arguments
             return new LispList(args[0], args[1]);
         }
 
         [LispFunction("list")]
-        public LispObject List(LispHost host, LispObject[] args)
+        public LispObject List(LispStackFrame frame, LispObject[] args)
         {
             return LispList.FromEnumerable(args);
         }
 
         [LispFunction("length")]
-        public LispObject Length(LispHost host, LispObject[] args)
+        public LispObject Length(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate single argument
             if (args[0] is LispList list)
@@ -227,7 +227,7 @@ namespace IxMilia.Lisp
 
         [LispFunction("car")]
         [LispFunction("first")]
-        public LispObject First(LispHost host, LispObject[] args)
+        public LispObject First(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate single argument
             if (args[0] is LispList list)
@@ -242,7 +242,7 @@ namespace IxMilia.Lisp
 
         [LispFunction("cdr")]
         [LispFunction("rest")]
-        public LispObject Rest(LispHost host, LispObject[] args)
+        public LispObject Rest(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate single argument
             if (args[0] is LispList list)
@@ -256,7 +256,7 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("append")]
-        public LispObject Append(LispHost host, LispObject[] args)
+        public LispObject Append(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length != 2)
             {
@@ -282,7 +282,7 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("reverse")]
-        public LispObject Reverse(LispHost host, LispObject[] args)
+        public LispObject Reverse(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 1 && args[0] is LispList list)
             {
@@ -297,7 +297,7 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("intersection")]
-        public LispObject Intersection(LispHost host, LispObject[] args)
+        public LispObject Intersection(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
                 args[0] is LispList a &&
@@ -314,7 +314,7 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("union")]
-        public LispObject Union(LispHost host, LispObject[] args)
+        public LispObject Union(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
                 args[0] is LispList a &&
@@ -335,7 +335,7 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("set-difference")]
-        public LispObject SetDifference(LispHost host, LispObject[] args)
+        public LispObject SetDifference(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
                 args[0] is LispList a &&
@@ -356,7 +356,7 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("set-exclusive-or")]
-        public LispObject SetExclusiveOr(LispHost host, LispObject[] args)
+        public LispObject SetExclusiveOr(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
                args[0] is LispList a &&
@@ -375,7 +375,7 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("remove-duplicates")]
-        public LispObject RemoveDuplicates(LispHost host, LispObject[] args)
+        public LispObject RemoveDuplicates(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 1 && args[0] is LispList list)
             {
@@ -398,72 +398,72 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("<")]
-        public LispObject LessThan(LispHost host, LispObject[] args)
+        public LispObject LessThan(LispStackFrame frame, LispObject[] args)
         {
-            return FoldComparison(host, args, (a, b) => a < b);
+            return FoldComparison(frame, args, (a, b) => a < b);
         }
 
         [LispFunction("<=")]
-        public LispObject LessThanOrEqual(LispHost host, LispObject[] args)
+        public LispObject LessThanOrEqual(LispStackFrame frame, LispObject[] args)
         {
-            return FoldComparison(host, args, (a, b) => a <= b);
+            return FoldComparison(frame, args, (a, b) => a <= b);
         }
 
         [LispFunction(">")]
-        public LispObject GreaterThan(LispHost host, LispObject[] args)
+        public LispObject GreaterThan(LispStackFrame frame, LispObject[] args)
         {
-            return FoldComparison(host, args, (a, b) => a > b);
+            return FoldComparison(frame, args, (a, b) => a > b);
         }
 
         [LispFunction(">=")]
-        public LispObject GreaterThanOrEqual(LispHost host, LispObject[] args)
+        public LispObject GreaterThanOrEqual(LispStackFrame frame, LispObject[] args)
         {
-            return FoldComparison(host, args, (a, b) => a >= b);
+            return FoldComparison(frame, args, (a, b) => a >= b);
         }
 
         [LispFunction("=")]
         [LispFunction("equal")]
-        public LispObject Equal(LispHost host, LispObject[] args)
+        public LispObject Equal(LispStackFrame frame, LispObject[] args)
         {
-            return FoldObj(host, args, (a, b) => a.Equals(b));
+            return FoldObj(frame, args, (a, b) => a.Equals(b));
         }
 
         [LispFunction("!=")]
         [LispFunction("<>")]
-        public LispObject NotEqual(LispHost host, LispObject[] args)
+        public LispObject NotEqual(LispStackFrame frame, LispObject[] args)
         {
-            return FoldObj(host, args, (a, b) => !a.Equals(b));
+            return FoldObj(frame, args, (a, b) => !a.Equals(b));
         }
 
         [LispMacro("and")]
-        public LispObject And(LispHost host, LispObject[] args)
+        public LispObject And(LispStackFrame frame, LispObject[] args)
         {
-            return FoldBoolean(host, args, true, false, (a, b) => a && b);
+            return FoldBoolean(frame, args, true, false, (a, b) => a && b);
         }
 
         [LispMacro("or")]
-        public LispObject Or(LispHost host, LispObject[] args)
+        public LispObject Or(LispStackFrame frame, LispObject[] args)
         {
-            return FoldBoolean(host, args, true, true, (a, b) => a || b);
+            return FoldBoolean(frame, args, true, true, (a, b) => a || b);
         }
 
         [LispMacro("cond")]
-        public LispObject Cond(LispHost host, LispObject[] args)
+        public LispObject Cond(LispStackFrame frame, LispObject[] args)
         {
             foreach (var arg in args)
             {
                 if (arg is LispList list && list.Length == 2)
                 {
                     var values = list.ToList();
-                    var predicate = host.Eval(values[0]);
+                    var predicate = frame.Eval(values[0]);
                     switch (predicate)
                     {
-                        case LispError error:
+                        case LispError _:
                             return predicate;
                         case LispNilList _:
                             break;
                         default:
-                            return host.Eval(values[1]);
+                            return new LispTailCall(values[1]);
                     }
                 }
                 else
@@ -476,17 +476,17 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return host.Nil;
+            return frame.Nil;
         }
 
         [LispFunction("+")]
-        public LispObject Add(LispHost host, LispObject[] args)
+        public LispObject Add(LispStackFrame frame, LispObject[] args)
         {
             return FoldNumber(args, 0.0, (a, b) => a + b);
         }
 
         [LispFunction("-")]
-        public LispObject Subtract(LispHost host, LispObject[] args)
+        public LispObject Subtract(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 1)
             {
@@ -507,13 +507,13 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("*")]
-        public LispObject Multiply(LispHost host, LispObject[] args)
+        public LispObject Multiply(LispStackFrame frame, LispObject[] args)
         {
             return FoldNumber(args, 1.0, (a, b) => a * b);
         }
 
         [LispFunction("/")]
-        public LispObject Divide(LispHost host, LispObject[] args)
+        public LispObject Divide(LispStackFrame frame, LispObject[] args)
         {
             return FoldNumber(args, 1.0, (a, b) => a / b, useFirstAsInit: true);
         }
@@ -561,7 +561,7 @@ namespace IxMilia.Lisp
             return new LispNumber(result);
         }
 
-        private static LispObject FoldBoolean(LispHost host, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation)
+        private static LispObject FoldBoolean(LispStackFrame frame, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation)
         {
             LispObject result;
             if (args.Length == 0)
@@ -573,13 +573,13 @@ namespace IxMilia.Lisp
                 var collected = init;
                 foreach (var value in args)
                 {
-                    var evaluated = host.Eval(value);
+                    var evaluated = frame.Eval(value);
                     if (evaluated is LispError)
                     {
                         return evaluated;
                     }
                     // TODO: non zero
-                    var next = evaluated.Equals(host.Nil) ? false : true;
+                    var next = evaluated.Equals(frame.Nil) ? false : true;
                     if (next == shortCircuitValue)
                     {
                         collected = shortCircuitValue;
@@ -588,13 +588,13 @@ namespace IxMilia.Lisp
                     collected = operation(collected, next);
                 }
             done:
-                result = collected ? host.T : host.Nil;
+                result = collected ? frame.T : frame.Nil;
             }
 
             return result;
         }
 
-        private static LispObject FoldObj(LispHost host, LispObject[] args, Func<LispObject, LispObject, bool> operation)
+        private static LispObject FoldObj(LispStackFrame frame, LispObject[] args, Func<LispObject, LispObject, bool> operation)
         {
             if (args.Length < 2)
             {
@@ -607,14 +607,14 @@ namespace IxMilia.Lisp
                 result &= operation(args[i], args[i + 1]);
                 if (!result)
                 {
-                    return host.Nil;
+                    return frame.Nil;
                 }
             }
 
-            return host.T;
+            return frame.T;
         }
 
-        private static LispObject FoldComparison(LispHost host, LispObject[] args, Func<double, double, bool> operation)
+        private static LispObject FoldComparison(LispStackFrame frame, LispObject[] args, Func<double, double, bool> operation)
         {
             if (args.Length < 2)
             {
@@ -641,7 +641,7 @@ namespace IxMilia.Lisp
                         var result = operation(lastValue, num.Value);
                         if (!result)
                         {
-                            return host.Nil;
+                            return frame.Nil;
                         }
                         lastValue = num.Value;
                         break;
@@ -650,7 +650,7 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return host.T;
+            return frame.T;
         }
     }
 }

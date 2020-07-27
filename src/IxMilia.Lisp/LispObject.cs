@@ -89,6 +89,14 @@ namespace IxMilia.Lisp
             StackFrame = stackFrame;
         }
 
+        internal void TryApplyStackFrame(LispStackFrame frame)
+        {
+            if (StackFrame == null)
+            {
+                StackFrame = frame;
+            }
+        }
+
         public override string ToString()
         {
             var frame = StackFrame == null ? string.Empty : $":\n{StackFrame}";
@@ -574,8 +582,6 @@ namespace IxMilia.Lisp
             Name = name;
             Documentation = documentation;
         }
-
-        public abstract LispObject Execute(LispHost host, LispObject[] args);
     }
 
     public class LispCodeFunction : LispFunction
@@ -596,16 +602,14 @@ namespace IxMilia.Lisp
             return $"{Name} ({string.Join(" ", Arguments)})";
         }
 
-        public override LispObject Execute(LispHost host, LispObject[] args)
+        public void BindArguments(LispObject[] args, LispStackFrame frame)
         {
             // bind arguments
             // TODO: validate argument count
             for (int i = 0; i < args.Length; i++)
             {
-                host.SetValue(Arguments[i], args[i]);
+                frame.SetValue(Arguments[i], args[i]);
             }
-
-            return host.Eval(Commands);
         }
     }
 
@@ -623,11 +627,6 @@ namespace IxMilia.Lisp
         {
             return $"{Name} <native>";
         }
-
-        public override LispObject Execute(LispHost host, LispObject[] args)
-        {
-            return Function.Invoke(host, args);
-        }
     }
 
     public abstract class LispMacro : LispObject
@@ -638,8 +637,6 @@ namespace IxMilia.Lisp
         {
             Name = name;
         }
-
-        public abstract LispObject Execute(LispHost host, LispObject[] args);
     }
 
     public class LispCodeMacro : LispMacro
@@ -660,23 +657,14 @@ namespace IxMilia.Lisp
             return $"{Name} ({string.Join(" ", Arguments)})";
         }
 
-        public override LispObject Execute(LispHost host, LispObject[] args)
+        internal void ExpandBody(LispObject[] args, LispStackFrame frame)
         {
             // bind arguments
             // TODO: validate argument count
             for (int i = 0; i < args.Length; i++)
             {
-                host.CurrentFrame.SetMacroExpansion(Arguments[i], args[i]);
+                frame.SetMacroExpansion(Arguments[i], args[i]);
             }
-
-            // expand body
-            var lastValue = host.Nil;
-            foreach (var item in Body)
-            {
-                lastValue = host.Eval(item);
-            }
-
-            return lastValue;
         }
     }
 
@@ -694,10 +682,15 @@ namespace IxMilia.Lisp
         {
             return $"{Name} <native>";
         }
+    }
 
-        public override LispObject Execute(LispHost host, LispObject[] args)
+    internal class LispTailCall : LispObject
+    {
+        public LispObject Value { get; }
+
+        public LispTailCall(LispObject value)
         {
-            return Macro.Invoke(host, args);
+            Value = value;
         }
     }
 }

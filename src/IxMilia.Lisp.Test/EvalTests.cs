@@ -72,14 +72,11 @@ namespace IxMilia.Lisp.Test
     (add x 1))
 (inc 2)
 ");
-            Assert.Equal(3, result.StackFrame.Line); // inc: (add x 1)
+            Assert.Equal(3, result.StackFrame.Line); // inc: (add x 1), but tailcall inlined
             Assert.Equal(6, result.StackFrame.Column);
-            Assert.Equal("inc", result.StackFrame.FunctionName);
-            Assert.Equal(4, result.StackFrame.Parent.Line); // <root>: (inc 2)
-            Assert.Equal(2, result.StackFrame.Parent.Column);
-            Assert.Equal("<root>", result.StackFrame.Parent.FunctionName);
-            Assert.Null(result.StackFrame.Parent.Parent);
-            Assert.Equal("Undefined macro/function 'add'", result.Message);
+            Assert.Equal("<root>", result.StackFrame.FunctionName);
+            Assert.Null(result.StackFrame.Parent);
+            Assert.Equal("Undefined macro/function 'add', found '<null>'", result.Message);
         }
 
         [Fact]
@@ -155,6 +152,33 @@ namespace IxMilia.Lisp.Test
 (asrt t ""not hit"")
 ");
             Assert.Equal(host.T, result);
+        }
+
+        [Fact]
+        public void TailCallWithCond()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(defun count-to-one-million (val)
+    (cond ((= 1000000 val) val)
+          (t  (count-to-one-million (+ val 1)))))
+(count-to-one-million 0)
+");
+            Assert.Equal(new LispNumber(1000000), result);
+        }
+
+        [Fact]
+        public void TailCallWithIf()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(defun count-to-one-million (val)
+    (if (= 1000000 val)
+        val
+        (count-to-one-million (+ val 1))))
+(count-to-one-million 0)
+");
+            Assert.Equal(new LispNumber(1000000), result);
         }
     }
 }

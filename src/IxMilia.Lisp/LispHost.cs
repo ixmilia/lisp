@@ -8,30 +8,23 @@ using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
 {
-    public delegate LispObject LispMacroDelegate(LispHost host, LispObject[] args);
-    public delegate LispObject LispFunctionDelegate(LispHost host, LispObject[] args);
+    public delegate LispObject LispMacroDelegate(LispStackFrame frame, LispObject[] args);
+    public delegate LispObject LispFunctionDelegate(LispStackFrame frame, LispObject[] args);
 
     public class LispHost
     {
-        private const string NilString = "nil";
-        private const string TString = "t";
+        private readonly LispStackFrame _rootFrame;
 
-        public LispStackFrame CurrentFrame { get; private set; }
-        public LispObject Nil => GetValue<LispList>(NilString);
-        public LispObject T => GetValue<LispSymbol>(TString);
+        public LispObject T { get; }
+        public LispObject Nil { get; }
 
         public LispHost()
         {
-            CurrentFrame = new LispStackFrame("<root>", null);
-            AddWellKnownSymbols();
+            _rootFrame = LispStackFrame.CreateRootStackFrame();
+            T = _rootFrame.T;
+            Nil = _rootFrame.Nil;
             AddContextObject(new LispDefaultContext());
             ApplyInitScript();
-        }
-
-        private void AddWellKnownSymbols()
-        {
-            SetValue(TString, new LispSymbol(TString));
-            SetValue(NilString, LispNilList.Instance);
         }
 
         public void AddMacro(string name, LispMacroDelegate del)
@@ -63,7 +56,7 @@ namespace IxMilia.Lisp
             {
                 var parameterInfo = methodInfo.GetParameters();
                 if (parameterInfo.Length == 2 &&
-                    parameterInfo[0].ParameterType == typeof(LispHost) &&
+                    parameterInfo[0].ParameterType == typeof(LispStackFrame) &&
                     parameterInfo[1].ParameterType == typeof(LispObject[]) &&
                     methodInfo.ReturnType == typeof(LispObject))
                 {
@@ -112,14 +105,14 @@ namespace IxMilia.Lisp
 
         public void SetValue(string name, LispObject value)
         {
-            CurrentFrame.SetValue(name, value);
+            _rootFrame.SetValue(name, value);
         }
 
         public void SetValueInParentScope(string name, LispObject value)
         {
-            if (CurrentFrame.Parent is object)
+            if (_rootFrame.Parent is object)
             {
-                CurrentFrame.Parent.SetValue(name, value);
+                _rootFrame.Parent.SetValue(name, value);
             }
             else
             {
@@ -129,17 +122,12 @@ namespace IxMilia.Lisp
 
         public LispObject GetValue(string name)
         {
-            return GetValueAtFrame(name, CurrentFrame);
-        }
-
-        private LispObject GetValueAtFrame(string name, LispStackFrame frame)
-        {
-            return frame.GetValue(this, name);
+            return _rootFrame.GetValue(name);
         }
 
         public TObject GetValue<TObject>(string name) where TObject: LispObject
         {
-            return (TObject)GetValue(name);
+            return _rootFrame.GetValue<TObject>(name);
         }
 
         public LispObject Eval(string code)
@@ -169,161 +157,14 @@ namespace IxMilia.Lisp
 
         public LispObject Eval(LispObject obj)
         {
-            return EvalAtStackFrame(obj, CurrentFrame);
-        }
-
-        internal LispObject EvalAtStackFrame(LispObject obj, LispStackFrame frame)
-        {
-            if (obj is LispError)
-            {
-                return obj;
-            }
-
-            UpdateCallStackLocation(obj);
-            switch (obj)
-            {
-                case LispNumber _:
-                case LispString _:
-                    return obj;
-                case LispQuotedObject quote:
-                    return quote.Value;
-                case LispSymbol symbol:
-                    return EvalSymbol(symbol, frame);
-                case LispList list:
-                    return EvalList(list, frame);
-                case LispForwardListReference forwardRef:
-                    return EvalForwardReference(forwardRef);
-                default:
-                    return Nil;
-            }
-        }
-
-        private LispObject EvalSymbol(LispSymbol symbol, LispStackFrame frame)
-        {
-            return GetValueAtFrame(symbol.Value, frame);
-        }
-
-        private LispObject EvalList(LispList list, LispStackFrame frame)
-        {
-            if (list.IsNil)
-            {
-                return list;
-            }
-
-            var functionNameSymbol = (LispSymbol)list.Value;
-            var functionName = functionNameSymbol.Value;
-            var args = list.ToList().Skip(1).ToArray();
-            var value = GetValueAtFrame(functionName, frame);
-            UpdateCallStackLocation(functionNameSymbol);
-            LispObject result;
-            if (value is LispMacro)
-            {
-                var macro = (LispMacro)value;
-                PushStackFrame(macro.Name);
-
-                var firstError = args.OfType<LispError>().FirstOrDefault();
-                if (firstError != null)
-                {
-                    result = firstError;
-                }
-                else
-                {
-                    result = macro.Execute(this, args);
-                }
-
-                PopStackFrame();
-            }
-            else if (value is LispFunction)
-            {
-                // TODO: what if it's a regular variable?
-                var function = (LispFunction)value;
-                PushStackFrame(function.Name);
-
-                // evaluate arguments
-                var evaluatedArgs = args.Select(a => EvalAtStackFrame(a, frame)).ToArray();
-                var firstError = evaluatedArgs.OfType<LispError>().FirstOrDefault();
-                if (firstError != null)
-                {
-                    result = firstError;
-                }
-                else
-                {
-                    result = function.Execute(this, evaluatedArgs);
-                }
-
-                PopStackFrame();
-            }
-            else
-            {
-                result = GenerateError($"Undefined macro/function '{functionName}'");
-            }
-
-            TryApplyLocation(result, functionNameSymbol);
-            return result;
-        }
-
-        private LispObject EvalForwardReference(LispForwardListReference forwardRef)
-        {
-            LispObject result;
-            var finalList = new LispCircularList();
-            SetValue(forwardRef.ForwardReference.SymbolReference, finalList);
-            var values = forwardRef.List.ToList();
-            var evaluatedValues = values.Select(Eval);
-            var firstError = evaluatedValues.OfType<LispError>().FirstOrDefault();
-            if (firstError != null)
-            {
-                result = firstError;
-            }
-            else
-            {
-                var tempList = forwardRef.List.IsProperList
-                    ? LispList.FromEnumerable(evaluatedValues)
-                    : LispList.FromEnumerableImproper(evaluatedValues.First(), evaluatedValues.Skip(1).First(), evaluatedValues.Skip(2));
-                finalList.ApplyForCircularReference(tempList, isProperList: forwardRef.List.IsProperList);
-                result = finalList;
-            }
-
-            TryApplyLocation(result, forwardRef);
-            return result;
-        }
-
-        private static void TryApplyLocation(LispObject obj, LispObject parent)
-        {
-            if (obj.Line == 0 && obj.Column == 0)
-            {
-                obj.Line = parent.Line;
-                obj.Column = parent.Column;
-            }
-        }
-
-        private void UpdateCallStackLocation(LispObject obj)
-        {
-            CurrentFrame.Line = obj.Line;
-            CurrentFrame.Column = obj.Column;
-        }
-
-        private void PushStackFrame(string functionName)
-        {
-            CurrentFrame = new LispStackFrame(functionName, CurrentFrame);
-        }
-
-        private void PopStackFrame()
-        {
-            CurrentFrame = CurrentFrame.Parent;
-        }
-
-        private LispError GenerateError(string message)
-        {
-            var error = new LispError(message);
-            TryApplyStackFrame(error);
-            return error;
+            return LispEvaluator.Evaluate(obj, _rootFrame, false);
         }
 
         private void TryApplyStackFrame(LispError error)
         {
             if (error.StackFrame == null)
             {
-                error.StackFrame = CurrentFrame;
+                error.StackFrame = _rootFrame;
             }
         }
     }
