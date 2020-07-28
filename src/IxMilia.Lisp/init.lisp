@@ -58,5 +58,10 @@
     (cond ((= key (cdr (car table)))    (car table))                ; found it
           ((consp (cdr table))          (rassoc key (cdr table))))) ; check deeper if more items remain
 
+(defun subst (r s list)
+    (cond ((= nil list)     ())                                         ; empty list
+          ((= s (car list)) (cons r (subst r s (cdr list))))            ; replace head
+          (t                (cons (car list) (subst r s (cdr list)))))) ; no match, do nothing
+
 ; just to ensure the script was properly loaded
 t

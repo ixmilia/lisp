@@ -22,7 +22,7 @@ namespace IxMilia.Lisp.Repl
 
             PrintPrompt(0);
             string line;
-            while ((line = Console.ReadLine()) != "#quit")
+            while ((line = Input.ReadLine()) != "#quit")
             {
                 var result = repl.Eval(line);
                 if (result.LastValue != null)

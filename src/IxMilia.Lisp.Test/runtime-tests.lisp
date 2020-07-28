@@ -143,6 +143,9 @@
            (assert (member 'c ex) "set xor 2")
            (assert (member 'e ex) "set xor 3"))
     (assert-eq '(a b c) (remove-duplicates '(a a b b c b)) "remove-duplicates")
+    (assert-eq '(x b c x b c d) (subst 'x 'a '(a b c a b c d)) "subst 1")
+    (assert-eq '(e b c e b c d) (subst 'x 'a '(e b c e b c d)) "subst 2")
+    (assert-eq () (subst 'x 'a ()) "subst 3")
 )
 
 (defun common-helpers ()
