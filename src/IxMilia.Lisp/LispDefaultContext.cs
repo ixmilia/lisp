@@ -236,7 +236,7 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return new LispError("Expected a list");
+                return new LispError($"Expected a list, found {args[0]}");
             }
         }
 
@@ -251,7 +251,7 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return new LispError("Expected a list");
+                return new LispError($"Expected a list, found {args[0]}");
             }
         }
 

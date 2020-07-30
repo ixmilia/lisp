@@ -146,6 +146,7 @@
     (assert-eq '(x b c x b c d) (subst 'x 'a '(a b c a b c d)) "subst 1")
     (assert-eq '(e b c e b c d) (subst 'x 'a '(e b c e b c d)) "subst 2")
     (assert-eq () (subst 'x 'a ()) "subst 3")
+    (assert-eq '(uno one-point-five dos) (sublis '((one . uno) (two . dos)) '(one one-point-five two)) "sublis")
 )
 
 (defun common-helpers ()

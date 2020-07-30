@@ -58,10 +58,14 @@
     (cond ((= key (cdr (car table)))    (car table))                ; found it
           ((consp (cdr table))          (rassoc key (cdr table))))) ; check deeper if more items remain
 
-(defun subst (r s list)
-    (cond ((= nil list)     ())                                         ; empty list
-          ((= s (car list)) (cons r (subst r s (cdr list))))            ; replace head
-          (t                (cons (car list) (subst r s (cdr list)))))) ; no match, do nothing
+(defun sublis (table list)
+    (let ((keypair (assoc (car list) table)))
+        (cond ((= nil list) ())                                             ; empty/end of list
+              (keypair      (cons (cdr keypair) (sublis table (cdr list)))) ; perform replacement on head
+              (t            (cons (car list) (sublis table (cdr list))))))) ; no key/value pair found; continue
+
+(defun subst (r s items)
+    (sublis (list (cons s r)) items))
 
 ; just to ensure the script was properly loaded
 t
