@@ -388,6 +388,25 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("remove")]
+        public LispObject Remove(LispStackFrame frame, LispObject[] args)
+        {
+            // TOOD: validate arguments
+            var key = args[0];
+            var list = (LispList)args[1];
+            var result = new List<LispObject>();
+
+            foreach (var item in list.ToList())
+            {
+                if (!key.Equals(item))
+                {
+                    result.Add(item);
+                }
+            }
+
+            return LispList.FromEnumerable(result);
+        }
+
         [LispFunction("remove-duplicates")]
         public LispObject RemoveDuplicates(LispStackFrame frame, LispObject[] args)
         {
