@@ -73,6 +73,8 @@
         (assert (eq l1 l1) "pointer equality list")
         (assert (eq l1 l2) "pointer equality symbol"))
     ; not doing `eq` with numbers, because it's undefined
+    (assert-not (eql '(a b c) '(a b c)) "eql list")
+    (assert (eql 15 15) "eql number")
 )
 
 (defun list-helpers ()
