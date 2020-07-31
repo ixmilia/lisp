@@ -43,6 +43,12 @@ namespace IxMilia.Lisp.Tokens
                     Advance();
                     yield return ApplyProperties(new LispSingleQuoteToken());
                 }
+                else if (IsColon(c))
+                {
+                    MarkTokenStart();
+                    Advance();
+                    yield return ApplyProperties(ParseKeyword());
+                }
                 else if (IsLeftParen(c))
                 {
                     MarkTokenStart();
@@ -246,6 +252,13 @@ namespace IxMilia.Lisp.Tokens
             return new LispRightParenToken();
         }
 
+        private LispKeywordToken ParseKeyword()
+        {
+            var keyword = ParseSymbolLike(":");
+            var token = new LispKeywordToken(keyword);
+            return token;
+        }
+
         private LispToken ParseForwardReference()
         {
             if (!TryPeek(out var c) || !IsHash(c))
@@ -280,7 +293,7 @@ namespace IxMilia.Lisp.Tokens
             }
         }
 
-        private LispSymbolToken ParseSymbol(string existing = null)
+        private string ParseSymbolLike(string existing = null)
         {
             var builder = new StringBuilder(existing);
             while (TryPeek(out var c) && !IsEndOfToken(c))
@@ -290,6 +303,12 @@ namespace IxMilia.Lisp.Tokens
             }
 
             var text = builder.ToString();
+            return text;
+        }
+
+        private LispSymbolToken ParseSymbol(string existing = null)
+        {
+            var text = ParseSymbolLike(existing);
             var token = new LispSymbolToken(text);
             return token;
         }
@@ -464,6 +483,11 @@ namespace IxMilia.Lisp.Tokens
         private static bool IsSingleQuote(char c)
         {
             return c == '\'';
+        }
+
+        private static bool IsColon(char c)
+        {
+            return c == ':';
         }
 
         private static bool IsMinus(char c)

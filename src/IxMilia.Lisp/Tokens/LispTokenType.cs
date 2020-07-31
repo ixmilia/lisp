@@ -6,6 +6,7 @@ namespace IxMilia.Lisp.Tokens
         LeftParen,
         RightParen,
         SingleQuote,
+        Keyword,
         Dot,
         Symbol,
         Number,
