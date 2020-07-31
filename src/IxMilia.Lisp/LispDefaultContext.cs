@@ -481,6 +481,12 @@ namespace IxMilia.Lisp
             return FoldObj(frame, args, (a, b) => a.Equals(b));
         }
 
+        [LispFunction("eq")]
+        public LispObject Eq(LispStackFrame frame, LispObject[] args)
+        {
+            return FoldObj(frame, args, (a, b) => ReferenceEquals(a, b));
+        }
+
         [LispFunction("!=")]
         [LispFunction("<>")]
         public LispObject NotEqual(LispStackFrame frame, LispObject[] args)

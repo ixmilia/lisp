@@ -2,6 +2,10 @@
     "Asserts that the given predicate is true, otherwise fails"
     (if pred t (fail message)))
 
+(defun assert-not (pred message)
+    "Asserts that the given predicate is false, otherwise fails"
+    (if pred (fail message) t))
+
 (defun assert-eq (expected actual message)
     "Asserts the given values are equal, otherwise fails"
     (assert (= expected actual) (join "Error:" message ": Expected" expected "but received" actual)))
@@ -56,6 +60,20 @@
 (defun nil-equality ()
     (assert-eq nil () "nil-equality 1")
     (assert-eq () nil "nil-equality 2"))
+
+(defun item-equality ()
+    (assert (equal '(a b c) '(a b c)) "equivalent list 1")
+    (assert (= '(a b c) '(a b c)) "equivalent list 2")
+    (assert (equal 'a 'a) "equivalent symbol 1")
+    (assert (= 'a 'a) "equivalent symbol 2")
+    (assert-not (eq '(a b c) '(a b c)) "pointer non-equality list")
+    (assert-not (eq 'a 'a) "pointer non-equality symbol")
+    (let* ((l1 '(a b c)
+           (l2 l1)))
+        (assert (eq l1 l1) "pointer equality list")
+        (assert (eq l1 l2) "pointer equality symbol"))
+    ; not doing `eq` with numbers, because it's undefined
+)
 
 (defun list-helpers ()
     (setq l '(4 5 6))
@@ -178,6 +196,7 @@
      (short-circuit-or)
      (built-in-predicates)
      (nil-equality)
+     (item-equality)
      (list-helpers)
      (common-helpers)
      (test-cond)
