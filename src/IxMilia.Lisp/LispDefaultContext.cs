@@ -393,12 +393,21 @@ namespace IxMilia.Lisp
         {
             // TOOD: validate arguments
             var key = args[0];
-            var list = (LispList)args[1];
+            var list = ((LispList)args[1]).ToList();
             var result = new List<LispObject>();
+            var count = GetKeywordArgument(args.Skip(2), ":count");
+            var limit = count is LispNumber number
+                ? (int)number.Value
+                : list.Count;
 
-            foreach (var item in list.ToList())
+            var removeCount = 0;
+            foreach (var item in list)
             {
-                if (!key.Equals(item))
+                if (removeCount < limit && key.Equals(item))
+                {
+                    removeCount++;
+                }
+                else
                 {
                     result.Add(item);
                 }
@@ -684,6 +693,26 @@ namespace IxMilia.Lisp
             }
 
             return frame.T;
+        }
+
+        private static LispObject GetKeywordArgument(IEnumerable<LispObject> args, string keyword)
+        {
+            LispObject result = LispNilList.Instance;
+            var enumerator = args.GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                if (enumerator.Current is LispKeyword keywordSpecifier && keywordSpecifier.Keyword == keyword)
+                {
+                    if (enumerator.MoveNext())
+                    {
+                        result = enumerator.Current;
+                    }
+
+                    break;
+                }
+            }
+
+            return result;
         }
     }
 }

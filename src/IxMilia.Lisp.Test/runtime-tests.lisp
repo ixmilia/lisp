@@ -92,6 +92,7 @@
     (assert-eq '(c . d) (last '(a b c . d)) "last improper")
     (assert-eq '(b n n) (remove 'a '(b a n a n a)) "remove item")
     (assert-eq '(b a n a n a) (remove 'x '(b a n a n a)) "remove nothing")
+    (assert-eq '(b n n a) (remove 'a '(b a n a n a) :count 2) "remove with :count")
     (assert-eq '(a b c) (member 'a '(a b c)) "member first")
     (assert-eq '(b c) (member 'b '(a b c)) "member second")
     (assert-eq '(c) (member 'c '(a b c)) "member third")
