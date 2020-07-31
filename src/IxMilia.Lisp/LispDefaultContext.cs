@@ -399,6 +399,12 @@ namespace IxMilia.Lisp
             var limit = count is LispNumber number
                 ? (int)number.Value
                 : list.Count;
+            var fromEndArg = GetKeywordArgument(args.Skip(2), ":from-end");
+            var fromEnd = !fromEndArg.Equals(frame.Nil);
+            if (fromEnd)
+            {
+                list = list.Reverse().ToList();
+            }
 
             var removeCount = 0;
             foreach (var item in list)
@@ -411,6 +417,11 @@ namespace IxMilia.Lisp
                 {
                     result.Add(item);
                 }
+            }
+
+            if (fromEnd)
+            {
+                result.Reverse();
             }
 
             return LispList.FromEnumerable(result);
