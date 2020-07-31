@@ -313,7 +313,7 @@ namespace IxMilia.Lisp.Tokens
             return token;
         }
 
-        private LispNumberToken ParseNumber(string existing = null)
+        private LispToken ParseNumber(string existing = null)
         {
             // sign is already pre-populated in `existing`
             Debug.Assert(existing == null || existing == "-" || existing == "+");
@@ -366,11 +366,17 @@ namespace IxMilia.Lisp.Tokens
                         builder.Append(c);
                     }
                 }
-            }
 
-            var text = builder.ToString();
-            var value = double.Parse(text);
-            return new LispNumberToken(value, text);
+                var text = builder.ToString();
+                var value = double.Parse(text);
+                return new LispFloatToken(value, text);
+            }
+            else
+            {
+                var text = builder.ToString();
+                var value = int.Parse(text);
+                return new LispIntegerToken(value, text);
+            }
         }
 
         private LispStringToken ParseString()

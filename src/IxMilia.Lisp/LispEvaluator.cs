@@ -16,8 +16,10 @@ namespace IxMilia.Lisp
             frame.UpdateCallStackLocation(obj);
             switch (obj)
             {
-                case LispNumber _:
+                case LispInteger _:
+                case LispFloat _:
                 case LispString _:
+                case LispKeyword _:
                     return obj;
                 case LispQuotedObject quote:
                     return quote.Value;
@@ -39,8 +41,6 @@ namespace IxMilia.Lisp
 
                         return symbolValue;
                     }
-                case LispKeyword keyword:
-                    return keyword;
                 case LispList list:
                     {
                         if (list.IsNil)

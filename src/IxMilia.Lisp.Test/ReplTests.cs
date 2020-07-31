@@ -17,7 +17,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(1, result.ExpressionDepth);
 
             result = repl.Eval(")");
-            Assert.Equal(new LispNumber(10.0), result.LastValue);
+            Assert.Equal(new LispInteger(10), result.LastValue);
             Assert.Equal(0, result.ExpressionDepth);
         }
 
@@ -26,11 +26,11 @@ namespace IxMilia.Lisp.Test
         {
             var repl = new LispRepl();
             var result = repl.Eval("(+ 1 2)(+ 5 6");
-            Assert.Equal(new LispNumber(3.0), result.LastValue);
+            Assert.Equal(new LispInteger(3), result.LastValue);
             Assert.Equal(1, result.ExpressionDepth);
 
             result = repl.Eval(")");
-            Assert.Equal(new LispNumber(11.0), result.LastValue);
+            Assert.Equal(new LispInteger(11), result.LastValue);
             Assert.Equal(0, result.ExpressionDepth);
         }
 

@@ -68,7 +68,7 @@ namespace IxMilia.Lisp.Test
             CheckTokenTypes("'(", LispTokenType.SingleQuote, LispTokenType.LeftParen);
             CheckTokenTypes("()", LispTokenType.LeftParen, LispTokenType.RightParen);
             CheckTokenTypes(" ( ) ", LispTokenType.LeftParen, LispTokenType.RightParen);
-            CheckTokenTypes("- 3", LispTokenType.Symbol, LispTokenType.Number);
+            CheckTokenTypes("- 3", LispTokenType.Symbol, LispTokenType.Integer);
             CheckTokenTypes(":count", LispTokenType.Keyword);
         }
 
@@ -77,11 +77,18 @@ namespace IxMilia.Lisp.Test
         [InlineData("3", 3.0)]
         [InlineData("+3", 3.0)]
         [InlineData("-3", -3.0)]
+        public void Integers(string code, double value)
+        {
+            var number = (LispIntegerToken)SingleToken(code);
+            Assert.Equal(value, number.Value);
+        }
+
+        [Theory]
         [InlineData("3.5", 3.5)]
         [InlineData("3.5e4", 3.5e4)]
-        public void Numbers(string code, double value)
+        public void Floats(string code, double value)
         {
-            var number = (LispNumberToken)SingleToken(code);
+            var number = (LispFloatToken)SingleToken(code);
             Assert.Equal(value, number.Value);
         }
 

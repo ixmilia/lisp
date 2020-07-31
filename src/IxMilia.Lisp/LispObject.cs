@@ -154,11 +154,74 @@ namespace IxMilia.Lisp
         }
     }
 
-    public class LispNumber : LispObject
+    public abstract class LispNumber : LispObject
+    {
+    }
+
+    public class LispInteger : LispNumber
+    {
+        public int Value { get; set; }
+
+        public LispInteger(int value)
+        {
+            Value = value;
+        }
+
+        public bool IsZero => Value == 0;
+        public bool IsEven => Value % 2 == 0;
+        public bool IsOdd => Value % 2 != 0;
+
+        public override string ToString()
+        {
+            return Value.ToString();
+        }
+
+        public static bool operator ==(LispInteger a, LispInteger b)
+        {
+            return a?.Value == b?.Value;
+        }
+
+        public static bool operator !=(LispInteger a, LispInteger b)
+        {
+            return !(a == b);
+        }
+
+        public static LispInteger operator +(LispInteger a, LispInteger b)
+        {
+            return new LispInteger(a.Value + b.Value);
+        }
+
+        public static LispInteger operator -(LispInteger a, LispInteger b)
+        {
+            return new LispInteger(a.Value - b.Value);
+        }
+
+        public static LispInteger operator *(LispInteger a, LispInteger b)
+        {
+            return new LispInteger(a.Value * b.Value);
+        }
+
+        public static LispInteger operator /(LispInteger a, LispInteger b)
+        {
+            return new LispInteger(a.Value / b.Value);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is LispInteger && this == (LispInteger)obj;
+        }
+
+        public override int GetHashCode()
+        {
+            return Value.GetHashCode();
+        }
+    }
+
+    public class LispFloat : LispNumber
     {
         public double Value { get; set; }
 
-        public LispNumber(double value)
+        public LispFloat(double value)
         {
             Value = value;
         }
@@ -172,39 +235,39 @@ namespace IxMilia.Lisp
             return Value.ToString();
         }
 
-        public static bool operator ==(LispNumber a, LispNumber b)
+        public static bool operator ==(LispFloat a, LispFloat b)
         {
             return a?.Value == b?.Value;
         }
 
-        public static bool operator !=(LispNumber a, LispNumber b)
+        public static bool operator !=(LispFloat a, LispFloat b)
         {
             return !(a == b);
         }
 
-        public static LispNumber operator +(LispNumber a, LispNumber b)
+        public static LispFloat operator +(LispFloat a, LispFloat b)
         {
-            return new LispNumber(a.Value + b.Value);
+            return new LispFloat(a.Value + b.Value);
         }
 
-        public static LispNumber operator -(LispNumber a, LispNumber b)
+        public static LispFloat operator -(LispFloat a, LispFloat b)
         {
-            return new LispNumber(a.Value - b.Value);
+            return new LispFloat(a.Value - b.Value);
         }
 
-        public static LispNumber operator *(LispNumber a, LispNumber b)
+        public static LispFloat operator *(LispFloat a, LispFloat b)
         {
-            return new LispNumber(a.Value * b.Value);
+            return new LispFloat(a.Value * b.Value);
         }
 
-        public static LispNumber operator /(LispNumber a, LispNumber b)
+        public static LispFloat operator /(LispFloat a, LispFloat b)
         {
-            return new LispNumber(a.Value / b.Value);
+            return new LispFloat(a.Value / b.Value);
         }
 
         public override bool Equals(object obj)
         {
-            return obj is LispNumber && this == (LispNumber)obj;
+            return obj is LispFloat && this == (LispFloat)obj;
         }
 
         public override int GetHashCode()

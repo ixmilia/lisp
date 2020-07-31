@@ -9,7 +9,8 @@ namespace IxMilia.Lisp.Tokens
         Keyword,
         Dot,
         Symbol,
-        Number,
+        Integer,
+        Float,
         String,
     }
 }

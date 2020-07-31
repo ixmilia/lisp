@@ -120,13 +120,31 @@ namespace IxMilia.Lisp.Tokens
         }
     }
 
-    public class LispNumberToken : LispToken
+    public class LispIntegerToken : LispToken
     {
-        public override LispTokenType Type => LispTokenType.Number;
+        public override LispTokenType Type => LispTokenType.Integer;
+        public int Value { get; }
+        public string Text { get; }
+
+        public LispIntegerToken(int value, string text)
+        {
+            Value = value;
+            Text = text;
+        }
+
+        public override string ToString()
+        {
+            return Text;
+        }
+    }
+
+    public class LispFloatToken : LispToken
+    {
+        public override LispTokenType Type => LispTokenType.Float;
         public double Value { get; }
         public string Text { get; }
 
-        public LispNumberToken(double value, string text)
+        public LispFloatToken(double value, string text)
         {
             Value = value;
             Text = text;

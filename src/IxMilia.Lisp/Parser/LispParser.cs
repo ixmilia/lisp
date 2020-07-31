@@ -73,9 +73,13 @@ namespace IxMilia.Lisp.Parser
                         Advance();
                         result = new LispKeyword(keyword.Keyword);
                         break;
-                    case LispNumberToken num:
+                    case LispIntegerToken num:
                         Advance();
-                        result = new LispNumber(num.Value);
+                        result = new LispInteger(num.Value);
+                        break;
+                    case LispFloatToken num:
+                        Advance();
+                        result = new LispFloat(num.Value);
                         break;
                     case LispStringToken str:
                         Advance();
