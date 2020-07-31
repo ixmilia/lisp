@@ -39,6 +39,8 @@ namespace IxMilia.Lisp
 
                         return symbolValue;
                     }
+                case LispKeyword keyword:
+                    return keyword;
                 case LispList list:
                     {
                         if (list.IsNil)

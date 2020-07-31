@@ -30,7 +30,10 @@
 (defun built-in-predicates ()
     (assert
         (and     (symbolp 'a)
+                 (symbolp :a)
             (not (symbolp 3))
+                 (keywordp :a)
+            (not (keywordp 'a))
                  (numberp 1)
             (not (numberp "one"))
                  (zerop 0)

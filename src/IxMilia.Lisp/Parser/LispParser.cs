@@ -69,6 +69,10 @@ namespace IxMilia.Lisp.Parser
                         Advance();
                         result = new LispSymbol(symbol.Value);
                         break;
+                    case LispKeywordToken keyword:
+                        Advance();
+                        result = new LispKeyword(keyword.Keyword);
+                        break;
                     case LispNumberToken num:
                         Advance();
                         result = new LispNumber(num.Value);

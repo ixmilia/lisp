@@ -122,12 +122,26 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("keywordp")]
+        public LispObject KeywordP(LispStackFrame frame, LispObject[] args)
+        {
+            // TODO: validate argument count
+            switch (args[0])
+            {
+                case LispKeyword _:
+                    return frame.T;
+                default:
+                    return frame.Nil;
+            }
+        }
+
         [LispFunction("symbolp")]
         public LispObject SymbolP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
             switch (args[0])
             {
+                case LispKeyword _:
                 case LispSymbol _:
                     return frame.T;
                 default:

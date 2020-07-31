@@ -139,6 +139,21 @@ namespace IxMilia.Lisp
         }
     }
 
+    public class LispKeyword : LispObject
+    {
+        public string Keyword { get; }
+
+        public LispKeyword(string keyword)
+        {
+            Keyword = keyword;
+        }
+
+        public override string ToString()
+        {
+            return Keyword;
+        }
+    }
+
     public class LispNumber : LispObject
     {
         public double Value { get; set; }
