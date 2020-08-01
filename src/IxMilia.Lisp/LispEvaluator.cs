@@ -18,6 +18,7 @@ namespace IxMilia.Lisp
             {
                 case LispInteger _:
                 case LispFloat _:
+                case LispRatio _:
                 case LispString _:
                 case LispKeyword _:
                     return obj;

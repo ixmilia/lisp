@@ -534,7 +534,17 @@ namespace IxMilia.Lisp
                     return true;
                 }
 
-                if (a is LispSymbol sa && b is LispSymbol sb && sa.Value == sb.Value)
+                if (a is LispString sa && b is LispString sb && sa == sb)
+                {
+                    return true;
+                }
+
+                if (a is LispKeyword ka && b is LispKeyword kb && ka.Keyword == kb.Keyword)
+                {
+                    return true;
+                }
+
+                if (a is LispSymbol ssa && b is LispSymbol ssb && ssa.Value == ssb.Value)
                 {
                     return true;
                 }

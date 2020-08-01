@@ -25,6 +25,8 @@
         (assert (eq l1 l2) "pointer equality symbol"))
     ; not doing `eq` with numbers, because it's undefined
     (assert (eql 'a 'a) "eql symbol")
+    (assert (eql "abcd" "abcd") "eql string")
+    (assert (eql :abcd :abcd) "eql keyword")
     (assert-not (eql '(a b c) '(a b c)) "eql list")
     (assert (eql 15 15) "eql integer")
     (assert (eql 15.0 15.0) "eql float")
