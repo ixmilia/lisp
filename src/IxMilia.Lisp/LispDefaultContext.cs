@@ -117,6 +117,7 @@ namespace IxMilia.Lisp
             {
                 case LispInteger _:
                 case LispFloat _:
+                case LispRatio _:
                     return frame.T;
                 default:
                     return frame.Nil;
@@ -460,32 +461,51 @@ namespace IxMilia.Lisp
         [LispFunction("<")]
         public LispObject LessThan(LispStackFrame frame, LispObject[] args)
         {
-            return FoldComparison(frame, args, (a, b) => a < b, (a, b) => a < b);
+            return FoldComparison(frame, args, (a, b) => LispNumber.LessThan(a, b));
         }
 
         [LispFunction("<=")]
         public LispObject LessThanOrEqual(LispStackFrame frame, LispObject[] args)
         {
-            return FoldComparison(frame, args, (a, b) => a <= b, (a, b) => a <= b);
+            return FoldComparison(frame, args, (a, b) => LispNumber.LessThanOrEqual(a, b));
         }
 
         [LispFunction(">")]
         public LispObject GreaterThan(LispStackFrame frame, LispObject[] args)
         {
-            return FoldComparison(frame, args, (a, b) => a > b, (a, b) => a > b);
+            return FoldComparison(frame, args, (a, b) => LispNumber.GreaterThan(a, b));
         }
 
         [LispFunction(">=")]
         public LispObject GreaterThanOrEqual(LispStackFrame frame, LispObject[] args)
         {
-            return FoldComparison(frame, args, (a, b) => a >= b, (a, b) => a >= b);
+            return FoldComparison(frame, args, (a, b) => LispNumber.GreaterThanOrEqual(a, b));
         }
 
         [LispFunction("=")]
+        public LispObject NumberEqual(LispStackFrame frame, LispObject[] args)
+        {
+            return FoldComparison(frame, args, (a, b) => LispNumber.Equal(a, b));
+        }
+
         [LispFunction("equal")]
         public LispObject Equal(LispStackFrame frame, LispObject[] args)
         {
             return FoldObj(frame, args, (a, b) => a.Equals(b));
+        }
+
+        [LispFunction("equalp")]
+        public LispObject EqualP(LispStackFrame frame, LispObject[] args)
+        {
+            return FoldObj(frame, args, (a, b) =>
+            {
+                if (a is LispString sa && b is LispString sb)
+                {
+                    return string.Compare(sa.Value, sb.Value, StringComparison.OrdinalIgnoreCase) == 0;
+                }
+
+                return a.Equals(b);
+            });
         }
 
         [LispFunction("eq")]
@@ -505,6 +525,16 @@ namespace IxMilia.Lisp
                 }
 
                 if (a is LispFloat fa && b is LispFloat fb && fa.Value == fb.Value)
+                {
+                    return true;
+                }
+
+                if (a is LispRatio ra && b is LispRatio rb && ra == rb)
+                {
+                    return true;
+                }
+
+                if (a is LispSymbol sa && b is LispSymbol sb && sa.Value == sb.Value)
                 {
                     return true;
                 }
@@ -574,6 +604,8 @@ namespace IxMilia.Lisp
                     return new LispInteger(Math.Abs(i.Value));
                 case LispFloat f:
                     return new LispFloat(Math.Abs(f.Value));
+                case LispRatio r:
+                    return new LispRatio(Math.Abs(r.Numerator), Math.Abs(r.Denominator));
                 default:
                     return new LispError($"Expected {nameof(LispInteger)} or {nameof(LispFloat)} but found {args[0].GetType().Name} with value {args[0]}");
             }
@@ -589,6 +621,8 @@ namespace IxMilia.Lisp
                     return new LispFloat(Math.Sqrt(i.Value));
                 case LispFloat f:
                     return new LispFloat(Math.Sqrt(f.Value));
+                case LispRatio r:
+                    return new LispFloat(Math.Sqrt(((LispFloat)r).Value));
                 default:
                     return new LispError($"Expected {nameof(LispInteger)} or {nameof(LispFloat)} but found {args[0].GetType().Name} with value {args[0]}");
             }
@@ -597,7 +631,7 @@ namespace IxMilia.Lisp
         [LispFunction("+")]
         public LispObject Add(LispStackFrame frame, LispObject[] args)
         {
-            return FoldNumber(args, 0, 0.0, (a, b) => a + b, (a, b) => a + b);
+            return FoldNumber(args, LispInteger.Zero, (a, b) => LispNumber.Add(a, b));
         }
 
         [LispFunction("-")]
@@ -613,116 +647,77 @@ namespace IxMilia.Lisp
                         return new LispInteger(num.Value * -1);
                     case LispFloat num:
                         return new LispFloat(num.Value * -1.0);
+                    case LispRatio num:
+                        return new LispRatio(num.Numerator * -1, num.Denominator).Reduce();
                     default:
                         return new LispError($"Expected type number but found {value.GetType()}");
                 }
             }
             else
             {
-                return FoldNumber(args, 0, 0.0, (a, b) => a - b, (a, b) => a - b, useFirstAsInit: true);
+                return FoldNumber(args, LispInteger.Zero, (a, b) => LispNumber.Sub(a, b), useFirstAsInit: true);
             }
         }
 
         [LispFunction("*")]
         public LispObject Multiply(LispStackFrame frame, LispObject[] args)
         {
-            return FoldNumber(args, 1, 1.0, (a, b) => a * b, (a, b) => a * b);
+            return FoldNumber(args, LispInteger.One, (a, b) => LispNumber.Mul(a, b));
         }
 
         [LispFunction("/")]
         public LispObject Divide(LispStackFrame frame, LispObject[] args)
         {
-            return FoldNumber(args, 1, 1.0, (a, b) => a / b, (a, b) => a / b, useFirstAsInit: true);
+            return FoldNumber(args, LispInteger.One, (a, b) => LispNumber.Div(a, b), useFirstAsInit: true);
         }
 
-        private static LispObject FoldNumber(LispObject[] args, int integerInit, double floatInit, Func<int, int, int> integerOperation, Func<double, double, double> floatOperation, bool useFirstAsInit = false)
+        private static LispObject FoldNumber(LispObject[] args, LispNumber init, Func<LispNumber, LispNumber, LispNumber> operation, bool useFirstAsInit = false)
         {
             if (args.Length == 0)
             {
                 return new LispError("Missing arguments");
             }
 
-            bool usingInteger = false;
-
-            var first = args[0];
-            switch (first)
-            {
-                case LispInteger _:
-                    usingInteger = true;
-                    break;
-                case LispFloat _:
-                    usingInteger = false;
-                    break;
-                default:
-                    return new LispError($"Expected type {nameof(LispInteger)} or {nameof(LispFloat)} but found {first.GetType().Name} with value {first}");
-            }
-
-            int integerResult = 0;
-            double floatResult = 0.0;
-            int skip;
+            int skip = 0;
             if (useFirstAsInit)
             {
                 skip = 1;
-                switch (first)
+                switch (args[0])
                 {
-                    case LispInteger num:
-                        integerResult = num.Value;
+                    case LispInteger i:
+                        init = i;
                         break;
-                    case LispFloat num:
-                        floatResult = num.Value;
+                    case LispFloat f:
+                        init = f;
                         break;
+                    case LispRatio r:
+                        init = r;
+                        break;
+                    default:
+                        return new LispError($"Expected number, found {args[0].GetType().Name} with value {args[0]}");
                 }
             }
-            else
-            {
-                skip = 0;
-                integerResult = integerInit;
-                floatResult = floatInit;
-            }
 
+            var result = init;
             foreach (var value in args.Skip(skip))
             {
-                if (usingInteger)
+                switch (value)
                 {
-                    switch (value)
-                    {
-                        case LispInteger num:
-                            integerResult = integerOperation(integerResult, num.Value);
-                            break;
-                        case LispFloat num:
-                            // expecting int, got float; convert to doing float calculations
-                            usingInteger = false;
-                            floatResult = floatOperation(integerResult, num.Value);
-                            break;
-                        default:
-                            return new LispError($"Expected type {nameof(LispInteger)} but found {value.GetType().Name} with value {value}");
-                    }
-                }
-                else
-                {
-                    switch (value)
-                    {
-                        case LispInteger num:
-                            // expecting float, got int; keep doing float calculations
-                            floatResult = floatOperation(floatResult, num.Value);
-                            break;
-                        case LispFloat num:
-                            floatResult = floatOperation(floatResult, num.Value);
-                            break;
-                        default:
-                            return new LispError($"Expected type {nameof(LispFloat)} but found {value.GetType().Name} with value {value}");
-                    }
+                    case LispInteger i:
+                        result = operation(result, i);
+                        break;
+                    case LispFloat f:
+                        result = operation(result, f);
+                        break;
+                    case LispRatio r:
+                        result = operation(result, r);
+                        break;
+                    default:
+                        return new LispError($"Expected number, found {args[0].GetType().Name} with value {args[0]}");
                 }
             }
 
-            if (usingInteger)
-            {
-                return new LispInteger(integerResult);
-            }
-            else
-            {
-                return new LispFloat(floatResult);
-            }
+            return result;
         }
 
         private static LispObject FoldBoolean(LispStackFrame frame, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation)
@@ -778,98 +773,54 @@ namespace IxMilia.Lisp
             return frame.T;
         }
 
-        private static LispObject FoldComparison(LispStackFrame frame, LispObject[] args, Func<int, int, bool> integerOperation, Func<double, double, bool> floatOperation)
+        private static LispObject FoldComparison(LispStackFrame frame, LispObject[] args, Func<LispNumber, LispNumber, bool> operation)
         {
             if (args.Length < 2)
             {
                 return new LispError("At least 2 arguments needed");
             }
 
-            bool usingInteger = false;
-
-            var value = args[0];
-            int integerLastValue = 0;
-            double floatLastValue = 0.0;
-            switch (value)
+            LispNumber lastValue;
+            switch (args[0])
             {
-                case LispInteger num:
-                    usingInteger = true;
-                    integerLastValue = num.Value;
+                case LispInteger i:
+                    lastValue = i;
                     break;
-                case LispFloat num:
-                    usingInteger = false;
-                    floatLastValue = num.Value;
+                case LispFloat f:
+                    lastValue = f;
+                    break;
+                case LispRatio r:
+                    lastValue = r;
                     break;
                 default:
-                    return new LispError($"Expected type {nameof(LispInteger)} or {nameof(LispFloat)} but found {value.GetType()} with value {value}");
+                    return new LispError($"Expected number, got {args[0].GetType().Name} with value {args[0]}");
             }
 
-            foreach (var arg in args.Skip(1))
+            foreach (var value in args.Skip(1))
             {
-                value = arg;
-                if (usingInteger)
+                LispNumber nextValue;
+                switch (value)
                 {
-                    switch (value)
-                    {
-                        case LispInteger num:
-                            {
-                                var result = integerOperation(integerLastValue, num.Value);
-                                if (!result)
-                                {
-                                    return frame.Nil;
-                                }
-
-                                integerLastValue = num.Value;
-                                break;
-                            }
-                        case LispFloat num:
-                            {
-                                // expecting int, got float; convert to doing float calculations
-                                var result = floatOperation(integerLastValue, num.Value);
-                                if (!result)
-                                {
-                                    return frame.Nil;
-                                }
-
-                                usingInteger = false;
-                                floatLastValue = num.Value;
-                                break;
-                            }
-                        default:
-                            return new LispError($"Expected type {nameof(LispInteger)} but found {value.GetType()} with value {value}");
-                    }
+                    case LispInteger i:
+                        nextValue = i;
+                        break;
+                    case LispFloat f:
+                        nextValue = f;
+                        break;
+                    case LispRatio r:
+                        nextValue = r;
+                        break;
+                    default:
+                        return new LispError($"Expected number, got {value.GetType().Name} with value {value}");
                 }
-                else
+
+                var result = operation(lastValue, nextValue);
+                if (!result)
                 {
-                    switch (value)
-                    {
-                        case LispInteger num:
-                            {
-                                // expecting float, got int; keep doing float calculations
-                                var result = floatOperation(floatLastValue, num.Value);
-                                if (!result)
-                                {
-                                    return frame.Nil;
-                                }
-
-                                floatLastValue = num.Value;
-                                break;
-                            }
-                        case LispFloat num:
-                            {
-                                var result = floatOperation(floatLastValue, num.Value);
-                                if (!result)
-                                {
-                                    return frame.Nil;
-                                }
-
-                                floatLastValue = num.Value;
-                                break;
-                            }
-                        default:
-                            return new LispError($"Expected type {nameof(LispFloat)} but found {value.GetType()} with value {value}");
-                    }
+                    return frame.Nil;
                 }
+
+                lastValue = nextValue;
             }
 
             return frame.T;

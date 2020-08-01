@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
@@ -154,12 +156,248 @@ namespace IxMilia.Lisp
         }
     }
 
+    public enum LispNumberType
+    {
+        Integer = 0,
+        Float = 1,
+        Ratio = 2,
+    }
+
     public abstract class LispNumber : LispObject
     {
+        public abstract LispNumberType Type { get; }
+
+        internal static LispNumber Add(LispNumber a, LispNumber b)
+        {
+            switch (a)
+            {
+                case LispInteger ia:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ia + ib;
+                        case LispFloat fb:
+                            return ia + fb;
+                        case LispRatio rb:
+                            return ia + rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispFloat fa:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return fa + ib;
+                        case LispFloat fb:
+                            return fa + fb;
+                        case LispRatio rb:
+                            return fa + rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispRatio ra:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ra + ib;
+                        case LispFloat fb:
+                            return ra + fb;
+                        case LispRatio rb:
+                            return ra + rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                default:
+                    throw new InvalidOperationException("Not possible, expected a number.");
+            }
+        }
+
+        internal static LispNumber Sub(LispNumber a, LispNumber b)
+        {
+            switch (a)
+            {
+                case LispInteger ia:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ia - ib;
+                        case LispFloat fb:
+                            return ia - fb;
+                        case LispRatio rb:
+                            return ia - rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispFloat fa:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return fa - ib;
+                        case LispFloat fb:
+                            return fa - fb;
+                        case LispRatio rb:
+                            return fa - rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispRatio ra:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ra - ib;
+                        case LispFloat fb:
+                            return ra - fb;
+                        case LispRatio rb:
+                            return ra - rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                default:
+                    throw new InvalidOperationException("Not possible, expected a number.");
+            }
+        }
+
+        internal static LispNumber Mul(LispNumber a, LispNumber b)
+        {
+            switch (a)
+            {
+                case LispInteger ia:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ia * ib;
+                        case LispFloat fb:
+                            return ia * fb;
+                        case LispRatio rb:
+                            return ia * rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispFloat fa:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return fa * ib;
+                        case LispFloat fb:
+                            return fa * fb;
+                        case LispRatio rb:
+                            return fa * rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispRatio ra:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ra * ib;
+                        case LispFloat fb:
+                            return ra * fb;
+                        case LispRatio rb:
+                            return ra * rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                default:
+                    throw new InvalidOperationException("Not possible, expected a number.");
+            }
+        }
+
+        internal static LispNumber Div(LispNumber a, LispNumber b)
+        {
+            switch (a)
+            {
+                case LispInteger ia:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return (LispRatio)ia / ib;
+                        case LispFloat fb:
+                            return ia / fb;
+                        case LispRatio rb:
+                            return ia / rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispFloat fa:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return fa / ib;
+                        case LispFloat fb:
+                            return fa / fb;
+                        case LispRatio rb:
+                            return fa / rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispRatio ra:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ra / ib;
+                        case LispFloat fb:
+                            return ra / fb;
+                        case LispRatio rb:
+                            return ra / rb;
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                default:
+                    throw new InvalidOperationException("Not possible, expected a number.");
+            }
+        }
+
+        internal static bool Equal(LispNumber a, LispNumber b)
+        {
+            return DoComparison(a, b, (x, y) => Math.Abs(x - y) < double.Epsilon);
+        }
+
+        internal static bool LessThan(LispNumber a, LispNumber b)
+        {
+            return DoComparison(a, b, (x, y) => x < y);
+        }
+
+        internal static bool LessThanOrEqual(LispNumber a, LispNumber b)
+        {
+            return DoComparison(a, b, (x, y) => x <= y);
+        }
+
+        internal static bool GreaterThan(LispNumber a, LispNumber b)
+        {
+            return DoComparison(a, b, (x, y) => x > y);
+        }
+
+        internal static bool GreaterThanOrEqual(LispNumber a, LispNumber b)
+        {
+            return DoComparison(a, b, (x, y) => x >= y);
+        }
+
+        private static bool DoComparison(LispNumber a, LispNumber b, Func<double, double, bool> comparison)
+        {
+            var da = AsDouble(a);
+            var db = AsDouble(b);
+            return comparison(da, db);
+        }
+
+        private static double AsDouble(LispNumber num)
+        {
+            switch (num)
+            {
+                case LispInteger i:
+                    return i.Value;
+                case LispFloat f:
+                    return f.Value;
+                case LispRatio r:
+                    return (double)r.Numerator / r.Denominator;
+                default: throw new InvalidOperationException("Not possible, expected a number.");
+            }
+        }
     }
 
     public class LispInteger : LispNumber
     {
+        public override LispNumberType Type => LispNumberType.Integer;
+
         public int Value { get; set; }
 
         public LispInteger(int value)
@@ -175,6 +413,9 @@ namespace IxMilia.Lisp
         {
             return Value.ToString();
         }
+
+        public static LispInteger Zero => new LispInteger(0);
+        public static LispInteger One => new LispInteger(1);
 
         public static bool operator ==(LispInteger a, LispInteger b)
         {
@@ -219,6 +460,8 @@ namespace IxMilia.Lisp
 
     public class LispFloat : LispNumber
     {
+        public override LispNumberType Type => LispNumberType.Float;
+
         public double Value { get; set; }
 
         public LispFloat(double value)
@@ -229,6 +472,11 @@ namespace IxMilia.Lisp
         public bool IsZero => Value == 0.0;
         public bool IsEven => (Value - (int)Value == 0.0) && (int)Value % 2 == 0;
         public bool IsOdd => (Value - (int)Value == 0.0) && (int)Value % 2 != 0;
+
+        public static implicit operator LispFloat(LispInteger i)
+        {
+            return new LispFloat(i.Value);
+        }
 
         public override string ToString()
         {
@@ -273,6 +521,122 @@ namespace IxMilia.Lisp
         public override int GetHashCode()
         {
             return Value.GetHashCode();
+        }
+    }
+
+    public class LispRatio : LispNumber
+    {
+        public override LispNumberType Type => LispNumberType.Ratio;
+
+        public int Numerator { get; }
+        public int Denominator { get; }
+
+        public LispRatio(int num, int denom)
+        {
+            Numerator = num;
+            Denominator = denom;
+        }
+
+        public bool IsZero => Numerator == 0;
+        public bool IsEven => false;
+        public bool IsOdd => false;
+
+        public LispNumber Reduce()
+        {
+            Reduce(Numerator, Denominator, out var num, out var denom);
+
+            if (num == 0)
+            {
+                return LispInteger.Zero;
+            }
+
+            if (denom == 1)
+            {
+                return new LispInteger(num);
+            }
+
+            if (Numerator == num && Denominator == denom)
+            {
+                return this;
+            }
+
+            return new LispRatio(num, denom);
+        }
+
+        private static void Reduce(int numerator, int denominator, out int finalNum, out int finalDenom)
+        {
+            var gcd = Gcd(numerator, denominator);
+            finalNum = numerator / gcd;
+            finalDenom = denominator / gcd;
+        }
+
+        private static int Gcd(int a, int b)
+        {
+        top:
+            if (b == 0)
+            {
+                return a;
+            }
+
+            var temp = a % b;
+            a = b;
+            b = temp;
+            goto top;
+        }
+
+        public override string ToString()
+        {
+            return $"{Numerator}/{Denominator}";
+        }
+
+        public static implicit operator LispRatio(LispInteger i)
+        {
+            return new LispRatio(i.Value, 1);
+        }
+
+        public static implicit operator LispFloat(LispRatio r)
+        {
+            return new LispFloat((double)r.Numerator / r.Denominator);
+        }
+
+        public static bool operator ==(LispRatio a, LispRatio b)
+        {
+            return a?.Numerator == b?.Numerator && a?.Denominator == b?.Denominator;
+        }
+
+        public static bool operator !=(LispRatio a, LispRatio b)
+        {
+            return !(a == b);
+        }
+
+        public static LispNumber operator +(LispRatio a, LispRatio b)
+        {
+            return new LispRatio(a.Numerator * b.Denominator + b.Numerator * a.Denominator, a.Denominator * b.Denominator).Reduce();
+        }
+
+        public static LispNumber operator -(LispRatio a, LispRatio b)
+        {
+            return new LispRatio(a.Numerator * b.Denominator - b.Numerator * a.Denominator, a.Denominator * b.Denominator).Reduce();
+        }
+
+        public static LispNumber operator *(LispRatio a, LispRatio b)
+        {
+            return new LispRatio(a.Numerator * b.Numerator, a.Denominator * b.Denominator).Reduce();
+        }
+
+        public static LispNumber operator /(LispRatio a, LispRatio b)
+        {
+            return new LispRatio(a.Numerator * b.Denominator, a.Denominator * b.Numerator).Reduce();
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is LispRatio && this == (LispRatio)obj;
+        }
+
+        public override int GetHashCode()
+        {
+            return (Numerator.GetHashCode() << 13) | Denominator.GetHashCode();
         }
     }
 

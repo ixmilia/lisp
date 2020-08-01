@@ -66,6 +66,8 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             Assert.Equal(new LispFloat(10.0), host.Eval("(+ 1.0 2 3 4)"));
             Assert.Equal(new LispFloat(10.0), host.Eval("(+ 1 2.0 3 4)"));
+            Assert.Equal(new LispRatio(5, 4), host.Eval("(+ (/ 1 4) 1)"));
+            Assert.Equal(new LispRatio(5, 4), host.Eval("(+ 1 (/ 1 4))"));
         }
 
         [Fact]
@@ -74,6 +76,10 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             Assert.Equal(host.T, host.Eval("(< 1 2.0)"));
             Assert.Equal(host.T, host.Eval("(< 1.0 2)"));
+            Assert.Equal(host.T, host.Eval("(< 1 (/ 5 4))"));
+            Assert.Equal(host.T, host.Eval("(< 1.0 (/ 5 4))"));
+            Assert.Equal(host.T, host.Eval("(< (/ 3 4) 1)"));
+            Assert.Equal(host.T, host.Eval("(< (/ 3 4) 1.0)"));
         }
 
         [Fact]

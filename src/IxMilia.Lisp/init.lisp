@@ -31,33 +31,33 @@
     (car (nthcdr n x)))
 
 (defun last (list)
-    (cond ((= nil (cdr list)) list)                 ; last of a proper list
-          ((listp (cdr list)) (last (cdr list)))    ; not the end of still a list
-          (t                  list)))               ; end of improper list
+    (cond ((eql nil (cdr list)) list)                 ; last of a proper list
+          ((listp (cdr list))   (last (cdr list)))    ; not the end of still a list
+          (t                    list)))               ; end of improper list
 
 (defun member (item list)
-    (cond ((= nil list)        ())                          ; not found
-          ((= item (car list)) list)                        ; found it
-          (t                   (member item (cdr list)))))  ; check deeper
+    (cond ((eql nil list)           ())                          ; not found
+          ((eql item (car list))    list)                        ; found it
+          (t                        (member item (cdr list)))))  ; check deeper
 
 (defun subsetp (subset superset)
-    (cond ((= nil subset)                   t)                                  ; always true
+    (cond ((eql nil subset)                 t)                                  ; always true
           ((member (car subset) superset)   (subsetp (cdr subset) superset))    ; found first, check rest
           (t                                nil)))                              ; missing element
 
 (defun assoc (key table)
-    (cond ((= key (car (car table)))    (car table))                ; found it
+    (cond ((eql key (car (car table)))  (car table))                ; found it
           ((consp (cdr table))          (assoc key (cdr table)))))  ; check deeper if more items remain
 
 (defun rassoc (key table)
-    (cond ((= key (cdr (car table)))    (car table))                ; found it
+    (cond ((eql key (cdr (car table)))  (car table))                ; found it
           ((consp (cdr table))          (rassoc key (cdr table))))) ; check deeper if more items remain
 
 (defun sublis (table list)
     (let ((keypair (assoc (car list) table)))
-        (cond ((= nil list) ())                                             ; empty/end of list
-              (keypair      (cons (cdr keypair) (sublis table (cdr list)))) ; perform replacement on head
-              (t            (cons (car list) (sublis table (cdr list))))))) ; no key/value pair found; continue
+        (cond ((eql nil list)   ())                                             ; empty/end of list
+              (keypair          (cons (cdr keypair) (sublis table (cdr list)))) ; perform replacement on head
+              (t                (cons (car list) (sublis table (cdr list))))))) ; no key/value pair found; continue
 
 (defun subst (r s items)
     (sublis (list (cons s r)) items))
