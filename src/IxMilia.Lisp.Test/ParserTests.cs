@@ -30,6 +30,19 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("a", ((LispString)SingleSyntaxNode("\"a\"")).Value);
         }
 
+        [Theory]
+        [InlineData("\"\"")]
+        [InlineData("\"\\n\"")]
+        [InlineData("\"\\t\"")]
+        [InlineData("\"\\\"\"")]
+        [InlineData("\"\\\\\"")]
+        public void RoundTripStrings(string text)
+        {
+            var str = (LispString)SingleSyntaxNode(text);
+            var roundTripped = (LispString)SingleSyntaxNode(str.ToString());
+            Assert.Equal(str.Value, roundTripped.Value);
+        }
+
         [Fact]
         public void ParseList()
         {

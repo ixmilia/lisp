@@ -651,7 +651,7 @@ namespace IxMilia.Lisp
 
         public override string ToString()
         {
-            return Value;
+            return LispStringToken.ToRoundTrippable(Value);
         }
 
         public static bool operator ==(LispString a, LispString b)

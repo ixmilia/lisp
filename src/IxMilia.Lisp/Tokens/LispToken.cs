@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 namespace IxMilia.Lisp.Tokens
 {
@@ -168,7 +169,36 @@ namespace IxMilia.Lisp.Tokens
 
         public override string ToString()
         {
-            return Value;
+            return ToRoundTrippable(Value);
+        }
+
+        internal static string ToRoundTrippable(string s)
+        {
+            var sb = new StringBuilder();
+            sb.Append('"');
+            foreach (var c in s)
+            {
+                switch (c)
+                {
+                    case '"':
+                    case '\\':
+                        sb.Append("\\");
+                        sb.Append(c);
+                        break;
+                    case '\n':
+                        sb.Append("\\n");
+                        break;
+                    case '\t':
+                        sb.Append("\\t");
+                        break;
+                    default:
+                        sb.Append(c);
+                        break;
+                }
+            }
+
+            sb.Append('"');
+            return sb.ToString();
         }
     }
 }

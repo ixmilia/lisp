@@ -95,11 +95,16 @@ namespace IxMilia.Lisp.Test
         [Theory]
         [InlineData("\"\"", "")]
         [InlineData("\"\\n\"", "\n")]
+        [InlineData("\"\\t\"", "\t")]
         [InlineData("\"\\\"\"", "\"")]
+        [InlineData("\"\\\\\"", "\\")]
         public void Strings(string code, string text)
         {
             var str = (LispStringToken)SingleToken(code);
             Assert.Equal(text, str.Value);
+
+            var roundTripped = (LispStringToken)SingleToken(str.ToString());
+            Assert.Equal(str.Value, roundTripped.Value);
         }
     }
 }
