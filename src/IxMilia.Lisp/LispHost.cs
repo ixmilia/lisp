@@ -8,7 +8,7 @@ using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
 {
-    public delegate LispObject LispMacroDelegate(LispStackFrame frame, LispObject[] args);
+    public delegate IEnumerable<LispObject> LispMacroDelegate(LispStackFrame frame, LispObject[] args);
     public delegate LispObject LispFunctionDelegate(LispStackFrame frame, LispObject[] args);
 
     public class LispHost
@@ -57,17 +57,23 @@ namespace IxMilia.Lisp
                 var parameterInfo = methodInfo.GetParameters();
                 if (parameterInfo.Length == 2 &&
                     parameterInfo[0].ParameterType == typeof(LispStackFrame) &&
-                    parameterInfo[1].ParameterType == typeof(LispObject[]) &&
-                    methodInfo.ReturnType == typeof(LispObject))
+                    parameterInfo[1].ParameterType == typeof(LispObject[]))
                 {
                     // native macros (unevaluated arguments)
                     var macroNames = methodInfo.GetCustomAttributes<LispMacroAttribute>(inherit: true).Select(a => a.Name).ToList();
                     if (macroNames.Any())
                     {
-                        var del = (LispMacroDelegate)methodInfo.CreateDelegate(typeof(LispMacroDelegate), context);
-                        foreach (var name in macroNames)
+                        if (methodInfo.ReturnType == typeof(IEnumerable<LispObject>))
                         {
-                            AddMacro(name, del);
+                            var del = (LispMacroDelegate)methodInfo.CreateDelegate(typeof(LispMacroDelegate), context);
+                            foreach (var name in macroNames)
+                            {
+                                AddMacro(name, del);
+                            }
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException($"Native macro expected to have return type of '{nameof(IEnumerable<LispObject>)}' but found '{methodInfo.ReturnType.Name}'.");
                         }
                     }
 
@@ -75,10 +81,17 @@ namespace IxMilia.Lisp
                     var functionNames = methodInfo.GetCustomAttributes<LispFunctionAttribute>(inherit: true).Select(a => a.Name).ToList();
                     if (functionNames.Any())
                     {
-                        var del = (LispFunctionDelegate)methodInfo.CreateDelegate(typeof(LispFunctionDelegate), context);
-                        foreach (var name in functionNames)
+                        if (methodInfo.ReturnType == typeof(LispObject))
                         {
-                            AddFunction(name, del);
+                            var del = (LispFunctionDelegate)methodInfo.CreateDelegate(typeof(LispFunctionDelegate), context);
+                            foreach (var name in functionNames)
+                            {
+                                AddFunction(name, del);
+                            }
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException($"Native function expected to have return type of '{nameof(LispObject)}' but found '{methodInfo.ReturnType.Name}'.");
                         }
                     }
                 }

@@ -8,7 +8,6 @@ namespace IxMilia.Lisp
         private const string NilString = "nil";
         private const string TString = "t";
 
-        private Dictionary<string, LispObject> _macroExpansions = new Dictionary<string, LispObject>();
         private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
 
         public string FunctionName { get; }
@@ -57,25 +56,9 @@ namespace IxMilia.Lisp
 
         public LispObject GetValue(string name)
         {
-            return GetValue(name, allowTailCallSentinel: false);
-        }
-
-        internal LispObject GetValue(string name, bool allowTailCallSentinel)
-        {
             if (_values.TryGetValue(name, out var value))
             {
                 return value;
-            }
-
-            if (_macroExpansions.TryGetValue(name, out var expansion))
-            {
-                // might be a function tail call
-                if (allowTailCallSentinel && expansion is LispList list && list.Value is LispSymbol)
-                {
-                    return new LispTailCall(expansion);
-                }
-
-                return LispEvaluator.Evaluate(expansion, this, false);
             }
 
             if (Parent is object)
@@ -96,11 +79,6 @@ namespace IxMilia.Lisp
             return LispEvaluator.Evaluate(obj, this, true);
         }
 
-        internal void SetMacroExpansion(string name, LispObject expansion)
-        {
-            _macroExpansions[name] = expansion;
-        }
-
         public LispStackFrame Push(string frameName)
         {
             return new LispStackFrame(frameName, this);
@@ -119,15 +97,6 @@ namespace IxMilia.Lisp
         internal LispStackFrame PopForTailCall(IEnumerable<string> arguments)
         {
             var argsHash = new HashSet<string>(arguments);
-
-            // copy macro expansions to parent
-            foreach (var macroExpansions in _macroExpansions)
-            {
-                if (argsHash.Contains(macroExpansions.Key))
-                {
-                    Parent.SetMacroExpansion(macroExpansions.Key, macroExpansions.Value);
-                }
-            }
 
             // copy variables to parent
             foreach (var value in _values)

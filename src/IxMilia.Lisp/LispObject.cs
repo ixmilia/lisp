@@ -15,6 +15,42 @@ namespace IxMilia.Lisp
         public int Line { get; internal set; }
         public int Column { get; internal set; }
 
+        internal abstract LispObject Clone();
+
+        internal LispObject PerformMacroReplacement(string itemName, LispObject replacement)
+        {
+            switch (this)
+            {
+                // this is the only real replacement possibility
+                case LispSymbol symbol:
+                    return symbol.Value == itemName
+                        ? replacement
+                        : symbol;
+
+                // these get no replacement
+                case LispError _:
+                case LispKeyword _:
+                case LispNumber _:
+                case LispString _:
+                case LispFunction _:
+                case LispMacro _:
+                case LispNilList _:
+                    return this;
+
+                // recurse into these
+                case LispQuotedObject quoted:
+                    return new LispQuotedObject(quoted.Value.PerformMacroReplacement(itemName, replacement));
+                case LispForwardListReference forwardList:
+                    return new LispForwardListReference(forwardList.ForwardReference, (LispList)forwardList.List.PerformMacroReplacement(itemName, replacement));
+                case LispList list:
+                    return new LispList(list.Value.PerformMacroReplacement(itemName, replacement), list.Next.PerformMacroReplacement(itemName, replacement));
+
+                // error
+                default:
+                    throw new InvalidOperationException($"Unable to perform macro replacement on {this}");
+            }
+        }
+
         private class LispObjectEqualityComparer : IEqualityComparer<LispObject>
         {
             public bool Equals(LispObject x, LispObject y)
@@ -36,6 +72,11 @@ namespace IxMilia.Lisp
         public LispQuotedObject(LispObject value)
         {
             Value = value;
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispQuotedObject(Value.Clone());
         }
 
         public override string ToString()
@@ -99,6 +140,11 @@ namespace IxMilia.Lisp
             }
         }
 
+        internal override LispObject Clone()
+        {
+            return new LispError(Message, StackFrame);
+        }
+
         public override string ToString()
         {
             var frame = StackFrame == null ? string.Empty : $":\n{StackFrame}";
@@ -113,6 +159,11 @@ namespace IxMilia.Lisp
         public LispSymbol(string value)
         {
             Value = value;
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispSymbol(Value);
         }
 
         public override string ToString()
@@ -148,6 +199,11 @@ namespace IxMilia.Lisp
         public LispKeyword(string keyword)
         {
             Keyword = keyword;
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispKeyword(Keyword);
         }
 
         public override string ToString()
@@ -409,6 +465,11 @@ namespace IxMilia.Lisp
         public bool IsEven => Value % 2 == 0;
         public bool IsOdd => Value % 2 != 0;
 
+        internal override LispObject Clone()
+        {
+            return new LispInteger(Value);
+        }
+
         public override string ToString()
         {
             return Value.ToString();
@@ -476,6 +537,11 @@ namespace IxMilia.Lisp
         public static implicit operator LispFloat(LispInteger i)
         {
             return new LispFloat(i.Value);
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispFloat(Value);
         }
 
         public override string ToString()
@@ -584,6 +650,11 @@ namespace IxMilia.Lisp
             goto top;
         }
 
+        internal override LispObject Clone()
+        {
+            return new LispRatio(Numerator, Denominator);
+        }
+
         public override string ToString()
         {
             return $"{Numerator}/{Denominator}";
@@ -649,6 +720,11 @@ namespace IxMilia.Lisp
             Value = value;
         }
 
+        internal override LispObject Clone()
+        {
+            return new LispString(Value);
+        }
+
         public override string ToString()
         {
             return LispStringToken.ToRoundTrippable(Value);
@@ -684,6 +760,11 @@ namespace IxMilia.Lisp
         {
             ForwardReference = forwardReference;
             List = list;
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispForwardListReference(ForwardReference, (LispList)List.Clone());
         }
     }
 
@@ -737,6 +818,11 @@ namespace IxMilia.Lisp
             {
                 Length = 1; // `Value`; improper tail isn't counted
             }
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispList(Value.Clone(), Next.Clone());
         }
 
         public static LispList FromItems(params LispObject[] items)
@@ -1003,6 +1089,11 @@ namespace IxMilia.Lisp
         {
         }
 
+        internal override LispObject Clone()
+        {
+            return this;
+        }
+
         public override string ToString()
         {
             return "()";
@@ -1039,6 +1130,11 @@ namespace IxMilia.Lisp
             Commands = commands.ToArray();
         }
 
+        internal override LispObject Clone()
+        {
+            return new LispCodeFunction(Name, Documentation, Arguments, Commands);
+        }
+
         public override string ToString()
         {
             return $"{Name} ({string.Join(" ", Arguments)})";
@@ -1063,6 +1159,11 @@ namespace IxMilia.Lisp
             : base(name, documentation)
         {
             Function = function;
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispNativeFunction(Name, Documentation, Function);
         }
 
         public override string ToString()
@@ -1094,19 +1195,39 @@ namespace IxMilia.Lisp
             Body = body.ToArray();
         }
 
+        internal override LispObject Clone()
+        {
+            return new LispCodeMacro(Name, Arguments, Body);
+        }
+
         public override string ToString()
         {
             return $"{Name} ({string.Join(" ", Arguments)})";
         }
 
-        internal void ExpandBody(LispObject[] args, LispStackFrame frame)
+        internal IEnumerable<LispObject> ExpandBody(LispObject[] args)
         {
-            // bind arguments
-            // TODO: validate argument count
+            if (args.Length != Arguments.Length)
+            {
+                var error = new LispError($"Macro '{Name}' expected {Arguments.Length} arguments, but given {args.Length}.");
+                return new List<LispObject>() { error };
+            }
+
+            var expandedBody = new List<LispObject>();
+            foreach (var item in Body)
+            {
+                expandedBody.Add(item.Clone());
+            }
+
             for (int i = 0; i < args.Length; i++)
             {
-                frame.SetMacroExpansion(Arguments[i], args[i]);
+                for (int j = 0; j < expandedBody.Count; j++)
+                {
+                    expandedBody[j] = expandedBody[j].PerformMacroReplacement(Arguments[i], args[i]);
+                }
             }
+
+            return expandedBody;
         }
     }
 
@@ -1120,19 +1241,14 @@ namespace IxMilia.Lisp
             Macro = macro;
         }
 
+        internal override LispObject Clone()
+        {
+            return new LispNativeMacro(Name, Macro);
+        }
+
         public override string ToString()
         {
             return $"{Name} <native>";
-        }
-    }
-
-    internal class LispTailCall : LispObject
-    {
-        public LispObject Value { get; }
-
-        public LispTailCall(LispObject value)
-        {
-            Value = value;
         }
     }
 }

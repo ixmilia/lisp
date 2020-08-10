@@ -7,7 +7,7 @@ namespace IxMilia.Lisp
     public class LispDefaultContext
     {
         [LispMacro("defmacro")]
-        public LispObject DefineMacro(LispStackFrame frame, LispObject[] args)
+        public IEnumerable<LispObject> DefineMacro(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate arg types and count
             var macroNameSymbol = (LispSymbol)args[0];
@@ -21,11 +21,11 @@ namespace IxMilia.Lisp
                 Column = macroNameSymbol.Column
             };
             frame.SetValueInParentScope(macroName, macro);
-            return macro;
+            return new LispObject[] { frame.Nil };
         }
 
         [LispMacro("defun")]
-        public LispObject DefineFunction(LispStackFrame frame, LispObject[] args)
+        public IEnumerable<LispObject> DefineFunction(LispStackFrame frame, LispObject[] args)
         {
             // TODO: properly validate types and arg counts
             var name = ((LispSymbol)args[0]).Value;
@@ -40,22 +40,22 @@ namespace IxMilia.Lisp
 
             var function = new LispCodeFunction(name, documentation, functionArgs, commands);
             frame.SetValueInParentScope(name, function);
-            return frame.Nil;
+            return new LispObject[] { frame.Nil };
         }
 
         [LispMacro("defvar")]
-        public LispObject DefineVariable(LispStackFrame frame, LispObject[] args)
+        public IEnumerable<LispObject> DefineVariable(LispStackFrame frame, LispObject[] args)
         {
             // TODO: properly validage single symbol argument
             var symbol = (LispSymbol)args[0];
             var name = symbol.Value;
             frame.SetValueInParentScope(name, symbol);
-            return symbol;
+            return new LispObject[] { symbol };
         }
 
         [LispMacro("let")]
         [LispMacro("let*")]
-        public LispObject Let(LispStackFrame frame, LispObject[] args)
+        public IEnumerable<LispObject> Let(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate arguments
             var values = ((LispList)args[0]).ToList();
@@ -69,14 +69,14 @@ namespace IxMilia.Lisp
                 var varValue = frame.Eval(varRawValue);
                 if (varValue is LispError error)
                 {
-                    return error;
+                    return new LispObject[] { error };
                 }
 
                 frame.SetValue(varName, varValue);
             }
 
             var result = frame.Eval(body);
-            return result;
+            return new LispObject[] { new LispQuotedObject(result) };
         }
 
         [LispFunction("eval")]
@@ -94,7 +94,7 @@ namespace IxMilia.Lisp
 
         [LispMacro("setf")]
         [LispMacro("setq")]
-        public LispObject SetValue(LispStackFrame frame, LispObject[] args)
+        public IEnumerable<LispObject> SetValue(LispStackFrame frame, LispObject[] args)
         {
             // TODO: properly validate types
             LispObject last = frame.Nil;
@@ -106,7 +106,7 @@ namespace IxMilia.Lisp
                 last = value;
             }
 
-            return last;
+            return new LispObject[] { new LispQuotedObject(last) };
         }
 
         [LispFunction("numberp")]
@@ -214,10 +214,10 @@ namespace IxMilia.Lisp
         }
 
         [LispMacro("quote")]
-        public LispObject Quote(LispStackFrame frame, LispObject[] args)
+        public IEnumerable<LispObject> Quote(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
-            return args[0];
+            return new LispObject[] { new LispQuotedObject(args[0]) };
         }
 
         [LispFunction("cons")]
@@ -561,19 +561,19 @@ namespace IxMilia.Lisp
         }
 
         [LispMacro("and")]
-        public LispObject And(LispStackFrame frame, LispObject[] args)
+        public IEnumerable<LispObject> And(LispStackFrame frame, LispObject[] args)
         {
             return FoldBoolean(frame, args, true, false, (a, b) => a && b);
         }
 
         [LispMacro("or")]
-        public LispObject Or(LispStackFrame frame, LispObject[] args)
+        public IEnumerable<LispObject> Or(LispStackFrame frame, LispObject[] args)
         {
             return FoldBoolean(frame, args, true, true, (a, b) => a || b);
         }
 
         [LispMacro("cond")]
-        public LispObject Cond(LispStackFrame frame, LispObject[] args)
+        public IEnumerable<LispObject> Cond(LispStackFrame frame, LispObject[] args)
         {
             foreach (var arg in args)
             {
@@ -583,25 +583,28 @@ namespace IxMilia.Lisp
                     var predicate = frame.Eval(values[0]);
                     switch (predicate)
                     {
-                        case LispError _:
-                            return predicate;
+                        case LispError error:
+                            return new LispObject[] { error };
                         case LispNilList _:
                             break;
                         default:
-                            return new LispTailCall(values[1]);
+                            return new LispObject[] { values[1] };
                     }
                 }
                 else
                 {
-                    return new LispError("Expected list of length 2")
+                    return new LispObject[]
                     {
-                        Line = arg.Line,
-                        Column = arg.Column
+                        new LispError("Expected list of length 2")
+                        {
+                            Line = arg.Line,
+                            Column = arg.Column
+                        }
                     };
                 }
             }
 
-            return frame.Nil;
+            return new LispObject[] { frame.Nil };
         }
 
         [LispFunction("abs")]
@@ -730,7 +733,7 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        private static LispObject FoldBoolean(LispStackFrame frame, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation)
+        private static IEnumerable<LispObject> FoldBoolean(LispStackFrame frame, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation)
         {
             LispObject result;
             if (args.Length == 0)
@@ -743,9 +746,9 @@ namespace IxMilia.Lisp
                 foreach (var value in args)
                 {
                     var evaluated = frame.Eval(value);
-                    if (evaluated is LispError)
+                    if (evaluated is LispError error)
                     {
-                        return evaluated;
+                        return new LispObject[] { error };
                     }
                     // TODO: non zero
                     var next = evaluated.Equals(frame.Nil) ? false : true;
@@ -760,7 +763,7 @@ namespace IxMilia.Lisp
                 result = collected ? frame.T : frame.Nil;
             }
 
-            return result;
+            return new LispObject[] { result };
         }
 
         private static LispObject FoldObj(LispStackFrame frame, LispObject[] args, Func<LispObject, LispObject, bool> operation)
