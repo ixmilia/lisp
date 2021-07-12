@@ -105,6 +105,15 @@ namespace IxMilia.Lisp.Tokens
         }
     }
 
+    internal class LispQuotedFunctionToken : LispToken
+    {
+        public override LispTokenType Type => (LispTokenType)(-1); // not used
+
+        public LispQuotedFunctionToken()
+        {
+        }
+    }
+
     public class LispSymbolToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.Symbol;

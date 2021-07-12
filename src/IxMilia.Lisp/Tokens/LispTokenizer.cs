@@ -68,7 +68,7 @@ namespace IxMilia.Lisp.Tokens
                 else if (IsHash(c))
                 {
                     MarkTokenStart();
-                    yield return ApplyProperties(ParseForwardReference());
+                    yield return ApplyProperties(ParseForwardReferenceOrQuotedFunction());
                 }
                 else if (IsMinus(c))
                 {
@@ -259,7 +259,7 @@ namespace IxMilia.Lisp.Tokens
             return token;
         }
 
-        private LispToken ParseForwardReference()
+        private LispToken ParseForwardReferenceOrQuotedFunction()
         {
             if (!TryPeek(out var c) || !IsHash(c))
             {
@@ -269,6 +269,27 @@ namespace IxMilia.Lisp.Tokens
             var builder = new StringBuilder();
             builder.Append(c);
             Advance();
+
+            if (TryPeek(out c))
+            {
+                if (IsDigit(c))
+                {
+                    return ParseForwardReference();
+                }
+                else if (IsSingleQuote(c))
+                {
+                    return ParseQuotedFunction();
+                }
+            }
+
+            return new LispErrorToken(builder.ToString(), "Expected digit or single quote");
+        }
+
+        private LispToken ParseForwardReference()
+        {
+            char c;
+            var builder = new StringBuilder();
+            builder.Append('#');
             while (TryPeek(out c) && IsDigit(c))
             {
                 builder.Append(c);
@@ -291,6 +312,17 @@ namespace IxMilia.Lisp.Tokens
             {
                 return new LispErrorToken(builder.ToString(), "Expected either '#' or '='.");
             }
+        }
+
+        private LispToken ParseQuotedFunction()
+        {
+            if (!TryPeek(out var c) || !IsSingleQuote(c))
+            {
+                return new LispErrorToken(c.ToString(), "Expected single quote '''");
+            }
+
+            Advance();
+            return new LispQuotedFunctionToken();
         }
 
         private string ParseSymbolLike(string existing = null)

@@ -94,6 +94,10 @@ namespace IxMilia.Lisp.Parser
                         Advance();
                         result = ParseForwardReferenceList(forwardRef);
                         break;
+                    case LispQuotedFunctionToken _:
+                        Advance();
+                        result = ParseQuotedFunction();
+                        break;
                     case LispDotToken _:
                         // This should have been handled in `ParseList()`
                         Advance();
@@ -174,6 +178,26 @@ namespace IxMilia.Lisp.Parser
             {
                 return null;
             }
+        }
+
+        private LispObject ParseQuotedFunction()
+        {
+            if (TryPeek(out var token))
+            {
+                if (token is LispSymbolToken symbol)
+                {
+                    // named function
+                    Advance();
+                    var functionName = symbol.Value;
+                    return new LispQuotedNamedFunctionReference(functionName);
+                }
+                //else if (token is LispLeftParenToken)
+                //{
+                //    // TODO: lambda function
+                //}
+            }
+
+            return new LispError("Expected function symbol or lambda expression");
         }
 
         private LispObject ParseList()

@@ -1172,6 +1172,36 @@ namespace IxMilia.Lisp
         }
     }
 
+    public abstract class LispFunctionReference : LispObject
+    {
+    }
+
+    public class LispQuotedNamedFunctionReference : LispFunctionReference
+    {
+        public string Name { get; }
+
+        public LispQuotedNamedFunctionReference(string name)
+        {
+            Name = name;
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispQuotedNamedFunctionReference(Name);
+        }
+
+        public override string ToString()
+        {
+            return $"#'{Name}";
+        }
+    }
+
+    // TODO
+    //public class LispQuotedLambdaFunctionReference : LispFunctionReference
+    //{
+        
+    //}
+
     public abstract class LispMacro : LispObject
     {
         public string Name { get; }

@@ -92,6 +92,33 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispMacro("funcall")]
+        public IEnumerable<LispObject> FunCall(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length < 1)
+            {
+                return new LispObject[] { new LispError("Insufficient arguments") };
+            }
+
+            var functionObject = frame.Eval(args[0]);
+            if (functionObject is LispQuotedNamedFunctionReference namedFunction)
+            {
+                var rebuiltList = new List<LispObject>();
+                rebuiltList.Add(new LispSymbol(namedFunction.Name));
+                rebuiltList.AddRange(args.Skip(1));
+                var rebuiltFunction = LispList.FromEnumerable(rebuiltList);
+                var result = frame.Eval(rebuiltFunction);
+
+                // the evalutated result is the result of the `funcall` macro, so it has to be quoted to allow it to pass through
+                var quotedResult = new LispQuotedObject(result);
+                return new LispObject[] { quotedResult };
+            }
+
+            // TODO: lambda
+
+            return new LispObject[] { new LispError("Expected function reference") };
+        }
+
         [LispMacro("setf")]
         [LispMacro("setq")]
         public IEnumerable<LispObject> SetValue(LispStackFrame frame, LispObject[] args)

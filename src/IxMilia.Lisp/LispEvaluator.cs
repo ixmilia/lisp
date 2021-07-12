@@ -29,6 +29,7 @@ namespace IxMilia.Lisp
                     case LispRatio _:
                     case LispString _:
                     case LispKeyword _:
+                    case LispFunctionReference _:
                         result = item;
                         break;
                     case LispQuotedObject quote:

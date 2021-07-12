@@ -148,7 +148,8 @@ namespace IxMilia.Lisp.Test
         public void CircularLists()
         {
             var host = new LispHost();
-            var list = (LispList)host.Eval("#1=(3 4 5 . #1#)");
+            var result = host.Eval("#1=(3 4 5 . #1#)");
+            var list = (LispList)result;
             Assert.False(list.IsProperList);
             Assert.Equal(-3, list.Length); // not dictated anywhere, simply convention
             Assert.Equal(new LispInteger(3), list.Value);
@@ -224,6 +225,38 @@ namespace IxMilia.Lisp.Test
 (count-to-one-million 0)
 ");
             Assert.Equal(new LispInteger(1000000), result);
+        }
+
+        [Fact]
+        public void InvokeBuiltInNamedFunctionReference()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"(funcall #'cons 'a 'b)");
+            var expected = LispList.FromItemsImproper(new LispSymbol("a"), new LispSymbol("b"));
+            Assert.Equal(expected, result);
+        }
+
+        [Fact]
+        public void InvokeUserDefinedNamedFunctionReference()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(defun add (a b)
+    (+ a b))
+(funcall #'add 2 3)
+");
+            Assert.Equal(new LispInteger(5), result);
+        }
+
+        [Fact]
+        public void InvokeNamedFunctionFromSymbol()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(setf plus-function #'+)
+(funcall plus-function 2 3)
+");
+            Assert.Equal(new LispInteger(5), result);
         }
     }
 }
