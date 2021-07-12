@@ -203,6 +203,10 @@
     (assert-eql () (cond ((< 2 1) 'a)
                          ((= 1 2) 'b)) "cond defaults to nil"))
 
+(defun square (x) (* x x))
+(defun function-references ()
+    (assert-equal '(1 4 9) (mapcar #'square '(1 2 3)) "mapcar works"))
+
 (and (item-equality)
      (abs-and-sqrt)
      (short-circuit-and)
@@ -212,4 +216,5 @@
      (list-helpers)
      (common-helpers)
      (test-cond)
+     (function-references)
 )
