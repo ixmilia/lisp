@@ -45,6 +45,16 @@
           ((funcall pred (car items))   (car items))                    ; found it
           (t                            (find-if pred (cdr items)))))   ; recurse
 
+(defun remove-if (pred items)
+    (cond ((eql nil items)              nil)                                                ; done
+          ((funcall pred (car items))   (remove-if pred (cdr items)))                       ; skip it
+          (t                            (cons (car items) (remove-if pred (cdr items))))))  ; keep building
+
+(defun remove-if-not (pred items)
+    (cond ((eql nil items)              nil)                                                    ; done
+          ((funcall pred (car items))   (cons (car items) (remove-if-not pred (cdr items))))    ; keep building
+          (t                            (remove-if-not pred (cdr items)))))                     ; skip it
+
 (defun subsetp (subset superset)
     (cond ((eql nil subset)                 t)                                  ; always true
           ((member (car subset) superset)   (subsetp (cdr subset) superset))    ; found first, check rest
