@@ -200,6 +200,8 @@
     (assert-equal 1 (reduce #'+ '(1)) "reduce single item")
     (assert-equal 10 (reduce #'+ '(1 2 3 4)) "reduce +")
     (assert-equal () (reduce #'+ nil) "reduce nil")
+    (assert-equal t (every #'numberp '(1 2 3 4)) "every numberp")
+    (assert-equal () (every #'numberp '(1 2 3 A B C)) "every numberp false")
 )
 
 (defun common-helpers ()
