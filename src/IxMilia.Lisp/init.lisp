@@ -58,6 +58,11 @@
           ((funcall pred (car items))   (cons (car items) (remove-if-not pred (cdr items))))    ; keep building
           (t                            (remove-if-not pred (cdr items)))))                     ; skip it
 
+(defun reduce (fn items)
+    (cond ((eql nil items)              nil)                                                                                ; nothing to do
+          ((eql 1 (length items))       (car items))                                                                        ; return single value
+          (t                            (reduce fn (cons (funcall fn (first items) (second items)) (rest (rest items))))))) ; combine first two and recurse
+
 (defun subsetp (subset superset)
     (cond ((eql nil subset)                 t)                                  ; always true
           ((member (car subset) superset)   (subsetp (cdr subset) superset))    ; found first, check rest

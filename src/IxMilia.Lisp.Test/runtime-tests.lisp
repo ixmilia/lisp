@@ -197,6 +197,9 @@
     (assert-equal 7 (find-if #'oddp '(2 4 6 7 8 9)) "find-if")
     (assert-equal '(2 4 6) (remove-if #'oddp '(1 2 3 4 5 6)) "remove-if")
     (assert-equal '(1 3 5) (remove-if-not #'oddp '(1 2 3 4 5 6)) "remove-if-not")
+    (assert-equal 1 (reduce #'+ '(1)) "reduce single item")
+    (assert-equal 10 (reduce #'+ '(1 2 3 4)) "reduce +")
+    (assert-equal () (reduce #'+ nil) "reduce nil")
 )
 
 (defun common-helpers ()
