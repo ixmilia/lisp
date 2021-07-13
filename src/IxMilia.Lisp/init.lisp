@@ -63,11 +63,6 @@
           ((eql 1 (length items))       (car items))                                                                        ; return single value
           (t                            (reduce fn (cons (funcall fn (first items) (second items)) (rest (rest items))))))) ; combine first two and recurse
 
-(defun every (pred items)
-    (cond ((eql nil items)              t)                          ; nothing to check
-          ((funcall pred (car items))   (every pred (cdr items)))   ; first item matches, check the rest
-          (t                            nil)))                      ; item didn't match
-
 (defun subsetp (subset superset)
     (cond ((eql nil subset)                 t)                                  ; always true
           ((member (car subset) superset)   (subsetp (cdr subset) superset))    ; found first, check rest

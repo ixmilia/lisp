@@ -202,6 +202,8 @@
     (assert-equal () (reduce #'+ nil) "reduce nil")
     (assert-equal t (every #'numberp '(1 2 3 4)) "every numberp")
     (assert-equal () (every #'numberp '(1 2 3 A B C)) "every numberp false")
+    (assert-equal t (every #'> '(10 20 30 40) '(1 2 3 4)) "every with 2 arguments true")
+    (assert-equal () (every #'> '(10 20 30 40) '(1 2 300 4)) "every with 2 arguments false")
 )
 
 (defun common-helpers ()

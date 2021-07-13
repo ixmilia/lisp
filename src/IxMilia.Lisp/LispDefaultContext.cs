@@ -534,6 +534,63 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("every")]
+        public LispObject Every(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length >= 2 &&
+                args[0] is LispFunctionReference functionRef &&
+                args[1] is LispList list)
+            {
+                if (args.Length == 3 &&
+                    args[2] is LispList otherList)
+                {
+                    // two argument predicate for as long as we can
+                    var list1 = list.ToList();
+                    var list2 = otherList.ToList();
+                    var maxLength = Math.Min(list1.Count, list2.Count);
+                    for (int i = 0; i < maxLength; i++)
+                    {
+                        var item1 = list1[i];
+                        var item2 = list2[i];
+                        var funcallArgs = new LispObject[]
+                        {
+                            functionRef,
+                            item1,
+                            item2,
+                        };
+                        var result = frame.Eval(FunCall(frame, funcallArgs).Single());
+                        if (result is LispError || result.Equals(frame.Nil))
+                        {
+                            return result;
+                        }
+                    }
+
+                    return frame.T;
+                }
+                else
+                {
+                    // single argument predicate
+                    foreach (var item in list.ToList())
+                    {
+                        var funcallArgs = new LispObject[]
+                        {
+                            functionRef,
+                            item,
+                        };
+                        var result = frame.Eval(FunCall(frame, funcallArgs).Single());
+                        if (result is LispError || result.Equals(frame.Nil))
+                        {
+                            return result;
+                        }
+                    }
+
+                    return frame.T;
+                }
+            }
+
+            return new LispError("Expected function reference and list");
+        }
+
         [LispFunction("<")]
         public LispObject LessThan(LispStackFrame frame, LispObject[] args)
         {
