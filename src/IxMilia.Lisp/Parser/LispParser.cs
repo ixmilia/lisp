@@ -94,9 +94,9 @@ namespace IxMilia.Lisp.Parser
                         Advance();
                         result = ParseForwardReferenceList(forwardRef);
                         break;
-                    case LispQuotedFunctionToken _:
+                    case LispQuotedFunctionToken functionQuote:
                         Advance();
-                        result = ParseQuotedFunction();
+                        result = ParseQuotedFunction(functionQuote);
                         break;
                     case LispDotToken _:
                         // This should have been handled in `ParseList()`
@@ -180,7 +180,7 @@ namespace IxMilia.Lisp.Parser
             }
         }
 
-        private LispObject ParseQuotedFunction()
+        private LispObject ParseQuotedFunction(LispToken functionQuote)
         {
             if (TryPeek(out var token))
             {
@@ -191,10 +191,31 @@ namespace IxMilia.Lisp.Parser
                     var functionName = symbol.Value;
                     return new LispQuotedNamedFunctionReference(functionName);
                 }
-                //else if (token is LispLeftParenToken)
-                //{
-                //    // TODO: lambda function
-                //}
+                else if (token is LispLeftParenToken leftParen)
+                {
+                    // lambda function
+                    _leftParens.Push(leftParen);
+                    Advance();
+                    var lambdaCandidate = ParseList();
+                    if (lambdaCandidate is LispError error)
+                    {
+                        return error;
+                    }
+
+                    if (lambdaCandidate is LispList lambdaList &&
+                        lambdaList.Value is LispSymbol lambdaSymbol &&
+                        lambdaSymbol.Value == "lambda")
+                    {
+                        var name = $"(lambda-{functionQuote.Line}-{functionQuote.Column})"; // surrounded by parens to make it un-utterable
+                        var lambdaItems = new List<LispObject>();
+                        lambdaItems.Add(new LispSymbol(name));
+                        lambdaItems.AddRange(lambdaList.ToList().Skip(1));
+                        var lambda = LispDefaultContext.CodeFunctionFromItems(lambdaItems.ToArray());
+                        return new LispQuotedLambdaFunctionReference(lambda);
+                    }
+
+                    return new LispError("Expected lambda definition");
+                }
             }
 
             return new LispError("Expected function symbol or lambda expression");

@@ -27,10 +27,17 @@ namespace IxMilia.Lisp
         [LispMacro("defun")]
         public IEnumerable<LispObject> DefineFunction(LispStackFrame frame, LispObject[] args)
         {
+            var function = CodeFunctionFromItems(args);
+            frame.SetValueInParentScope(function.Name, function);
+            return new LispObject[] { frame.Nil };
+        }
+
+        internal static LispCodeFunction CodeFunctionFromItems(LispObject[] items)
+        {
             // TODO: properly validate types and arg counts
-            var name = ((LispSymbol)args[0]).Value;
-            var functionArgs = ((LispList)args[1]).ToList().Cast<LispSymbol>().Select(s => s.Value);
-            var commands = args.Skip(2).ToList();
+            var name = ((LispSymbol)items[0]).Value;
+            var functionArgs = ((LispList)items[1]).ToList().Cast<LispSymbol>().Select(s => s.Value);
+            var commands = items.Skip(2).ToList();
             string documentation = null;
             if (commands[0] is LispString str)
             {
@@ -39,8 +46,7 @@ namespace IxMilia.Lisp
             }
 
             var function = new LispCodeFunction(name, documentation, functionArgs, commands);
-            frame.SetValueInParentScope(name, function);
-            return new LispObject[] { frame.Nil };
+            return function;
         }
 
         [LispMacro("defvar")]
@@ -100,21 +106,40 @@ namespace IxMilia.Lisp
                 return new LispObject[] { new LispError("Insufficient arguments") };
             }
 
+            string synthesizedFunctionName = null;
+            Action preExecute = null;
+            Action postExecute  = null;
+            var functionArguments = args.Skip(1).ToArray();
             var functionObject = frame.Eval(args[0]);
             if (functionObject is LispQuotedNamedFunctionReference namedFunction)
             {
-                var rebuiltList = new List<LispObject>();
-                rebuiltList.Add(new LispSymbol(namedFunction.Name));
-                rebuiltList.AddRange(args.Skip(1));
-                var rebuiltFunction = LispList.FromEnumerable(rebuiltList);
-                var result = frame.Eval(rebuiltFunction);
+                synthesizedFunctionName = namedFunction.Name;
+            }
+            else if (functionObject is LispQuotedLambdaFunctionReference lambdaFunction)
+            {
+                synthesizedFunctionName = lambdaFunction.Definition.Name;
+                preExecute = () => frame.SetValue(lambdaFunction.Definition.Name, lambdaFunction.Definition);
+                postExecute = () => frame.DeleteValue(lambdaFunction.Definition.Name);
+            }
+
+            if (synthesizedFunctionName != null)
+            {
+                var synthesizedSymbol = new LispSymbol(synthesizedFunctionName);
+                synthesizedSymbol.Line = functionObject.Line;
+                synthesizedSymbol.Column = functionObject.Column;
+                var synthesizedFunctionItems = new List<LispObject>();
+                synthesizedFunctionItems.Add(synthesizedSymbol);
+                synthesizedFunctionItems.AddRange(functionArguments);
+                var synthesizedFunctionCall = LispList.FromEnumerable(synthesizedFunctionItems);
+
+                preExecute?.Invoke();
+                var result = frame.Eval(synthesizedFunctionCall);
+                postExecute?.Invoke();
 
                 // the evalutated result is the result of the `funcall` macro, so it has to be quoted to allow it to pass through
                 var quotedResult = new LispQuotedObject(result);
                 return new LispObject[] { quotedResult };
             }
-
-            // TODO: lambda
 
             return new LispObject[] { new LispError("Expected function reference") };
         }

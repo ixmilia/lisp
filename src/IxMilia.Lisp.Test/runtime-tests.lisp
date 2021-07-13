@@ -205,7 +205,8 @@
 
 (defun square (x) (* x x))
 (defun function-references ()
-    (assert-equal '(1 4 9) (mapcar #'square '(1 2 3)) "mapcar works"))
+    (assert-equal '(1 4 9) (mapcar #'square '(1 2 3)) "mapcar on named function reference")
+    (assert-equal '(1 4 9) (mapcar #'(lambda (n) (* n n)) '(1 2 3)) "mapcap on lambda function"))
 
 (and (item-equality)
      (abs-and-sqrt)

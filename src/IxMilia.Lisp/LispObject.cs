@@ -1196,11 +1196,20 @@ namespace IxMilia.Lisp
         }
     }
 
-    // TODO
-    //public class LispQuotedLambdaFunctionReference : LispFunctionReference
-    //{
-        
-    //}
+    public class LispQuotedLambdaFunctionReference : LispFunctionReference
+    {
+        public LispCodeFunction Definition { get; }
+
+        public LispQuotedLambdaFunctionReference(LispCodeFunction definition)
+        {
+            Definition = definition;
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispQuotedLambdaFunctionReference((LispCodeFunction)Definition.Clone());
+        }
+    }
 
     public abstract class LispMacro : LispObject
     {

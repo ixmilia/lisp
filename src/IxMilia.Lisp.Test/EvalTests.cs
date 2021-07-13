@@ -258,5 +258,26 @@ namespace IxMilia.Lisp.Test
 ");
             Assert.Equal(new LispInteger(5), result);
         }
+
+        [Fact]
+        public void InvokeLambdaFromReference()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(funcall #'(lambda (n) (+ 1 n)) 2)
+");
+            Assert.Equal(new LispInteger(3), result);
+        }
+
+        [Fact]
+        public void InvokeLambdaFromSymbol()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(setf inc-function #'(lambda (n) (+ 1 n)))
+(funcall inc-function 2)
+");
+            Assert.Equal(new LispInteger(3), result);
+        }
     }
 }

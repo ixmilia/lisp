@@ -42,6 +42,11 @@ namespace IxMilia.Lisp
             _values[name] = value;
         }
 
+        internal void DeleteValue(string name)
+        {
+            _values.Remove(name);
+        }
+
         public void SetValueInParentScope(string name, LispObject value)
         {
             if (Parent is object)
