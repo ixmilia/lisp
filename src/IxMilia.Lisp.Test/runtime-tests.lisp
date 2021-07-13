@@ -189,6 +189,7 @@
     (assert-equal '(e b c e b c d) (subst 'x 'a '(e b c e b c d)) "subst 2")
     (assert-equal () (subst 'x 'a ()) "subst 3")
     (assert-equal '(uno one-point-five dos) (sublis '((one . uno) (two . dos)) '(one one-point-five two)) "sublis")
+    (assert-equal 7 (find-if #'oddp '(2 4 6 7 8 9)) "find-if")
 )
 
 (defun common-helpers ()
