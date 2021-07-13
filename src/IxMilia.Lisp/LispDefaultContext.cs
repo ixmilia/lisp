@@ -209,13 +209,37 @@ namespace IxMilia.Lisp
             // TODO: validate argument count
             switch (args[0])
             {
-                case LispInteger num when num.IsZero:
+                case LispInteger i when i.IsZero:
                     return frame.T;
-                case LispFloat num when num.IsZero:
+                case LispFloat f when f.IsZero:
+                    return frame.T;
+                case LispRatio r when r.IsZero:
                     return frame.T;
                 default:
                     return frame.Nil;
             }
+        }
+
+        [LispFunction("plusp")]
+        public LispObject PlusP(LispStackFrame frame, LispObject[] args)
+        {
+            // TODO: validate argument count
+            if (args[0] is LispNumber num)
+            {
+                switch (num)
+                {
+                    case LispInteger i when i.Value > 0:
+                        return frame.T;
+                    case LispFloat f when f.Value > 0.0:
+                        return frame.T;
+                    case LispRatio r when !r.IsZero && Math.Sign(r.Numerator) == Math.Sign(r.Denominator):
+                        return frame.T;
+                    default:
+                        return frame.Nil;
+                }
+            }
+
+            return new LispError("wrong type input");
         }
 
         [LispFunction("evenp")]

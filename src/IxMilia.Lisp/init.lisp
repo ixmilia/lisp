@@ -11,6 +11,9 @@
     ; an atom is anything other than a cons cell
     (not (consp a)))
 
+(defun posnump (n)
+    (and (numberp n) (plusp n)))
+
 (defun second (items)
     (first (rest items)))
 (defmacro cadr (items)
