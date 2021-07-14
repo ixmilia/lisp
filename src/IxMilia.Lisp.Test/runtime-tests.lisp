@@ -201,9 +201,11 @@
     (assert-equal 10 (reduce #'+ '(1 2 3 4)) "reduce +")
     (assert-equal () (reduce #'+ nil) "reduce nil")
     (assert-equal t (every #'numberp '(1 2 3 4)) "every numberp")
-    (assert-equal () (every #'numberp '(1 2 3 A B C)) "every numberp false")
+    (assert-equal () (every #'numberp '(1 2 3 'A 'B 'C)) "every numberp false")
     (assert-equal t (every #'> '(10 20 30 40) '(1 2 3 4)) "every with 2 arguments true")
     (assert-equal () (every #'> '(10 20 30 40) '(1 2 300 4)) "every with 2 arguments false")
+    (assert-equal t (every #'(lambda (x y z) (and (numberp x) (numberp y) (numberp z))) '(10 20 30 40) '(1 2 3 4 5 6) '(1 2)) "every with 3 arguments true")
+    (assert-equal () (every #'(lambda (x y z) (and (numberp x) (numberp y) (numberp z))) '(10 20 30 40) '(1 2 3 4 5 6) '(1 'B)) "every with 3 arguments false")
 )
 
 (defun common-helpers ()
