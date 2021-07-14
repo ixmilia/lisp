@@ -1,8 +1,9 @@
+using System.Text;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
 {
-    public class EvalTests
+    public class EvalTests : TestBase
     {
         [Fact]
         public void SingleItem()
@@ -119,7 +120,7 @@ namespace IxMilia.Lisp.Test
 ");
             Assert.Equal(3, result.StackFrame.Line); // inc: (add x 1), but tailcall inlined
             Assert.Equal(6, result.StackFrame.Column);
-            Assert.Equal("<root>", result.StackFrame.FunctionName);
+            Assert.Equal("(root)", result.StackFrame.FunctionName);
             Assert.Null(result.StackFrame.Parent);
             Assert.Equal("Undefined macro/function 'add', found '<null>'", result.Message);
         }
@@ -278,6 +279,63 @@ namespace IxMilia.Lisp.Test
 (funcall inc-function 2)
 ");
             Assert.Equal(new LispInteger(3), result);
+        }
+
+        [Fact]
+        public void EnterAndReturnFunctionEvent()
+        {
+            var host = new LispHost();
+            var sb = new StringBuilder();
+            host.RootFrame.FunctionEntered += (sender, e) => sb.AppendLine($"entered {e.Frame.FunctionName}");
+            host.RootFrame.FunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.Frame.FunctionName}");
+            host.Eval(@"
+(defun half (n) (* n 0.5))
+(defun average (x y)
+    (+ (half x) (half y)))
+");
+            host.Eval("(average 3 7)");
+            var actual = NormalizeNewlines(sb.ToString().Trim());
+            var expected = NormalizeNewlines(@"
+entered average
+entered half
+entered *
+returned from *
+returned from half
+entered half
+entered *
+returned from *
+returned from half
+entered +
+returned from +
+returned from average
+".Trim());
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void TraceEnterAndReturnFunctionEvent()
+        {
+            var host = new LispHost();
+            var sb = new StringBuilder();
+            host.RootFrame.TraceFunctionEntered += (sender, args) => sb.AppendLine($"entered {args.Frame.FunctionName}");
+            host.RootFrame.TraceFunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.Frame.FunctionName}");
+            host.Eval(@"
+(defun half (n) (* n 0.5))
+(defun average (x y)
+    (+ (half x) (half y)))
+(trace half average)
+");
+            host.Eval("(average 3 7)");
+            var actual = NormalizeNewlines(sb.ToString().Trim());
+            var expected = NormalizeNewlines(@"
+entered average
+entered half
+returned from half
+entered half
+returned from half
+returned from average
+".Trim());
+            Assert.Equal(expected, actual);
         }
     }
 }

@@ -1,8 +1,9 @@
-﻿using Xunit;
+﻿using System.IO;
+using Xunit;
 
 namespace IxMilia.Lisp.Test
 {
-    public class ReplTests
+    public class ReplTests : TestBase
     {
         [Fact]
         public void Simple()
@@ -43,6 +44,30 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("Symbol 'abcd' not found", error.Message);
             Assert.Equal(1, error.Line);
             Assert.Equal(6, error.Column);
+        }
+
+        [Fact]
+        public void FunctionTracing()
+        {
+            var traceWriter = new StringWriter();
+            var repl = new LispRepl(traceWriter);
+            repl.Eval(@"
+(defun half (n) (* n 0.5))
+(defun average (x y)
+    (+ (half x) (half y)))
+(trace half average)
+");
+            repl.Eval("(average 3 7)");
+            var actual = NormalizeNewlines(traceWriter.ToString().Trim());
+            var expected = NormalizeNewlines(@"
+0: (average 3 7)
+ 1: (half 3)
+ 1: returned 1.5
+ 1: (half 7)
+ 1: returned 3.5
+0: returned 5
+".Trim());
+            Assert.Equal(expected, actual);
         }
     }
 }

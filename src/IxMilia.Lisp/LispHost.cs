@@ -13,16 +13,16 @@ namespace IxMilia.Lisp
 
     public class LispHost
     {
-        private readonly LispStackFrame _rootFrame;
+        public readonly LispRootStackFrame RootFrame;
 
         public LispObject T { get; }
         public LispObject Nil { get; }
 
         public LispHost()
         {
-            _rootFrame = LispStackFrame.CreateRootStackFrame();
-            T = _rootFrame.T;
-            Nil = _rootFrame.Nil;
+            RootFrame = new LispRootStackFrame();
+            T = RootFrame.T;
+            Nil = RootFrame.Nil;
             AddContextObject(new LispDefaultContext());
             ApplyInitScript();
         }
@@ -118,14 +118,14 @@ namespace IxMilia.Lisp
 
         public void SetValue(string name, LispObject value)
         {
-            _rootFrame.SetValue(name, value);
+            RootFrame.SetValue(name, value);
         }
 
         public void SetValueInParentScope(string name, LispObject value)
         {
-            if (_rootFrame.Parent is object)
+            if (RootFrame.Parent is object)
             {
-                _rootFrame.Parent.SetValue(name, value);
+                RootFrame.Parent.SetValue(name, value);
             }
             else
             {
@@ -135,12 +135,12 @@ namespace IxMilia.Lisp
 
         public LispObject GetValue(string name)
         {
-            return _rootFrame.GetValue(name);
+            return RootFrame.GetValue(name);
         }
 
         public TObject GetValue<TObject>(string name) where TObject: LispObject
         {
-            return _rootFrame.GetValue<TObject>(name);
+            return RootFrame.GetValue<TObject>(name);
         }
 
         public LispObject Eval(string code)
@@ -170,14 +170,14 @@ namespace IxMilia.Lisp
 
         public LispObject Eval(LispObject obj)
         {
-            return LispEvaluator.Evaluate(obj, _rootFrame, false);
+            return LispEvaluator.Evaluate(obj, RootFrame, false);
         }
 
         private void TryApplyStackFrame(LispError error)
         {
             if (error.StackFrame == null)
             {
-                error.StackFrame = _rootFrame;
+                error.StackFrame = RootFrame;
             }
         }
     }

@@ -1,12 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace IxMilia.Lisp
 {
     public class LispStackFrame
     {
-        private const string NilString = "nil";
-        private const string TString = "t";
+        protected const string NilString = "nil";
+        protected const string TString = "t";
 
         private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
 
@@ -18,18 +19,26 @@ namespace IxMilia.Lisp
         public LispObject T => GetValue<LispSymbol>(TString);
         public LispObject Nil => GetValue<LispList>(NilString);
 
+        public LispRootStackFrame Root => NavigateToRoot().Item1;
+        public int Depth => NavigateToRoot().Item2;
+
+        private Tuple<LispRootStackFrame, int> NavigateToRoot()
+        {
+            int depth = 0;
+            var candidate = this;
+            while (!(candidate is LispRootStackFrame))
+            {
+                depth++;
+                candidate = candidate.Parent;
+            }
+
+            return Tuple.Create((LispRootStackFrame)candidate, depth - 1);
+        }
+
         public LispStackFrame(string functionName, LispStackFrame parent)
         {
             FunctionName = functionName;
             Parent = parent;
-        }
-
-        internal static LispStackFrame CreateRootStackFrame()
-        {
-            var root = new LispStackFrame("<root>", null);
-            root.SetValue(TString, new LispSymbol(TString));
-            root.SetValue(NilString, LispNilList.Instance);
-            return root;
         }
 
         public override string ToString()
@@ -119,6 +128,115 @@ namespace IxMilia.Lisp
         {
             Line = obj.Line;
             Column = obj.Column;
+        }
+    }
+
+    public class LispRootStackFrame : LispStackFrame
+    {
+        public event EventHandler<LispFunctionEnteredEventArgs> FunctionEntered;
+        public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
+        public event EventHandler<LispFunctionEnteredEventArgs> TraceFunctionEntered;
+        public event EventHandler<LispFunctionReturnedEventArgs> TraceFunctionReturned;
+
+        public HashSet<string> TracedFunctions { get; } = new HashSet<string>();
+
+        internal LispRootStackFrame()
+            : base("(root)", null)
+        {
+            SetValue(TString, new LispSymbol(TString));
+            SetValue(NilString, LispNilList.Instance);
+        }
+
+        internal void OnFunctionEnter(LispStackFrame frame, LispObject[] functionArguments)
+        {
+            var args = new LispFunctionEnteredEventArgs(frame, functionArguments);
+            FunctionEntered?.Invoke(this, args);
+            if (TracedFunctions.Contains(frame.FunctionName))
+            {
+                TraceFunctionEntered?.Invoke(this, args);
+            }
+        }
+
+        internal void OnFunctionReturn(LispStackFrame frame, LispObject returnValue)
+        {
+            var args = new LispFunctionReturnedEventArgs(frame, returnValue);
+            FunctionReturned?.Invoke(this, args);
+            if (TracedFunctions.Contains(frame.FunctionName))
+            {
+                TraceFunctionReturned?.Invoke(this, args);
+            }
+        }
+
+        internal LispObject Trace(LispObject[] args)
+        {
+            if (args.Length == 0)
+            {
+                return LispList.FromEnumerable(TracedFunctions.Select(f => new LispSymbol(f)));
+            }
+            else
+            {
+                var addedFunctions = new HashSet<string>();
+                var hasInvalidArguments = false;
+                foreach (var arg in args)
+                {
+                    if (arg is LispSymbol symbol)
+                    {
+                        TracedFunctions.Add(symbol.Value);
+                        addedFunctions.Add(symbol.Value);
+                    }
+                    else
+                    {
+                        hasInvalidArguments = true;
+                    }
+                }
+
+                if (hasInvalidArguments)
+                {
+                    return new LispError("Expected only symbols");
+                }
+                else
+                {
+                    return LispList.FromEnumerable(addedFunctions.Select(f => new LispSymbol(f)));
+                }
+            }
+        }
+
+        internal LispObject Untrace(LispObject[] args)
+        {
+            if (args.Length == 0)
+            {
+                var result = LispList.FromEnumerable(TracedFunctions.Select(f => new LispSymbol(f)));
+                TracedFunctions.Clear();
+                return result;
+            }
+            else
+            {
+                var removedFunctions = new HashSet<string>();
+                var hasInvalidArguments = false;
+                foreach (var arg in args)
+                {
+                    if (arg is LispSymbol symbol)
+                    {
+                        if (TracedFunctions.Remove(symbol.Value))
+                        {
+                            removedFunctions.Add(symbol.Value);
+                        }
+                    }
+                    else
+                    {
+                        hasInvalidArguments = true;
+                    }
+                }
+
+                if (hasInvalidArguments)
+                {
+                    return new LispError("Expected only symbols");
+                }
+                else
+                {
+                    return LispList.FromEnumerable(removedFunctions.Select(f => new LispSymbol(f)));
+                }
+            }
         }
     }
 }

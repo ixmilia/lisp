@@ -8,15 +8,17 @@ namespace IxMilia.Lisp
     {
         internal static LispObject Evaluate(LispObject obj, LispStackFrame frame, bool errorOnMissingValue)
         {
-            return Evaluate(new List<LispObject>() { obj }, frame, errorOnMissingValue);
+            return Evaluate(new List<Tuple<LispObject, LispStackFrame>>() { Tuple.Create<LispObject, LispStackFrame>(obj, null) }, frame, errorOnMissingValue);
         }
 
-        private static LispObject Evaluate(List<LispObject> stack, LispStackFrame frame, bool errorOnMissingValue)
+        private static LispObject Evaluate(List<Tuple<LispObject, LispStackFrame>> stack, LispStackFrame frame, bool errorOnMissingValue)
         {
+            var rootFrame = frame.Root;
             var result = frame.Nil;
             while (stack.Count > 0)
             {
-                var item = stack[0];
+                var item = stack[0].Item1;
+                var lastFrame = stack[0].Item2;
                 stack.RemoveAt(0);
 
                 frame.UpdateCallStackLocation(item);
@@ -75,13 +77,13 @@ namespace IxMilia.Lisp
                                     {
                                         case LispCodeMacro codeMacro:
                                             {
-                                                var macroExpansion = codeMacro.ExpandBody(args);
+                                                var macroExpansion = codeMacro.ExpandBody(args).Select(m => Tuple.Create<LispObject, LispStackFrame>(m, null));
                                                 stack.InsertRange(0, macroExpansion);
                                                 break;
                                             }
                                         case LispNativeMacro nativeMacro:
                                             {
-                                                var macroExpansion = nativeMacro.Macro.Invoke(frame, args);
+                                                var macroExpansion = nativeMacro.Macro.Invoke(frame, args).Select(m => Tuple.Create<LispObject, LispStackFrame>(m, null));
                                                 stack.InsertRange(0, macroExpansion);
                                                 break;
                                             }
@@ -100,6 +102,11 @@ namespace IxMilia.Lisp
 
                                 // evaluate arguments
                                 var evaluatedArgs = args.Select(a => Evaluate(a, frame, true)).ToArray();
+
+                                // tracing
+                                rootFrame.OnFunctionEnter(frame, evaluatedArgs);
+
+                                // early exit
                                 var firstError = evaluatedArgs.OfType<LispError>().FirstOrDefault();
                                 if (firstError != null)
                                 {
@@ -117,7 +124,7 @@ namespace IxMilia.Lisp
                                                 if (i == codeFunction.Commands.Length - 1)
                                                 {
                                                     // do tail call
-                                                    stack.Insert(0, codeFunction.Commands[i]);
+                                                    stack.Insert(0, Tuple.Create(codeFunction.Commands[i], frame));
                                                     frame = frame.PopForTailCall(codeFunction.Arguments);
                                                     doPop = false;
                                                     break;
@@ -136,6 +143,8 @@ namespace IxMilia.Lisp
 
                                 if (doPop)
                                 {
+                                    // non-tail-call exit of code function
+                                    rootFrame.OnFunctionReturn(frame, result);
                                     frame = frame.Pop();
                                 }
                             }
@@ -153,6 +162,12 @@ namespace IxMilia.Lisp
                     default:
                         result = frame.Nil;
                         break;
+                }
+
+                if (lastFrame != null)
+                {
+                    // tail-call exit of code function
+                    rootFrame.OnFunctionReturn(lastFrame, result);
                 }
             }
 
