@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Xunit;
 
@@ -205,27 +206,75 @@ namespace IxMilia.Lisp.Test
         public void TailCallWithCond()
         {
             var host = new LispHost();
+            var lastStackDepth = 0;
+            var invocationCount = 0;
+            var maxInvocationCount = 10;
+            host.AddFunction("record-stack-depth", (frame, args) =>
+            {
+                if (invocationCount++ > maxInvocationCount)
+                {
+                    throw new Exception($"Executed more than {maxInvocationCount} times; probably not going to tailcall");
+                }
+
+                var currentStackDepth = frame.Depth;
+                if (currentStackDepth == lastStackDepth)
+                {
+                    // done
+                    return frame.T;
+                }
+                else
+                {
+                    // haven't reached a stable stack depth; keep going
+                    lastStackDepth = currentStackDepth;
+                    return frame.Nil;
+                }
+            });
             var result = host.Eval(@"
-(defun count-to-one-million (val)
-    (cond ((= 1000000 val) val)
-          (t  (count-to-one-million (+ val 1)))))
-(count-to-one-million 0)
+(defun do-lots-of-tail-calls-with-cond ()
+    (cond ((record-stack-depth) t)                                      ; done
+          (t                    (do-lots-of-tail-calls-with-cond))))    ; keep going
+(do-lots-of-tail-calls-with-cond)
 ");
-            Assert.Equal(new LispInteger(1000000), result);
+            Assert.True(invocationCount >= 2, "Must have been invoked at least twice");
+            Assert.Equal(host.T, result);
         }
 
         [Fact]
         public void TailCallWithIf()
         {
             var host = new LispHost();
+            var lastStackDepth = 0;
+            var invocationCount = 0;
+            var maxInvocationCount = 10;
+            host.AddFunction("record-stack-depth", (frame, args) =>
+            {
+                if (invocationCount++ > 10)
+                {
+                    throw new Exception($"Executed more than {maxInvocationCount} times; probably not going to tailcall");
+                }
+
+                var currentStackDepth = frame.Depth;
+                if (currentStackDepth == lastStackDepth)
+                {
+                    // done
+                    return frame.T;
+                }
+                else
+                {
+                    // haven't reached a stable stack depth; keep going
+                    lastStackDepth = currentStackDepth;
+                    return frame.Nil;
+                }
+            });
             var result = host.Eval(@"
-(defun count-to-one-million (val)
-    (if (= 1000000 val)
-        val
-        (count-to-one-million (+ val 1))))
-(count-to-one-million 0)
+(defun do-lots-of-tail-calls-with-if ()
+    (if (record-stack-depth)
+        t                                   ; done
+        (do-lots-of-tail-calls-with-if)))   ; keep going
+(do-lots-of-tail-calls-with-if)
 ");
-            Assert.Equal(new LispInteger(1000000), result);
+            Assert.True(invocationCount >= 2, "Must have been invoked at least twice");
+            Assert.Equal(host.T, result);
         }
 
         [Fact]

@@ -1209,6 +1209,11 @@ namespace IxMilia.Lisp
         {
             return new LispQuotedLambdaFunctionReference((LispCodeFunction)Definition.Clone());
         }
+
+        public override string ToString()
+        {
+            return Definition.ToString();
+        }
     }
 
     public abstract class LispMacro : LispObject
