@@ -85,9 +85,5 @@
 (defun subst (r s items)
     (sublis (list (cons s r)) items))
 
-(defun mapcar (fn items)
-    (cond ((eql nil items)      ())                                                         ; end of list
-          (t                    (cons (funcall fn (car items)) (mapcar fn (cdr items))))))  ; perform replacement on head
-
 ; just to ensure the script was properly loaded
 t

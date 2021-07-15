@@ -202,6 +202,7 @@
     (assert-equal () (reduce #'+ nil) "reduce nil")
     (assert-equal t (every #'numberp '(1 2 3 4)) "every numberp")
     (assert-equal () (every #'numberp '(1 2 3 'A 'B 'C)) "every numberp false")
+    (assert-equal t (every #'(lambda (x) (eql () x))) '(() () ()) "every with valid nil values")
     (assert-equal t (every #'> '(10 20 30 40) '(1 2 3 4)) "every with 2 arguments true")
     (assert-equal () (every #'> '(10 20 30 40) '(1 2 300 4)) "every with 2 arguments false")
     (assert-equal t (every #'(lambda (x y z) (and (numberp x) (numberp y) (numberp z))) '(10 20 30 40) '(1 2 3 4 5 6) '(1 2)) "every with 3 arguments true")
@@ -223,7 +224,9 @@
 (defun square (x) (* x x))
 (defun function-references ()
     (assert-equal '(1 4 9) (mapcar #'square '(1 2 3)) "mapcar on named function reference")
-    (assert-equal '(1 4 9) (mapcar #'(lambda (n) (* n n)) '(1 2 3)) "mapcap on lambda function"))
+    (assert-equal '(1 4 9) (mapcar #'(lambda (n) (* n n)) '(1 2 3)) "mapcar on lambda function")
+    (assert-equal '(3 6 9) (mapcar #'+ '(1 2 3) '(2 4 6 8)) "mapcar with multiple lists")
+)
 
 (and (item-equality)
      (abs-and-sqrt)

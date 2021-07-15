@@ -551,6 +551,19 @@ namespace IxMilia.Lisp
         [LispFunction("every")]
         public LispObject Every(LispStackFrame frame, LispObject[] args)
         {
+            var result = MapCar(frame, args);
+            switch (result)
+            {
+                case LispList list when list.ToList().Any(o => o.Equals(frame.Nil)):
+                    return frame.Nil;
+                default:
+                    return result;
+            }
+        }
+
+        [LispFunction("mapcar")]
+        public LispObject MapCar(LispStackFrame frame, LispObject[] args)
+        {
             if (args.Length >= 2 &&
                 args[0] is LispFunctionReference functionRef)
             {
@@ -560,6 +573,7 @@ namespace IxMilia.Lisp
                     return new LispError("Expected function reference and only lists");
                 }
 
+                var resultItems = new List<LispObject>();
                 var lists = candidateLists.Select(l => l.ToList());
                 var maxLength = lists.Select(l => l.Count).Aggregate(int.MaxValue, (aLength, bLength) => Math.Min(aLength, bLength));
                 for (int i = 0; i < maxLength; i++)
@@ -572,13 +586,15 @@ namespace IxMilia.Lisp
                     }
 
                     var result = frame.Eval(FunCall(frame, funcallArgs.ToArray()).Single());
-                    if (result is LispError || result.Equals(frame.Nil))
+                    if (result is LispError)
                     {
                         return result;
                     }
+
+                    resultItems.Add(result);
                 }
 
-                return frame.T;
+                return LispList.FromEnumerable(resultItems);
             }
 
             return new LispError("Expected function reference and list");
