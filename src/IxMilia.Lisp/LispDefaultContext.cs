@@ -310,6 +310,20 @@ namespace IxMilia.Lisp
             return new LispObject[] { new LispQuotedObject(args[0]) };
         }
 
+        [LispMacro("function")]
+        public IEnumerable<LispObject> Function(LispStackFrame frame, LispObject[] args)
+        {
+            // TODO: validate argument count
+            if (args[0] is LispSymbol symbol)
+            {
+                return new LispObject[] { new LispQuotedNamedFunctionReference(symbol.Value) };
+            }
+            else
+            {
+                return new LispObject[] { new LispError("Expected a function symbol") };
+            }
+        }
+
         [LispFunction("cons")]
         public LispObject Cons(LispStackFrame frame, LispObject[] args)
         {
