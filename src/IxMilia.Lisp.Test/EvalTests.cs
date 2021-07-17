@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Text;
 using Xunit;
 
@@ -206,7 +207,8 @@ namespace IxMilia.Lisp.Test
         public void TailCallWithCond()
         {
             var host = new LispHost();
-            var lastStackDepth = 0;
+            var lastInterpreterStackDepth = 0;
+            var lastNativeStackDepth = 0;
             var invocationCount = 0;
             var maxInvocationCount = 10;
             host.AddFunction("record-stack-depth", (frame, args) =>
@@ -216,8 +218,10 @@ namespace IxMilia.Lisp.Test
                     throw new Exception($"Executed more than {maxInvocationCount} times; probably not going to tailcall");
                 }
 
-                var currentStackDepth = frame.Depth;
-                if (currentStackDepth == lastStackDepth)
+                var currentInterpreterStackDepth = frame.Depth;
+                var currentNativeStackDepth = new StackTrace().FrameCount;
+                if (currentInterpreterStackDepth == lastInterpreterStackDepth &&
+                    currentNativeStackDepth == lastNativeStackDepth)
                 {
                     // done
                     return frame.T;
@@ -225,7 +229,8 @@ namespace IxMilia.Lisp.Test
                 else
                 {
                     // haven't reached a stable stack depth; keep going
-                    lastStackDepth = currentStackDepth;
+                    lastInterpreterStackDepth = currentInterpreterStackDepth;
+                    lastNativeStackDepth = currentNativeStackDepth;
                     return frame.Nil;
                 }
             });
@@ -243,7 +248,8 @@ namespace IxMilia.Lisp.Test
         public void TailCallWithIf()
         {
             var host = new LispHost();
-            var lastStackDepth = 0;
+            var lastInterpreterStackDepth = 0;
+            var lastNativeStackDepth = 0;
             var invocationCount = 0;
             var maxInvocationCount = 10;
             host.AddFunction("record-stack-depth", (frame, args) =>
@@ -253,8 +259,10 @@ namespace IxMilia.Lisp.Test
                     throw new Exception($"Executed more than {maxInvocationCount} times; probably not going to tailcall");
                 }
 
-                var currentStackDepth = frame.Depth;
-                if (currentStackDepth == lastStackDepth)
+                var currentInterpreterStackDepth = frame.Depth;
+                var currentNativeStackDepth = new StackTrace().FrameCount;
+                if (currentInterpreterStackDepth == lastInterpreterStackDepth &&
+                    currentNativeStackDepth == lastNativeStackDepth)
                 {
                     // done
                     return frame.T;
@@ -262,7 +270,8 @@ namespace IxMilia.Lisp.Test
                 else
                 {
                     // haven't reached a stable stack depth; keep going
-                    lastStackDepth = currentStackDepth;
+                    lastInterpreterStackDepth = currentInterpreterStackDepth;
+                    lastNativeStackDepth = currentNativeStackDepth;
                     return frame.Nil;
                 }
             });
