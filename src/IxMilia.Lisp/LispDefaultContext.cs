@@ -112,24 +112,16 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispMacro("funcall")]
-        public IEnumerable<LispObject> FunCall(LispStackFrame frame, LispObject[] args)
+        private LispObject FunCall(LispStackFrame frame, LispFunctionReference functionReference, IEnumerable<LispObject> functionArguments)
         {
-            if (args.Length < 1)
-            {
-                return new LispObject[] { new LispError("Insufficient arguments") };
-            }
-
             string synthesizedFunctionName = null;
             Action preExecute = null;
-            Action postExecute  = null;
-            var functionArguments = args.Skip(1).ToArray();
-            var functionObject = frame.Eval(args[0]);
-            if (functionObject is LispQuotedNamedFunctionReference namedFunction)
+            Action postExecute = null;
+            if (functionReference is LispQuotedNamedFunctionReference namedFunction)
             {
                 synthesizedFunctionName = namedFunction.Name;
             }
-            else if (functionObject is LispQuotedLambdaFunctionReference lambdaFunction)
+            else if (functionReference is LispQuotedLambdaFunctionReference lambdaFunction)
             {
                 synthesizedFunctionName = lambdaFunction.Definition.Name;
                 preExecute = () => frame.SetValue(lambdaFunction.Definition.Name, lambdaFunction.Definition);
@@ -139,8 +131,8 @@ namespace IxMilia.Lisp
             if (synthesizedFunctionName != null)
             {
                 var synthesizedSymbol = new LispSymbol(synthesizedFunctionName);
-                synthesizedSymbol.Line = functionObject.Line;
-                synthesizedSymbol.Column = functionObject.Column;
+                synthesizedSymbol.Line = functionReference.Line;
+                synthesizedSymbol.Column = functionReference.Column;
                 var synthesizedFunctionItems = new List<LispObject>();
                 synthesizedFunctionItems.Add(synthesizedSymbol);
                 synthesizedFunctionItems.AddRange(functionArguments);
@@ -150,12 +142,28 @@ namespace IxMilia.Lisp
                 var result = frame.Eval(synthesizedFunctionCall);
                 postExecute?.Invoke();
 
-                // the evalutated result is the result of the `funcall` macro, so it has to be quoted to allow it to pass through
-                var quotedResult = new LispQuotedObject(result);
-                return new LispObject[] { quotedResult };
+                return result;
             }
 
-            return new LispObject[] { new LispError("Expected function reference") };
+            return new LispError("Expected function reference");
+        }
+
+        [LispMacro("funcall")]
+        public IEnumerable<LispObject> FunCall(LispStackFrame frame, LispObject[] args)
+        {
+            LispObject result = new LispError("Expected function reference");
+            if (args.Length >= 1)
+            {
+                var candidateFunctionReference = frame.Eval(args[0]);
+                if (candidateFunctionReference is LispFunctionReference functionReference)
+                {
+                    result = FunCall(frame, functionReference, args.Skip(1));
+                }
+            }
+
+            // the evalutated result is the result of the `funcall` macro, so it has to be quoted to allow it to pass through
+            var quotedResult = new LispQuotedObject(result);
+            return new LispObject[] { quotedResult };
         }
 
         [LispMacro("setf")]
@@ -562,6 +570,161 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("find-if")]
+        public LispObject FindIf(LispStackFrame frame, LispObject[] args)
+        {
+            // TODO: validate argument counts
+            if (args.Length >= 2 &&
+                args[0] is LispFunctionReference functionReference &&
+                args[1] is LispList inputList)
+            {
+                var fromEndKeyword = GetKeywordArgument(args.Skip(2), ":from-end");
+                var fromEnd = !frame.Nil.Equals(fromEndKeyword);
+                var items = inputList.ToList();
+                if (fromEnd)
+                {
+                    items = items.Reverse().ToList();
+                }
+
+                foreach (var item in items)
+                {
+                    var result = FunCall(frame, functionReference, new LispObject[] { item });
+                    if (result is LispError || !result.Equals(frame.Nil))
+                    {
+                        return result;
+                    }
+                }
+
+                return frame.Nil;
+            }
+            else
+            {
+                return new LispError("Expected a function reference and list");
+            }
+        }
+
+        [LispFunction("remove-if")]
+        public LispObject RemoveIf(LispStackFrame frame, LispObject[] args)
+        {
+            // TODO: validate argument counts
+            if (args.Length >= 2 &&
+                args[0] is LispFunctionReference functionReference &&
+                args[1] is LispList inputList)
+            {
+                var countArgument = GetKeywordArgument(args.Skip(2), ":count");
+                var count = countArgument is LispInteger i
+                    ? i.Value
+                    : int.MaxValue;
+                var items = inputList.ToList();
+                var resultItems = new List<LispObject>();
+                foreach (var item in items)
+                {
+                    var result = FunCall(frame, functionReference, new LispObject[] { item });
+                    if (result is LispError)
+                    {
+                        return result;
+                    }
+
+                    if (!result.Equals(frame.Nil) &&
+                        resultItems.Count <= count)
+                    {
+                        // keep it
+                        resultItems.Add(item);
+                    }
+                }
+
+                return LispList.FromEnumerable(resultItems);
+            }
+            else
+            {
+                return new LispError("Expected a function reference and list");
+            }
+        }
+
+        [LispFunction("remove-if-not")]
+        public LispObject RemoveIfNot(LispStackFrame frame, LispObject[] args)
+        {
+            // TODO: validate argument counts
+            if (args.Length >= 2 &&
+                args[0] is LispFunctionReference functionReference &&
+                args[1] is LispList inputList)
+            {
+                var countArgument = GetKeywordArgument(args.Skip(2), ":count");
+                var count = countArgument is LispInteger i
+                    ? i.Value
+                    : int.MaxValue;
+                var items = inputList.ToList();
+                var resultItems = new List<LispObject>();
+                foreach (var item in items)
+                {
+                    var result = FunCall(frame, functionReference, new LispObject[] { item });
+                    if (result is LispError)
+                    {
+                        return result;
+                    }
+
+                    if (result.Equals(frame.Nil) &&
+                        resultItems.Count <= count)
+                    {
+                        // keep it
+                        resultItems.Add(item);
+                    }
+                }
+
+                return LispList.FromEnumerable(resultItems);
+            }
+            else
+            {
+                return new LispError("Expected a function reference and list");
+            }
+        }
+
+        [LispFunction("reduce")]
+        public LispObject Reduce(LispStackFrame frame, LispObject[] args)
+        {
+            // TODO: validate argument counts
+            if (args.Length >= 2 &&
+                args[0] is LispFunctionReference functionReference &&
+                args[1] is LispList inputList)
+            {
+                var fromEndKeyword = GetKeywordArgument(args.Skip(2), ":from-end");
+                var fromEnd = !frame.Nil.Equals(fromEndKeyword);
+                var items = inputList.ToList();
+                if (fromEnd)
+                {
+                    items = items.Reverse().ToList();
+                }
+
+                while (items.Count > 1)
+                {
+                    var arg1 = items[0];
+                    var arg2 = items[1];
+                    items.RemoveAt(0);
+                    items.RemoveAt(0);
+                    var result = FunCall(frame, functionReference, new LispObject[] { arg1, arg2 });
+                    if (result is LispError)
+                    {
+                        return result;
+                    }
+
+                    items.Insert(0, result);
+                }
+
+                if (items.Count == 0)
+                {
+                    return frame.Nil;
+                }
+                else
+                {
+                    return items[0];
+                }
+            }
+            else
+            {
+                return new LispError("Expected a function reference and list");
+            }
+        }
+
         [LispFunction("every")]
         public LispObject Every(LispStackFrame frame, LispObject[] args)
         {
@@ -592,14 +755,8 @@ namespace IxMilia.Lisp
                 var maxLength = lists.Select(l => l.Count).Aggregate(int.MaxValue, (aLength, bLength) => Math.Min(aLength, bLength));
                 for (int i = 0; i < maxLength; i++)
                 {
-                    var funcallArgs = new List<LispObject>();
-                    funcallArgs.Add(functionRef);
-                    foreach (var list in lists)
-                    {
-                        funcallArgs.Add(list[i]);
-                    }
-
-                    var result = frame.Eval(FunCall(frame, funcallArgs.ToArray()).Single());
+                    var functionArguments = lists.Select(l => l[i]);
+                    var result = FunCall(frame, functionRef, functionArguments);
                     if (result is LispError)
                     {
                         return result;
