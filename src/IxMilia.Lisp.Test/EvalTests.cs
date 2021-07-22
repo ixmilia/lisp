@@ -395,5 +395,21 @@ returned from average
 ".Trim());
             Assert.Equal(expected, actual);
         }
+
+        [Fact]
+        public void LambdaWithLexicalClosure()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(setf words '((one uno) (two dos) (three tres)))
+(defun my-assoc (key table)
+  (find-if #'(lambda (entry)
+    (equal key (first entry)))
+  table))
+(my-assoc 'two words)
+");
+            var expected = LispList.FromItems(new LispSymbol("two"), new LispSymbol("dos"));
+            Assert.Equal(expected, result);
+        }
     }
 }

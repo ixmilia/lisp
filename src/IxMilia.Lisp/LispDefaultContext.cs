@@ -588,10 +588,20 @@ namespace IxMilia.Lisp
 
                 foreach (var item in items)
                 {
-                    var result = FunCall(frame, functionReference, new LispObject[] { item });
-                    if (result is LispError || !result.Equals(frame.Nil))
+                    // quote the arguments so they can be safely evaluated
+                    var functionArguments = new LispObject[]
+                    {
+                        new LispQuotedObject(item)
+                    };
+                    var result = FunCall(frame, functionReference, functionArguments);
+                    if (result is LispError)
                     {
                         return result;
+                    }
+
+                    if (!result.Equals(frame.Nil))
+                    {
+                        return item;
                     }
                 }
 
