@@ -411,5 +411,19 @@ returned from average
             var expected = LispList.FromItems(new LispSymbol("two"), new LispSymbol("dos"));
             Assert.Equal(expected, result);
         }
+
+        [Fact]
+        public void LambdaCapture()
+        {
+            var host = new LispHost();
+            host.Eval(@"
+(defun make-greater-p (n)
+    #'(lambda (x) (> x n)))
+(setf pred (make-greater-p 3))
+");
+            Assert.Equal(host.Nil, host.Eval("(funcall pred 2)"));
+            Assert.Equal(host.T, host.Eval("(funcall pred 5)"));
+            Assert.Equal(new LispInteger(4), host.Eval("(find-if pred '(2 3 4 5 6 7 8 9))"));
+        }
     }
 }

@@ -115,6 +115,7 @@ namespace IxMilia.Lisp
         private LispObject FunCall(LispStackFrame frame, LispFunctionReference functionReference, IEnumerable<LispObject> functionArguments)
         {
             string synthesizedFunctionName = null;
+            var evaluatingFrame = frame;
             Action preExecute = null;
             Action postExecute = null;
             if (functionReference is LispQuotedNamedFunctionReference namedFunction)
@@ -124,8 +125,9 @@ namespace IxMilia.Lisp
             else if (functionReference is LispQuotedLambdaFunctionReference lambdaFunction)
             {
                 synthesizedFunctionName = lambdaFunction.Definition.Name;
-                preExecute = () => frame.SetValue(lambdaFunction.Definition.Name, lambdaFunction.Definition);
-                postExecute = () => frame.DeleteValue(lambdaFunction.Definition.Name);
+                evaluatingFrame = lambdaFunction.StackFrame;
+                preExecute = () => evaluatingFrame.SetValue(lambdaFunction.Definition.Name, lambdaFunction.Definition);
+                postExecute = () => evaluatingFrame.DeleteValue(lambdaFunction.Definition.Name);
             }
 
             if (synthesizedFunctionName != null)
@@ -139,7 +141,7 @@ namespace IxMilia.Lisp
                 var synthesizedFunctionCall = LispList.FromEnumerable(synthesizedFunctionItems);
 
                 preExecute?.Invoke();
-                var result = frame.Eval(synthesizedFunctionCall);
+                var result = evaluatingFrame.Eval(synthesizedFunctionCall);
                 postExecute?.Invoke();
 
                 return result;

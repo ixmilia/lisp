@@ -31,8 +31,12 @@ namespace IxMilia.Lisp
                     case LispRatio _:
                     case LispString _:
                     case LispKeyword _:
-                    case LispFunctionReference _:
+                    case LispQuotedNamedFunctionReference _:
                         result = item;
+                        break;
+                    case LispQuotedLambdaFunctionReference lambda:
+                        lambda.StackFrame = frame;
+                        result = lambda;
                         break;
                     case LispQuotedObject quote:
                         result = quote.Value;

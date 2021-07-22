@@ -1199,6 +1199,7 @@ namespace IxMilia.Lisp
     public class LispQuotedLambdaFunctionReference : LispFunctionReference
     {
         public LispCodeFunction Definition { get; }
+        internal LispStackFrame StackFrame { get; set; }
 
         public LispQuotedLambdaFunctionReference(LispCodeFunction definition)
         {
