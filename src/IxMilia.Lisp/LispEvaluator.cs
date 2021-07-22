@@ -77,23 +77,25 @@ namespace IxMilia.Lisp
                                 }
                                 else
                                 {
+                                    List<Tuple<LispObject, LispStackFrame>> macroExpansion;
                                     switch (macro)
                                     {
                                         case LispCodeMacro codeMacro:
-                                            {
-                                                var macroExpansion = codeMacro.ExpandBody(args).Select(m => Tuple.Create<LispObject, LispStackFrame>(m, null));
-                                                stack.InsertRange(0, macroExpansion);
-                                                break;
-                                            }
+                                            macroExpansion = codeMacro.ExpandBody(args).Select(m => Tuple.Create<LispObject, LispStackFrame>(m, null)).ToList();
+                                            break;
                                         case LispNativeMacro nativeMacro:
-                                            {
-                                                var macroExpansion = nativeMacro.Macro.Invoke(frame, args).Select(m => Tuple.Create<LispObject, LispStackFrame>(m, null));
-                                                stack.InsertRange(0, macroExpansion);
-                                                break;
-                                            }
+                                            macroExpansion = nativeMacro.Macro.Invoke(frame, args).Select(m => Tuple.Create<LispObject, LispStackFrame>(m, null)).ToList();
+                                            break;
                                         default:
                                             throw new InvalidOperationException($"Unsupported macro type {macro.GetType().Name}");
                                     }
+
+                                    if (macroExpansion.Count > 0)
+                                    {
+                                        result = macroExpansion[macroExpansion.Count - 1].Item1;
+                                    }
+
+                                    stack.InsertRange(0, macroExpansion);
                                 }
 
                                 frame = frame.Pop();
