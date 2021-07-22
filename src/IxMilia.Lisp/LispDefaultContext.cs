@@ -99,6 +99,28 @@ namespace IxMilia.Lisp
             return new LispObject[] { new LispQuotedObject(result) };
         }
 
+        [LispMacro("labels")]
+        public IEnumerable<LispObject> Labels(LispStackFrame frame, LispObject[] args)
+        {
+            // TODO: validate arguments
+            var functionDefinitions = ((LispList)args[0]).ToList();
+            var body = args[1];
+            foreach (var functionDefinitionSet in functionDefinitions)
+            {
+                // TODO: validate shape
+                var functionDefinition = ((LispList)functionDefinitionSet).ToList();
+                var functionName = ((LispSymbol)functionDefinition[0]).Value;
+                var functionArguments = ((LispList)functionDefinition[1]).ToList().Cast<LispSymbol>().Select(s => s.Value).ToList();
+                var functionBody = functionDefinition.Skip(2).ToList();
+                var function = new LispCodeFunction(functionName, null, functionArguments, functionBody);
+
+                frame.SetValue(functionName, function);
+            }
+
+            var result = frame.Eval(body);
+            return new LispObject[] { new LispQuotedObject(result) };
+        }
+
         [LispFunction("eval")]
         public LispObject Eval(LispStackFrame frame, LispObject[] args)
         {

@@ -226,9 +226,9 @@
     (assert-eql () (cond ((< 2 1) 'a)
                          ((= 1 2) 'b)) "cond defaults to nil"))
 
-(defun square (x) (* x x))
 (defun function-references ()
-    (assert-equal '(1 4 9) (mapcar #'square '(1 2 3)) "mapcar on named function reference")
+    (labels ((square (x) (* x x)))
+            (assert-equal '(1 4 9) (mapcar #'square '(1 2 3)) "mapcar on named function reference"))
     (assert-equal '(1 4 9) (mapcar #'(lambda (n) (* n n)) '(1 2 3)) "mapcar on lambda function")
     (assert-equal '(3 6 9) (mapcar #'+ '(1 2 3) '(2 4 6 8)) "mapcar with multiple lists")
     (assert-equal 5 (funcall (function +) 2 3) "funcall with `function` keyword")

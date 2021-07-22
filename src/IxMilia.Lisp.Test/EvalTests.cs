@@ -425,5 +425,26 @@ returned from average
             Assert.Equal(host.T, host.Eval("(funcall pred 5)"));
             Assert.Equal(new LispInteger(4), host.Eval("(find-if pred '(2 3 4 5 6 7 8 9))"));
         }
+
+        [Fact]
+        public void LabelsFunctionDefinition()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(labels ((increment-by-one (n)
+             (+ n 1))
+         (increment-by-two (n)
+             (increment-by-one (increment-by-one n)))
+        )
+    (+ (increment-by-one 1) (increment-by-two 4)) ; (1 + 1) + (4 + 2) = 8
+)
+");
+            Assert.Equal(new LispInteger(8), result);
+
+            // ensure nothing leaked
+            Assert.Null(host.GetValue("increment-by-one"));
+            Assert.Null(host.GetValue("increment-by-two"));
+            Assert.Null(host.GetValue("n"));
+        }
     }
 }
