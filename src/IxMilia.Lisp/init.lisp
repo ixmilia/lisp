@@ -1,3 +1,5 @@
+(defun null (x) (equal () x))
+
 (defmacro if (pred tv fv)
     (cond (pred tv)
           (t fv)))
