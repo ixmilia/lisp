@@ -81,6 +81,8 @@
             (not (evenp 3))
                  (oddp 1)
             (not (oddp 2))
+                 (stringp "a")
+            (not (stringp 1))
                  (listp '(1))
                  (listp ())
             (not (listp 4))

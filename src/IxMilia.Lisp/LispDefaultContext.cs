@@ -222,6 +222,19 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("stringp")]
+        public LispObject StringP(LispStackFrame frame, LispObject[] args)
+        {
+            // TODO: validate argument count
+            switch (args[0])
+            {
+                case LispString _:
+                    return frame.T;
+                default:
+                    return frame.Nil;
+            }
+        }
+
         [LispFunction("keywordp")]
         public LispObject KeywordP(LispStackFrame frame, LispObject[] args)
         {
