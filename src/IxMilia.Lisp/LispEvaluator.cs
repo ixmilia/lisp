@@ -55,7 +55,7 @@ namespace IxMilia.Lisp
                         }
                     case LispList list:
                         {
-                            if (list.IsNil)
+                            if (list.IsNil())
                             {
                                 result = list;
                                 break;

@@ -330,7 +330,7 @@ namespace IxMilia.Lisp
         [LispFunction("consp")]
         public LispObject ConsP(LispStackFrame frame, LispObject[] args)
         {
-            return args[0] is LispList list && !list.IsNil
+            return args[0] is LispList list && !list.IsNil()
                 ? frame.T
                 : frame.Nil;
         }
@@ -544,7 +544,7 @@ namespace IxMilia.Lisp
                 ? number.Value
                 : list.Count;
             var fromEndArg = GetKeywordArgument(args.Skip(2), ":from-end");
-            var fromEnd = !fromEndArg.Equals(frame.Nil);
+            var fromEnd = fromEndArg.IsTLike();
             if (fromEnd)
             {
                 list = list.Reverse().ToList();
@@ -603,7 +603,7 @@ namespace IxMilia.Lisp
                 args[1] is LispList inputList)
             {
                 var fromEndKeyword = GetKeywordArgument(args.Skip(2), ":from-end");
-                var fromEnd = !frame.Nil.Equals(fromEndKeyword);
+                var fromEnd = fromEndKeyword.IsTLike();
                 var items = inputList.ToList();
                 if (fromEnd)
                 {
@@ -623,7 +623,7 @@ namespace IxMilia.Lisp
                         return result;
                     }
 
-                    if (!result.Equals(frame.Nil))
+                    if (result.IsTLike())
                     {
                         return item;
                     }
@@ -659,7 +659,7 @@ namespace IxMilia.Lisp
                         return result;
                     }
 
-                    if (!result.Equals(frame.Nil) &&
+                    if (result.IsTLike() &&
                         resultItems.Count <= count)
                     {
                         // keep it
@@ -697,7 +697,7 @@ namespace IxMilia.Lisp
                         return result;
                     }
 
-                    if (result.Equals(frame.Nil) &&
+                    if (result.IsNil() &&
                         resultItems.Count <= count)
                     {
                         // keep it
@@ -722,7 +722,7 @@ namespace IxMilia.Lisp
                 args[1] is LispList inputList)
             {
                 var fromEndKeyword = GetKeywordArgument(args.Skip(2), ":from-end");
-                var fromEnd = !frame.Nil.Equals(fromEndKeyword);
+                var fromEnd = fromEndKeyword.IsTLike();
                 var items = inputList.ToList();
                 if (fromEnd)
                 {
@@ -765,7 +765,7 @@ namespace IxMilia.Lisp
             var result = MapCar(frame, args);
             switch (result)
             {
-                case LispList list when list.ToList().Any(o => o.Equals(frame.Nil)):
+                case LispList list when list.ToList().Any(o => o.IsNil()):
                     return frame.Nil;
                 default:
                     return result;
@@ -1098,7 +1098,7 @@ namespace IxMilia.Lisp
                         return new LispObject[] { error };
                     }
                     // TODO: non zero
-                    var next = evaluated.Equals(frame.Nil) ? false : true;
+                    var next = evaluated.IsTLike();
                     if (next == shortCircuitValue)
                     {
                         collected = shortCircuitValue;

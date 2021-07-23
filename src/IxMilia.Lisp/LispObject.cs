@@ -773,14 +773,13 @@ namespace IxMilia.Lisp
         public virtual LispObject Value { get; }
         public virtual LispObject Next { get; }
         public virtual int Length { get; }
-        public virtual bool IsNil { get; }
 
         public virtual bool IsProperList
         {
             get
             {
                 var list = this;
-                while (!list.IsNil)
+                while (!list.IsNil())
                 {
                     if (list.Next is LispList next)
                     {
@@ -809,7 +808,6 @@ namespace IxMilia.Lisp
         {
             Value = value;
             Next = next;
-            IsNil = false;
             if (next is LispList list)
             {
                 Length = list.Length + 1;
@@ -864,7 +862,7 @@ namespace IxMilia.Lisp
         {
             var items = new List<LispObject>();
             var head = this;
-            while (!head.IsNil)
+            while (!head.IsNil())
             {
                 items.Add(head.Value);
                 if (head.Next is LispList next)
@@ -920,7 +918,7 @@ namespace IxMilia.Lisp
             {
                 return true;
             }
-            if (a.IsNil && b.IsNil)
+            if (a.IsNil() && b.IsNil())
             {
                 return true;
             }
@@ -1083,7 +1081,6 @@ namespace IxMilia.Lisp
         public override LispObject Value => this;
         public override LispObject Next => this;
         public override int Length => 0;
-        public override bool IsNil => true;
 
         private LispNilList()
         {
