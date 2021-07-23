@@ -193,10 +193,11 @@ namespace IxMilia.Lisp
         [LispFunction("format")]
         public LispObject Format(LispStackFrame frame, LispObject[] args)
         {
-            if (args.Length == 2 &&
+            if (args.Length >= 2 &&
                 args[1] is LispString s)
             {
-                if (LispFormatter.TryFormatString(s.Value, out var result))
+                var formatArgs = args.Skip(2);
+                if (LispFormatter.TryFormatString(s.Value, formatArgs, out var result))
                 {
                     if (args[0] == frame.T)
                     {

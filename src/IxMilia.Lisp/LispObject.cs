@@ -17,6 +17,11 @@ namespace IxMilia.Lisp
 
         internal abstract LispObject Clone();
 
+        public virtual string ToString(bool useEscapeCharacters)
+        {
+            return ToString();
+        }
+
         internal LispObject PerformMacroReplacement(string itemName, LispObject replacement)
         {
             switch (this)
@@ -718,6 +723,13 @@ namespace IxMilia.Lisp
         public LispString(string value)
         {
             Value = value;
+        }
+
+        public override string ToString(bool useEscapeCharacters)
+        {
+            return useEscapeCharacters
+                ? ToString()
+                : Value;
         }
 
         internal override LispObject Clone()

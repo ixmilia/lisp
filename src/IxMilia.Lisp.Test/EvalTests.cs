@@ -457,5 +457,15 @@ returned from average
             var result = NormalizeNewlines(output.ToString());
             Assert.Equal("hello\r\n", result);
         }
+
+        [Fact]
+        public void FormatOutputWithArgument()
+        {
+            var output = new StringWriter();
+            var host = new LispHost(output);
+            host.Eval(@"(format t ""hello ~S"" ""world"")");
+            var result = NormalizeNewlines(output.ToString());
+            Assert.Equal("hello \"world\"\r\n", result);
+        }
     }
 }
