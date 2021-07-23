@@ -18,7 +18,7 @@ namespace IxMilia.Lisp.Repl
 
         public void Run()
         {
-            var repl = new LispRepl(Output);
+            var repl = new LispRepl(output: Output, traceWriter: Output);
 
             PrintPrompt(0);
             string line;

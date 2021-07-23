@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using Xunit;
 
@@ -445,6 +446,16 @@ returned from average
             Assert.Null(host.GetValue("increment-by-one"));
             Assert.Null(host.GetValue("increment-by-two"));
             Assert.Null(host.GetValue("n"));
+        }
+
+        [Fact]
+        public void FormatOutput()
+        {
+            var output = new StringWriter();
+            var host = new LispHost(output);
+            host.Eval(@"(format t ""hello"")");
+            var result = NormalizeNewlines(output.ToString());
+            Assert.Equal("hello\r\n", result);
         }
     }
 }

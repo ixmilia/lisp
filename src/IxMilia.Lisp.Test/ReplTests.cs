@@ -50,7 +50,7 @@ namespace IxMilia.Lisp.Test
         public void FunctionTracing()
         {
             var traceWriter = new StringWriter();
-            var repl = new LispRepl(traceWriter);
+            var repl = new LispRepl(traceWriter: traceWriter);
             repl.Eval(@"
 (defun half (n) (* n 0.5))
 (defun average (x y)

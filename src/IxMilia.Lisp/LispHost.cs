@@ -15,12 +15,15 @@ namespace IxMilia.Lisp
     {
         public readonly LispRootStackFrame RootFrame;
 
+        public TextWriter Output { get; }
+
         public LispObject T { get; }
         public LispObject Nil { get; }
 
-        public LispHost()
+        public LispHost(TextWriter output = null)
         {
-            RootFrame = new LispRootStackFrame();
+            RootFrame = new LispRootStackFrame(this);
+            Output = output ?? TextWriter.Null;
             T = RootFrame.T;
             Nil = RootFrame.Nil;
             AddContextObject(new LispDefaultContext());

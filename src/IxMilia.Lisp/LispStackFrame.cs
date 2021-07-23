@@ -133,6 +133,8 @@ namespace IxMilia.Lisp
 
     public class LispRootStackFrame : LispStackFrame
     {
+        public LispHost Host { get;  }
+
         public event EventHandler<LispFunctionEnteredEventArgs> FunctionEntered;
         public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
         public event EventHandler<LispFunctionEnteredEventArgs> TraceFunctionEntered;
@@ -140,9 +142,10 @@ namespace IxMilia.Lisp
 
         public HashSet<string> TracedFunctions { get; } = new HashSet<string>();
 
-        internal LispRootStackFrame()
+        internal LispRootStackFrame(LispHost host)
             : base("(root)", null)
         {
+            Host = host;
             SetValue(TString, new LispSymbol(TString));
             SetValue(NilString, LispNilList.Instance);
         }

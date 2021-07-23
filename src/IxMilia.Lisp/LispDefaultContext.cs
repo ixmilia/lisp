@@ -190,6 +190,34 @@ namespace IxMilia.Lisp
             return new LispObject[] { quotedResult };
         }
 
+        [LispFunction("format")]
+        public LispObject Format(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length == 2 &&
+                args[1] is LispString s)
+            {
+                if (LispFormatter.TryFormatString(s.Value, out var result))
+                {
+                    if (args[0] == frame.T)
+                    {
+                        // write to output
+                        frame.Root.Host.Output.WriteLine(result);
+                        return frame.Nil;
+                    }
+                    else
+                    {
+                        return new LispError("Non-display output not supported");
+                    }
+                }
+                else
+                {
+                    return new LispError(result);
+                }
+            }
+
+            return new LispError("Expected output type and string");
+        }
+
         [LispMacro("setf")]
         [LispMacro("setq")]
         public IEnumerable<LispObject> SetValue(LispStackFrame frame, LispObject[] args)
