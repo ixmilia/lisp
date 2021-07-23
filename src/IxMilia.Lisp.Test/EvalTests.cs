@@ -452,7 +452,7 @@ returned from average
         public void FormatOutput()
         {
             var output = new StringWriter();
-            var host = new LispHost(output);
+            var host = new LispHost(output: output);
             host.Eval(@"(format t ""hello"")");
             var result = NormalizeNewlines(output.ToString());
             Assert.Equal("hello", result);
@@ -462,7 +462,7 @@ returned from average
         public void FormatOutputWithArgument()
         {
             var output = new StringWriter();
-            var host = new LispHost(output);
+            var host = new LispHost(output: output);
             host.Eval(@"(format t ""hello ~S"" ""world"")");
             var result = NormalizeNewlines(output.ToString());
             Assert.Equal("hello \"world\"", result);
@@ -472,7 +472,7 @@ returned from average
         public void MultipleCallsToFormat()
         {
             var output = new StringWriter();
-            var host = new LispHost(output);
+            var host = new LispHost(output: output);
             host.Eval(@"
 (format t ""1"")
 (format t ""2"")

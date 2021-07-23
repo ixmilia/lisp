@@ -219,6 +219,13 @@ namespace IxMilia.Lisp
             return new LispError("Expected output type and string");
         }
 
+        [LispFunction("read")]
+        public LispObject Read(LispStackFrame frame, LispObject[] args)
+        {
+            var nodes = frame.Root.Host.ReadCompleteObjects();
+            return nodes.Last();
+        }
+
         [LispMacro("setf")]
         [LispMacro("setq")]
         public IEnumerable<LispObject> SetValue(LispStackFrame frame, LispObject[] args)

@@ -8,14 +8,16 @@ namespace IxMilia.Lisp
     {
         private LispHost _host;
         private LispParser _parser;
+        private TextReader _input;
         private TextWriter _output;
         private TextWriter _traceWriter;
 
-        public LispRepl(TextWriter output = null, TextWriter traceWriter = null)
+        public LispRepl(TextReader input = null, TextWriter output = null, TextWriter traceWriter = null)
         {
+            _input = input ?? TextReader.Null;
             _output = output ?? TextWriter.Null;
             _traceWriter = traceWriter ?? TextWriter.Null;
-            _host = new LispHost(_output);
+            _host = new LispHost(_input, _output);
             _host.RootFrame.TraceFunctionEntered += TraceFunctionEntered;
             _host.RootFrame.TraceFunctionReturned += TraceFunctionReturned;
             _parser = new LispParser(errorOnIncompleteExpressions: false);

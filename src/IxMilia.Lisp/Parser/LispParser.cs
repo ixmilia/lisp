@@ -23,7 +23,7 @@ namespace IxMilia.Lisp.Parser
         {
             _leftParens.Clear();
             var nodes = ParseNodes().ToList();
-            return new LispParseResult(nodes, _leftParens.Count);
+            return new LispParseResult(nodes, _leftParens.Count, _tokens);
         }
 
         private IEnumerable<LispObject> ParseNodes()
