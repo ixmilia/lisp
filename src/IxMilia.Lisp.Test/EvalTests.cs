@@ -455,7 +455,7 @@ returned from average
             var host = new LispHost(output);
             host.Eval(@"(format t ""hello"")");
             var result = NormalizeNewlines(output.ToString());
-            Assert.Equal("hello\r\n", result);
+            Assert.Equal("hello", result);
         }
 
         [Fact]
@@ -465,7 +465,21 @@ returned from average
             var host = new LispHost(output);
             host.Eval(@"(format t ""hello ~S"" ""world"")");
             var result = NormalizeNewlines(output.ToString());
-            Assert.Equal("hello \"world\"\r\n", result);
+            Assert.Equal("hello \"world\"", result);
+        }
+
+        [Fact]
+        public void MultipleCallsToFormat()
+        {
+            var output = new StringWriter();
+            var host = new LispHost(output);
+            host.Eval(@"
+(format t ""1"")
+(format t ""2"")
+(format t ""3"")
+");
+            var result = NormalizeNewlines(output.ToString());
+            Assert.Equal("123", result);
         }
     }
 }

@@ -202,7 +202,7 @@ namespace IxMilia.Lisp
                     if (args[0] == frame.T)
                     {
                         // write to output
-                        frame.Root.Host.Output.WriteLine(result);
+                        frame.Root.Host.Output.Write(result);
                         return frame.Nil;
                     }
                     else
