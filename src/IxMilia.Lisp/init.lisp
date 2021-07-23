@@ -67,5 +67,23 @@
 (defun subst (r s items)
     (sublis (list (cons s r)) items))
 
+(defun yes-or-no-p (prompt)
+    (labels ((prompt-and-get-input ()
+                (format t prompt)
+                (let ((response (read)))
+                    (cond ((eql response 'yes) t)
+                          ((eql response 'no) nil)
+                          (t (prompt-and-get-input))))))
+        (prompt-and-get-input)))
+
+(defun y-or-n-p (prompt)
+    (labels ((prompt-and-get-input ()
+                (format t prompt)
+                (let ((response (read)))
+                    (cond ((eql response 'y) t)
+                          ((eql response 'n) nil)
+                          (t (prompt-and-get-input))))))
+        (prompt-and-get-input)))
+
 ; just to ensure the script was properly loaded
 t
