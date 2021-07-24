@@ -4,7 +4,7 @@
     {
         protected static string NormalizeNewlines(string value)
         {
-            return value.Replace("\r", "").Replace("\n", "\r\n");
+            return value.Replace("\r", "");
         }
     }
 }

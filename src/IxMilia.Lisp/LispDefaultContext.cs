@@ -292,6 +292,57 @@ namespace IxMilia.Lisp
             return new LispObject[] { new LispError("Expected `<(streamName filePath)> <body>`") };
         }
 
+        [LispFunction("dribble")]
+        public LispObject Dribble(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length == 0)
+            {
+                // finish recording
+                var dribbleStream = frame.Root.DribbleStream;
+                if (dribbleStream is null)
+                {
+                    return new LispError("Dribble stream object not found");
+                }
+
+                frame.TerminalIO.Output.WriteLine($"Finished recording in file {dribbleStream.FileStream.Name}");
+                dribbleStream.Output.Flush();
+                dribbleStream.Output.Dispose();
+                frame.Root.DribbleStream = null;
+                return frame.Nil;
+            }
+            else if (args.Length == 1)
+            {
+                var filePath = frame.Eval(args[0]);
+                if (filePath is LispError error)
+                {
+                    return error;
+                }
+                else if (filePath is LispString dribblePath)
+                {
+                    // start new recording
+                    if (frame.Root.DribbleStream is LispFileStream)
+                    {
+                        return new LispError("Dribble recording already started");
+                    }
+
+                    var dribbleStream = new LispFileStream(dribblePath.Value, new FileStream(dribblePath.Value, FileMode.Create));
+                    dribbleStream.Output.WriteLine($";Recording in {dribbleStream.FileStream.Name}");
+                    dribbleStream.Output.WriteLine($";Recording started at {DateTime.Now:h:mmtt d-MMM-yy}:");
+                    dribbleStream.Output.WriteLine();
+                    frame.TerminalIO.Output.WriteLine($"Now recording in file {dribbleStream.FileStream.Name}");
+
+                    frame.Root.DribbleStream = dribbleStream;
+                    return frame.Nil;
+                }
+                else
+                {
+                    return new LispError("Expected a string path to start dribble recording.");
+                }
+            }
+
+            return new LispError("Expected single file path arugment to start recording, or no arguments to stop");
+        }
+
         [LispMacro("setf")]
         [LispMacro("setq")]
         public IEnumerable<LispObject> SetValue(LispStackFrame frame, LispObject[] args)

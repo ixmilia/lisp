@@ -136,12 +136,30 @@ namespace IxMilia.Lisp
 
     public class LispRootStackFrame : LispStackFrame
     {
+        private const string DribbleStreamVariableName = "(dribble-stream)"; // surrounded by parens to make it un-utterable
+
         public event EventHandler<LispFunctionEnteredEventArgs> FunctionEntered;
         public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
         public event EventHandler<LispFunctionEnteredEventArgs> TraceFunctionEntered;
         public event EventHandler<LispFunctionReturnedEventArgs> TraceFunctionReturned;
 
         public HashSet<string> TracedFunctions { get; } = new HashSet<string>();
+
+        internal LispFileStream DribbleStream
+        {
+            get => GetValue<LispFileStream>(DribbleStreamVariableName);
+            set
+            {
+                if (value is null)
+                {
+                    DeleteValue(DribbleStreamVariableName);
+                }
+                else
+                {
+                    SetValue(DribbleStreamVariableName, value);
+                }
+            }
+        }
 
         internal LispRootStackFrame(TextReader input, TextWriter output)
             : base("(root)", null)

@@ -175,7 +175,23 @@ namespace IxMilia.Lisp
 
         public LispObject Eval(LispObject obj)
         {
-            return LispEvaluator.Evaluate(obj, RootFrame, false);
+            var dribbleOutput = RootFrame.DribbleStream?.Output;
+            if (dribbleOutput != null)
+            {
+                dribbleOutput.WriteLine($"> {obj}");
+            }
+
+            var result = LispEvaluator.Evaluate(obj, RootFrame, false);
+
+            if (dribbleOutput != null)
+            {
+                // only write result if we were already recording the session and it wasn't closed by the last eval
+                dribbleOutput = RootFrame.DribbleStream?.Output;
+                dribbleOutput?.WriteLine(result.ToString());
+                dribbleOutput?.WriteLine();
+            }
+
+            return result;
         }
 
         private void TryApplyStackFrame(LispError error)

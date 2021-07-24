@@ -9,14 +9,14 @@ namespace IxMilia.Lisp.Test
         public void NewlineDirectives()
         {
             Assert.True(LispFormatter.TryFormatString("a~%b", null, out var result), $"Error from formatter: {result}");
-            Assert.Equal("a\r\nb", NormalizeNewlines(result));
+            Assert.Equal("a\nb", NormalizeNewlines(result));
         }
 
         [Fact]
         public void EnsureLineStartDirective()
         {
             Assert.True(LispFormatter.TryFormatString("a~&b~&~&~&c", null, out var result), $"Error from formatter: {result}");
-            Assert.Equal("a\r\nb\r\nc", NormalizeNewlines(result));
+            Assert.Equal("a\nb\nc", NormalizeNewlines(result));
         }
 
         [Fact]

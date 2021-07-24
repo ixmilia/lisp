@@ -41,7 +41,7 @@ namespace IxMilia.Lisp.Test
 )
 ");
             Assert.IsNotType<LispError>(result);
-            Assert.Equal("read: \"just a string\"\r\nevaluated: 5\r\n", NormalizeNewlines(output.ToString()));
+            Assert.Equal("read: \"just a string\"\nevaluated: 5\n", NormalizeNewlines(output.ToString()));
             Assert.Null(host.GetValue("file-stream"));
         }
 
@@ -59,7 +59,7 @@ namespace IxMilia.Lisp.Test
 ");
                 Assert.IsNotType<LispError>(result);
                 var actual = NormalizeNewlines(File.ReadAllText(outputFile.FilePath));
-                Assert.Equal("wrote: \"just-a-string\"\r\nwrote: (+ 2 3)\r\n", actual);
+                Assert.Equal("wrote: \"just-a-string\"\nwrote: (+ 2 3)\n", actual);
             }
         }
     }

@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
@@ -68,6 +69,43 @@ namespace IxMilia.Lisp.Test
 0: returned 5
 ".Trim());
             Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void DribbleLogging()
+        {
+            var output = new StringWriter();
+            var repl = new LispRepl(output: output);
+            using (var tempFile = new TemporaryFile(createFile: false))
+            {
+                var result = repl.Eval($@"
+(+ 1 1) ; this shouldn't be in the log
+(dribble ""{tempFile.FilePath.Replace("\\", "\\\\")}"") ; start recording
+(+ 3 3) ; this should be in the log
+(dribble) ; stop recording
+(+ 5 5) ; this shouldn't be in the log
+");
+                var consoleOutput = NormalizeNewlines(output.ToString()).Trim();
+                var expectedConsoleOutput = NormalizeNewlines($@"
+Now recording in file {tempFile.FilePath}
+Finished recording in file {tempFile.FilePath}
+").Trim();
+                Assert.Equal(expectedConsoleOutput, consoleOutput);
+
+                var logContents = NormalizeNewlines(File.ReadAllText(tempFile.FilePath).Trim());
+                // trim non-deterministic time stamp
+                logContents = Regex.Replace(logContents, ";Recording started at .*$", ";Recording started at <TIME-STAMP>", RegexOptions.Multiline);
+                var expectedLogContents = NormalizeNewlines($@"
+;Recording in {tempFile.FilePath}
+;Recording started at <TIME-STAMP>
+
+> (+ 3 3)
+6
+
+> (dribble)
+".Trim());
+                Assert.Equal(expectedLogContents, logContents);
+            }
         }
     }
 }

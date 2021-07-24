@@ -495,7 +495,7 @@ returned from average
 ");
             Assert.IsNotType<LispError>(result);
             var actual = NormalizeNewlines(output.ToString());
-            Assert.Equal("\"just a string\"\r\n(+ 2 3)\r\n", actual);
+            Assert.Equal("\"just a string\"\n(+ 2 3)\n", actual);
         }
     }
 }
