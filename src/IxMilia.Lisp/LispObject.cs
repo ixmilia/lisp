@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
+using System.Text;
+using IxMilia.Lisp.Parser;
 using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
@@ -1303,6 +1304,79 @@ namespace IxMilia.Lisp
         public override string ToString()
         {
             return $"{Name} <native>";
+        }
+    }
+
+    public abstract class LispStream : LispObject
+    {
+        public string Name { get; }
+
+        public TextReader Input { get; }
+        public TextWriter Output { get; }
+
+        public LispStream(string name, TextReader input, TextWriter output)
+        {
+            Name = name;
+            Input = input;
+            Output = output;
+        }
+
+        public IEnumerable<LispObject> ReadCompleteObjects()
+        {
+            var lastInput = new StringBuilder();
+            IEnumerable<LispObject> nodes;
+            while (true)
+            {
+                var input = Input.ReadLine();
+                lastInput.Append(input);
+                lastInput.Append('\n');
+                var tokenizer = new LispTokenizer(lastInput.ToString());
+                var tokens = tokenizer.GetTokens();
+                var parser = new LispParser(errorOnIncompleteExpressions: false);
+                parser.AddTokens(tokens);
+                var result = parser.Parse();
+                if (result.RemainingTokens.Any())
+                {
+                    // need to keep reading
+                }
+                else if (result.Nodes.Any())
+                {
+                    // done
+                    nodes = result.Nodes;
+                    break;
+                }
+            }
+
+            return nodes;
+        }
+    }
+
+    public class LispTerminalStream : LispStream
+    {
+        public LispTerminalStream(TextReader input, TextWriter output)
+            : base("#<terminal>", input, output)
+        {
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispTerminalStream(Input, Output);
+        }
+    }
+
+    public class LispFileStream : LispStream
+    {
+        public FileStream FileStream { get; }
+
+        public LispFileStream(string name, FileStream fileStream)
+            : base(name, new StreamReader(fileStream), new StreamWriter(fileStream))
+        {
+            FileStream = fileStream;
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispFileStream(Name, FileStream);
         }
     }
 }

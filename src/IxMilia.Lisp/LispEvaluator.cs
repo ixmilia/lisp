@@ -32,6 +32,7 @@ namespace IxMilia.Lisp
                     case LispString _:
                     case LispKeyword _:
                     case LispQuotedNamedFunctionReference _:
+                    case LispStream _:
                         result = item;
                         break;
                     case LispQuotedLambdaFunctionReference lambda:

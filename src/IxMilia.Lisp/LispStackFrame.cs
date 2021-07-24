@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace IxMilia.Lisp
@@ -8,6 +9,7 @@ namespace IxMilia.Lisp
     {
         protected const string NilString = "nil";
         protected const string TString = "t";
+        protected const string TerminalIOString = "*terminal-io*";
 
         private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
 
@@ -18,6 +20,7 @@ namespace IxMilia.Lisp
 
         public LispObject T => GetValue<LispSymbol>(TString);
         public LispObject Nil => GetValue<LispList>(NilString);
+        public LispStream TerminalIO => GetValue<LispStream>(TerminalIOString);
 
         public LispRootStackFrame Root => NavigateToRoot().Item1;
         public int Depth => NavigateToRoot().Item2;
@@ -133,8 +136,6 @@ namespace IxMilia.Lisp
 
     public class LispRootStackFrame : LispStackFrame
     {
-        public LispHost Host { get;  }
-
         public event EventHandler<LispFunctionEnteredEventArgs> FunctionEntered;
         public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
         public event EventHandler<LispFunctionEnteredEventArgs> TraceFunctionEntered;
@@ -142,12 +143,12 @@ namespace IxMilia.Lisp
 
         public HashSet<string> TracedFunctions { get; } = new HashSet<string>();
 
-        internal LispRootStackFrame(LispHost host)
+        internal LispRootStackFrame(TextReader input, TextWriter output)
             : base("(root)", null)
         {
-            Host = host;
             SetValue(TString, new LispSymbol(TString));
             SetValue(NilString, LispNilList.Instance);
+            SetValue(TerminalIOString, new LispTerminalStream(input, output));
         }
 
         internal void OnFunctionEnter(LispStackFrame frame, LispObject[] functionArguments)

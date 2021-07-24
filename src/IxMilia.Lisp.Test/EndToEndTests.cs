@@ -1,29 +1,22 @@
 ﻿using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
 {
     public class EndToEndTests
     {
-        private string GetScriptContents(string name)
+        private string GetFileContents(string fileName)
         {
-            var type = GetType();
-            var lastDotIndex = type.FullName.LastIndexOf('.');
-            var namespacePrefix = type.FullName.Substring(0, lastDotIndex);
-            var assembly = type.GetTypeInfo().Assembly;
-            using (var initStream = assembly.GetManifestResourceStream($"{namespacePrefix}.{name}"))
-            using (var reader = new StreamReader(initStream))
-            {
-                var content = reader.ReadToEnd();
-                return content;
-            }
+            var assemblyDirectory = Path.GetDirectoryName(GetType().Assembly.Location);
+            var fullFilePath = Path.Combine(assemblyDirectory, fileName);
+            var fileContents = File.ReadAllText(fullFilePath);
+            return fileContents;
         }
 
         private void EvalFile(string fileName)
         {
-            var contents = GetScriptContents(fileName);
+            var contents = GetFileContents(fileName);
             var host = new LispHost();
             host.AddFunction("join", (h, args) => new LispString(string.Join(" ", (IEnumerable<LispObject>)args)));
             host.AddFunction("fail", (h, args) => new LispError(args[0].ToString()));

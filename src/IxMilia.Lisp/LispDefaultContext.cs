@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace IxMilia.Lisp
@@ -199,16 +200,23 @@ namespace IxMilia.Lisp
                 var formatArgs = args.Skip(2);
                 if (LispFormatter.TryFormatString(s.Value, formatArgs, out var result))
                 {
+                    LispStream stream;
                     if (args[0] == frame.T)
                     {
-                        // write to output
-                        frame.Root.Host.Output.Write(result);
-                        return frame.Nil;
+                        // write to terminal
+                        stream = frame.TerminalIO;
+                    }
+                    else if (args[0] is LispStream suppliedStream)
+                    {
+                        stream = suppliedStream;
                     }
                     else
                     {
-                        return new LispError("Non-display output not supported");
+                        return new LispError("Unsupported output stream");
                     }
+
+                    stream.Output.Write(result);
+                    return frame.Nil;
                 }
                 else
                 {
@@ -222,8 +230,59 @@ namespace IxMilia.Lisp
         [LispFunction("read")]
         public LispObject Read(LispStackFrame frame, LispObject[] args)
         {
-            var nodes = frame.Root.Host.ReadCompleteObjects();
+            LispStream readStream;
+            if (args.Length >= 1 &&
+                args[0] is LispStream stream)
+            {
+                readStream = stream;
+            }
+            else
+            {
+                readStream = frame.TerminalIO;
+            }
+
+            var nodes = readStream.ReadCompleteObjects();
             return nodes.Last();
+        }
+
+        [LispMacro("with-open-file")]
+        public IEnumerable<LispObject> WithOpenFile(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length >= 2 &&
+                args[0] is LispList openArguments &&
+                openArguments.Length == 2 &&
+                openArguments.Value is LispSymbol streamName &&
+                openArguments.Next is LispList filePathList &&
+                filePathList.Length == 1)
+            {
+                var candidateFilePath = frame.Eval(filePathList.Value);
+                if (candidateFilePath is LispString filePath)
+                {
+                    var body = args.Skip(1);
+                    using (var fileStream = new FileStream(filePath.Value, FileMode.Open))
+                    {
+                        var streamObject = new LispFileStream(filePath.Value, fileStream);
+                        frame.SetValue(streamName.Value, streamObject);
+                        LispObject result = frame.Nil;
+                        foreach (var command in body)
+                        {
+                            result = frame.Eval(command);
+                            if (result is LispError)
+                            {
+                                return new LispObject[] { result };
+                            }
+                        }
+
+                        return new LispObject[] { result };
+                    }
+                }
+                else
+                {
+                    return new LispObject[] { new LispError("Expected a string file path") };
+                }
+            }
+
+            return new LispObject[] { new LispError("Expected `<(streamName filePath)> <body>`") };
         }
 
         [LispMacro("setf")]

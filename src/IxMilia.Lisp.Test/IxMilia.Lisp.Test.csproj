@@ -6,7 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="runtime-tests.lisp" />
+    <None Include="runtime-tests.lisp" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="test-file.dat" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

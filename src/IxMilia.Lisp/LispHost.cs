@@ -14,21 +14,20 @@ namespace IxMilia.Lisp
 
     public class LispHost
     {
-        public readonly LispRootStackFrame RootFrame;
+        private const string TerminalIOString = "*terminal-io*";
 
-        public TextReader Input { get; }
-        public TextWriter Output { get; }
+        public readonly LispRootStackFrame RootFrame;
 
         public LispObject T { get; }
         public LispObject Nil { get; }
+        public LispStream TerminalIO { get; }
 
         public LispHost(TextReader input = null, TextWriter output = null)
         {
-            RootFrame = new LispRootStackFrame(this);
-            Input = input ?? TextReader.Null;
-            Output = output ?? TextWriter.Null;
+            RootFrame = new LispRootStackFrame(input ?? TextReader.Null, output ?? TextWriter.Null);
             T = RootFrame.T;
             Nil = RootFrame.Nil;
+            TerminalIO = RootFrame.TerminalIO;
             AddContextObject(new LispDefaultContext());
             ApplyInitScript();
         }
@@ -177,34 +176,6 @@ namespace IxMilia.Lisp
         public LispObject Eval(LispObject obj)
         {
             return LispEvaluator.Evaluate(obj, RootFrame, false);
-        }
-
-        public IEnumerable<LispObject> ReadCompleteObjects()
-        {
-            var lastInput = new StringBuilder();
-            IEnumerable<LispObject> nodes;
-            while (true)
-            {
-                var input = Input.ReadLine();
-                lastInput.Append(input);
-                var tokenizer = new LispTokenizer(lastInput.ToString());
-                var tokens = tokenizer.GetTokens();
-                var parser = new LispParser(errorOnIncompleteExpressions: false);
-                parser.AddTokens(tokens);
-                var result = parser.Parse();
-                if (result.RemainingTokens.Any())
-                {
-                    // need to keep reading
-                }
-                else if (result.Nodes.Any())
-                {
-                    // done
-                    nodes = result.Nodes;
-                    break;
-                }
-            }
-
-            return nodes;
         }
 
         private void TryApplyStackFrame(LispError error)

@@ -5,7 +5,7 @@
     <Copyright>Copyright 2020</Copyright>
     <AssemblyTitle>IxMilia.Lisp</AssemblyTitle>
     <Authors>IxMilia</Authors>
-    <TargetFrameworks>netstandard1.0</TargetFrameworks>
+    <TargetFrameworks>netstandard1.3</TargetFrameworks>
     <AssemblyName>IxMilia.Lisp</AssemblyName>
     <PackageId>IxMilia.Lisp</PackageId>
     <PackageTags>LISP</PackageTags>
