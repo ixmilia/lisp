@@ -216,6 +216,7 @@ namespace IxMilia.Lisp
                     }
 
                     stream.Output.Write(result);
+                    stream.Output.Flush();
                     return frame.Nil;
                 }
                 else
@@ -250,16 +251,22 @@ namespace IxMilia.Lisp
         {
             if (args.Length >= 2 &&
                 args[0] is LispList openArguments &&
-                openArguments.Length == 2 &&
+                openArguments.Length >= 2 &&
                 openArguments.Value is LispSymbol streamName &&
                 openArguments.Next is LispList filePathList &&
-                filePathList.Length == 1)
+                filePathList.Length >= 1)
             {
+                var openArgumentsList = openArguments.ToList();
+                var directionArgument = GetKeywordArgument(openArgumentsList.Skip(2), ":direction");
+                var fileMode = directionArgument is LispKeyword directionKeyword && directionKeyword.Keyword == ":output"
+                    ? FileMode.OpenOrCreate
+                    : FileMode.Open;
+
                 var candidateFilePath = frame.Eval(filePathList.Value);
                 if (candidateFilePath is LispString filePath)
                 {
                     var body = args.Skip(1);
-                    using (var fileStream = new FileStream(filePath.Value, FileMode.Open))
+                    using (var fileStream = new FileStream(filePath.Value, fileMode))
                     {
                         var streamObject = new LispFileStream(filePath.Value, fileStream);
                         frame.SetValue(streamName.Value, streamObject);

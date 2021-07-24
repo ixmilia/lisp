@@ -481,5 +481,21 @@ returned from average
             var result = NormalizeNewlines(output.ToString());
             Assert.Equal("123", result);
         }
+
+        [Fact]
+        public void FormatToStream()
+        {
+            var output = new StringWriter();
+            var testStream = new LispTerminalStream(TextReader.Null, output);
+            var host = new LispHost();
+            host.SetValue("test-stream", testStream);
+            var result = host.Eval(@"
+(format test-stream ""~S~%"" ""just a string"")
+(format test-stream ""~S~%"" '(+ 2 3))
+");
+            Assert.IsNotType<LispError>(result);
+            var actual = NormalizeNewlines(output.ToString());
+            Assert.Equal("\"just a string\"\r\n(+ 2 3)\r\n", actual);
+        }
     }
 }

@@ -44,5 +44,23 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("read: \"just a string\"\r\nevaluated: 5\r\n", NormalizeNewlines(output.ToString()));
             Assert.Null(host.GetValue("file-stream"));
         }
+
+        [Fact]
+        public void WithOpenFile_Writing()
+        {
+            var host = new LispHost();
+            using (var outputFile = new TemporaryFile(createFile: false))
+            {
+                var result = host.Eval($@"
+(with-open-file (file-stream ""{outputFile.FilePath.Replace("\\", "\\\\")}"" :direction :output)
+    (format file-stream ""wrote: ~S~%"" ""just-a-string"")
+    (format file-stream ""wrote: ~S~%"" '(+ 2 3))
+)
+");
+                Assert.IsNotType<LispError>(result);
+                var actual = NormalizeNewlines(File.ReadAllText(outputFile.FilePath));
+                Assert.Equal("wrote: \"just-a-string\"\r\nwrote: (+ 2 3)\r\n", actual);
+            }
+        }
     }
 }
