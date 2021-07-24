@@ -148,7 +148,7 @@ namespace IxMilia.Lisp
         {
             SetValue(TString, new LispSymbol(TString));
             SetValue(NilString, LispNilList.Instance);
-            SetValue(TerminalIOString, new LispTerminalStream(input, output));
+            SetValue(TerminalIOString, new LispStream("#<terminal>", input, output));
         }
 
         internal void OnFunctionEnter(LispStackFrame frame, LispObject[] functionArguments)

@@ -1307,7 +1307,7 @@ namespace IxMilia.Lisp
         }
     }
 
-    public abstract class LispStream : LispObject
+    public class LispStream : LispObject
     {
         public string Name { get; }
 
@@ -1349,18 +1349,10 @@ namespace IxMilia.Lisp
 
             return nodes;
         }
-    }
-
-    public class LispTerminalStream : LispStream
-    {
-        public LispTerminalStream(TextReader input, TextWriter output)
-            : base("#<terminal>", input, output)
-        {
-        }
 
         internal override LispObject Clone()
         {
-            return new LispTerminalStream(Input, Output);
+            return new LispStream(Name, Input, Output);
         }
     }
 

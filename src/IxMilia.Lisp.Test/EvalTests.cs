@@ -486,7 +486,7 @@ returned from average
         public void FormatToStream()
         {
             var output = new StringWriter();
-            var testStream = new LispTerminalStream(TextReader.Null, output);
+            var testStream = new LispStream("test-stream", TextReader.Null, output);
             var host = new LispHost();
             host.SetValue("test-stream", testStream);
             var result = host.Eval(@"

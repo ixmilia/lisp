@@ -11,7 +11,7 @@ namespace IxMilia.Lisp.Test
         {
             var input = new StringReader("(abc \n 2)");
             var output = TextWriter.Null;
-            var stream = new LispTerminalStream(input, output);
+            var stream = new LispStream("test-stream", input, output);
             var objects = stream.ReadCompleteObjects().ToList();
             var list = ((LispList)objects.Single()).ToList();
             Assert.Equal(2, list.Count);
@@ -23,7 +23,7 @@ namespace IxMilia.Lisp.Test
         public void ReadObjectsAfterAComment()
         {
             var input = new StringReader("; a line comment\n\"a string on a separate line\"");
-            var stream = new LispTerminalStream(input, TextWriter.Null);
+            var stream = new LispStream("test-stream", input, TextWriter.Null);
             var objects = stream.ReadCompleteObjects().ToList();
             var str = (LispString)objects.Single();
             Assert.Equal("a string on a separate line", str.Value);
