@@ -26,6 +26,7 @@ namespace IxMilia.Lisp
                     var argumentLength = i - lastArgumentStart;
                     switch (char.ToLowerInvariant(c))
                     {
+                        case '~':
                         case '%':
                         case '&':
                         case 'a':
@@ -91,6 +92,22 @@ namespace IxMilia.Lisp
                         var escapeCode = char.ToLowerInvariant(formatToken.EscapeCode);
                         switch (escapeCode)
                         {
+                            case '~':
+                                if (formatToken.ArgumentLength > 0)
+                                {
+                                    var formatArgument = formatToken.GetArgument(s);
+                                    if (int.TryParse(formatArgument, out var count))
+                                    {
+                                        var str = new string('~', Math.Max(0, count));
+                                        sb.Append(str);
+                                    }
+                                    else
+                                    {
+                                        result = $"Expected integer count argument, got '{formatArgument}'";
+                                        return false;
+                                    }
+                                }
+                                break;
                             case '%':
                                 sb.Append('\n');
                                 break;

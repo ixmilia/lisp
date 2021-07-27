@@ -219,7 +219,13 @@
 (defun common-helpers ()
     (assert-equal '(1 2) (quote (1 2)) "quote")
     (assert-eql 3 (eval '(+ 1 2)) "eval")
-    (assert-equal "(1 a \"b\")" (format nil "~S" '(1 a "b"))))
+)
+
+(defun format-tests ()
+    (assert-equal "(1 a \"b\")" (format nil "~S" '(1 a "b")))
+    (assert-equal "~" (format nil "~~" 1) "format tilde")
+    (assert-equal "~~~~~~~~~~~~" (format nil "~12~" 1) "format lots of tildes")
+)
 
 (defun test-cond ()
     (assert-equal 'a (cond ((< 1 2) 'a)
@@ -246,5 +252,6 @@
      (list-helpers)
      (common-helpers)
      (test-cond)
+     (format-tests)
      (function-references)
 )
