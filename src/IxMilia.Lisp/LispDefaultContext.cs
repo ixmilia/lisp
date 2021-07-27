@@ -206,6 +206,11 @@ namespace IxMilia.Lisp
                         // write to terminal
                         stream = frame.TerminalIO;
                     }
+                    else if (args[0] == frame.Nil)
+                    {
+                        // return formatted string
+                        return new LispString(result);
+                    }
                     else if (args[0] is LispStream suppliedStream)
                     {
                         stream = suppliedStream;

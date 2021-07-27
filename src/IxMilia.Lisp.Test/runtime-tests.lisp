@@ -218,7 +218,8 @@
 
 (defun common-helpers ()
     (assert-equal '(1 2) (quote (1 2)) "quote")
-    (assert-eql 3 (eval '(+ 1 2)) "eval"))
+    (assert-eql 3 (eval '(+ 1 2)) "eval")
+    (assert-equal "(1 a \"b\")" (format nil "~S" '(1 a "b"))))
 
 (defun test-cond ()
     (assert-equal 'a (cond ((< 1 2) 'a)
