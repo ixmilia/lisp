@@ -94,5 +94,14 @@ namespace IxMilia.Lisp.Test
             Assert.True(LispFormatter.TryFormatString("~2S.~S", args, out result), $"Error from formatter: {result}");
             Assert.Equal("\"abc\".4", result);
         }
+
+        [Fact]
+        public void FormatWithDifferentCasing()
+        {
+            var args = new LispObject[] { new LispString("abc"), new LispInteger(4) };
+            string result;
+            Assert.True(LispFormatter.TryFormatString("~s.~s", args, out result), $"Error from formatter: {result}");
+            Assert.Equal("\"abc\".4", result);
+        }
     }
 }

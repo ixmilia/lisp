@@ -24,12 +24,12 @@ namespace IxMilia.Lisp
                 if (isEscaped)
                 {
                     var argumentLength = i - lastArgumentStart;
-                    switch (c)
+                    switch (char.ToLowerInvariant(c))
                     {
                         case '%':
                         case '&':
-                        case 'A':
-                        case 'S':
+                        case 'a':
+                        case 's':
 #if DEBUG
                             var tokenText = s.Substring(lastTokenStart, tokenLength + 1);
                             var argumentText = s.Substring(lastArgumentStart, argumentLength);
@@ -88,7 +88,8 @@ namespace IxMilia.Lisp
                         sb.Append(token.GetString(s));
                         break;
                     case LispEscapeSequenceFormatToken formatToken:
-                        switch (formatToken.EscapeCode)
+                        var escapeCode = char.ToLowerInvariant(formatToken.EscapeCode);
+                        switch (escapeCode)
                         {
                             case '%':
                                 sb.Append('\n');
@@ -100,9 +101,9 @@ namespace IxMilia.Lisp
                                     sb.Append('\n');
                                 }
                                 break;
-                            case 'A':
-                            case 'S':
-                                var useEscapeCharacters = formatToken.EscapeCode == 'S';
+                            case 'a':
+                            case 's':
+                                var useEscapeCharacters = escapeCode == 's';
                                 if (argIndex >= argList.Count)
                                 {
                                     result = "Not enough arguments";
