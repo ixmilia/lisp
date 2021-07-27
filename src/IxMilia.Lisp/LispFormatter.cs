@@ -111,7 +111,22 @@ namespace IxMilia.Lisp
 
                                 var arg = argList[argIndex];
                                 argIndex++;
-                                sb.Append(arg.ToString(useEscapeCharacters));
+                                var argAsString = arg.ToString(useEscapeCharacters);
+                                sb.Append(argAsString);
+                                if (formatToken.ArgumentLength > 0)
+                                {
+                                    var formatArgument = formatToken.GetArgument(s);
+                                    if (int.TryParse(formatArgument, out var width))
+                                    {
+                                        var extraCharacterCount = Math.Max(0, width - argAsString.Length);
+                                        sb.Append(new string(' ', extraCharacterCount));
+                                    }
+                                    else
+                                    {
+                                        result = $"Expected integer width argument, got '{formatArgument}'";
+                                        return false;
+                                    }
+                                }
                                 break;
                             default:
                                 result = $"Unsupported format string escape character '{formatToken.EscapeCode}'";

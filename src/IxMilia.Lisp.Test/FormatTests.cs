@@ -83,5 +83,16 @@ namespace IxMilia.Lisp.Test
             Assert.True(LispFormatter.TryFormatString("[ ~A ]", args, out result), $"Error from formatter: {result}");
             Assert.Equal("[ a ]", result);
         }
+
+        [Fact]
+        public void FormatWithWidth()
+        {
+            var args = new LispObject[] { new LispString("abc"), new LispInteger(4) };
+            string result;
+            Assert.True(LispFormatter.TryFormatString("~10S.~S", args, out result), $"Error from formatter: {result}");
+            Assert.Equal("\"abc\"     .4", result);
+            Assert.True(LispFormatter.TryFormatString("~2S.~S", args, out result), $"Error from formatter: {result}");
+            Assert.Equal("\"abc\".4", result);
+        }
     }
 }
