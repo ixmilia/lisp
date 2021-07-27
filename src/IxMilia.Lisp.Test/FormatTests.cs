@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
@@ -49,59 +48,67 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public void NewlineDirectives()
         {
-            Assert.True(LispFormatter.TryFormatString("a~%b", null, out var result), $"Error from formatter: {result}");
-            Assert.Equal("a\nb", NormalizeNewlines(result));
+            TestFormat("a\nb", "a~%b");
         }
 
         [Fact]
         public void EnsureLineStartDirective()
         {
-            Assert.True(LispFormatter.TryFormatString("a~&b~&~&~&c", null, out var result), $"Error from formatter: {result}");
-            Assert.Equal("a\nb\nc", NormalizeNewlines(result));
+            TestFormat("a\nb\nc", "a~&b~&~&~&c");
         }
 
         [Fact]
         public void SimpleFormatArguments()
         {
-            var args = new List<LispObject>()
-            {
+            TestFormat(
+                "A: a, B: (b), C: 5",
+                "A: ~S, B: ~S, C: ~S",
                 new LispSymbol("a"),
                 new LispList(new LispSymbol("b")),
-                new LispInteger(5),
-            };
-            Assert.True(LispFormatter.TryFormatString("A: ~S, B: ~S, C: ~S", args, out var result), $"Error from formatter: {result}");
-            Assert.Equal("A: a, B: (b), C: 5", NormalizeNewlines(result));
+                new LispInteger(5));
         }
 
         [Fact]
         public void FormatStringValues()
         {
-            var args = new LispObject[] { new LispString("a") };
-            string result;
-            Assert.True(LispFormatter.TryFormatString("[ ~S ]", args, out result), $"Error from formatter: {result}");
-            Assert.Equal("[ \"a\" ]", result);
-            Assert.True(LispFormatter.TryFormatString("[ ~A ]", args, out result), $"Error from formatter: {result}");
-            Assert.Equal("[ a ]", result);
+            TestFormat(
+                "[ \"a\" ]",
+                "[ ~S ]",
+                new LispString("a"));
+            TestFormat(
+                "[ a ]",
+                "[ ~A ]",
+                new LispString("a"));
         }
 
         [Fact]
         public void FormatWithWidth()
         {
-            var args = new LispObject[] { new LispString("abc"), new LispInteger(4) };
-            string result;
-            Assert.True(LispFormatter.TryFormatString("~10S.~S", args, out result), $"Error from formatter: {result}");
-            Assert.Equal("\"abc\"     .4", result);
-            Assert.True(LispFormatter.TryFormatString("~2S.~S", args, out result), $"Error from formatter: {result}");
-            Assert.Equal("\"abc\".4", result);
+            TestFormat(
+                "\"abc\"     .4",
+                "~10S.~S",
+                new LispString("abc"), new LispInteger(4));
+            TestFormat(
+                "\"abc\".4",
+                "~2S.~S",
+                new LispString("abc"), new LispInteger(4));
         }
 
         [Fact]
         public void FormatWithDifferentCasing()
         {
-            var args = new LispObject[] { new LispString("abc"), new LispInteger(4) };
+            TestFormat(
+                "\"abc\".4",
+                "~s.~s",
+                new LispString("abc"),
+                new LispInteger(4));
+        }
+
+        private static void TestFormat(string expected, string formatString, params LispObject[] args)
+        {
             string result;
-            Assert.True(LispFormatter.TryFormatString("~s.~s", args, out result), $"Error from formatter: {result}");
-            Assert.Equal("\"abc\".4", result);
+            Assert.True(LispFormatter.TryFormatString(formatString, args, out result), $"Error from formatter: {result}");
+            Assert.Equal(expected, result);
         }
     }
 }
