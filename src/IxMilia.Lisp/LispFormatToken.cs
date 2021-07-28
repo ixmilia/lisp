@@ -6,7 +6,7 @@ namespace IxMilia.Lisp
         int Length { get; }
     }
 
-    public static class ILispFormatterTokenExtensions
+    public static class ILispFormatTokenExtensions
     {
         public static string GetString(this ILispFormatToken token, string formatString)
         {
@@ -19,12 +19,12 @@ namespace IxMilia.Lisp
         }
     }
 
-    public struct LispRawFormatToken : ILispFormatToken
+    public struct LispLiteralFormatToken : ILispFormatToken
     {
         public int Offset { get; }
         public int Length { get; }
 
-        public LispRawFormatToken(int offset, int length)
+        public LispLiteralFormatToken(int offset, int length)
         {
             Offset = offset;
             Length = length;

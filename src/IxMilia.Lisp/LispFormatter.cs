@@ -54,7 +54,7 @@ namespace IxMilia.Lisp
 #if DEBUG
                             var tokenText = s.Substring(lastTokenStart, tokenLength);
 #endif
-                            yield return new LispRawFormatToken(lastTokenStart, tokenLength);
+                            yield return new LispLiteralFormatToken(lastTokenStart, tokenLength);
                         }
 
                         lastTokenStart = i;
@@ -71,7 +71,7 @@ namespace IxMilia.Lisp
 #if DEBUG
                 var tokenText = s.Substring(lastTokenStart);
 #endif
-                yield return new LispRawFormatToken(lastTokenStart, s.Length - lastTokenStart);
+                yield return new LispLiteralFormatToken(lastTokenStart, s.Length - lastTokenStart);
             }
         }
 
@@ -85,7 +85,7 @@ namespace IxMilia.Lisp
             {
                 switch (token)
                 {
-                    case LispRawFormatToken _:
+                    case LispLiteralFormatToken _:
                         sb.Append(token.GetString(s));
                         break;
                     case LispEscapeSequenceFormatToken formatToken:

@@ -13,7 +13,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(8, tokens.Count);
 
             Assert.Equal("a", tokens[0].GetString(formatString));
-            Assert.IsType<LispRawFormatToken>(tokens[0]);
+            Assert.IsType<LispLiteralFormatToken>(tokens[0]);
 
             Assert.Equal("~%", tokens[1].GetString(formatString));
             Assert.IsType<LispEscapeSequenceFormatToken>(tokens[1]);
@@ -21,7 +21,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("", ((LispEscapeSequenceFormatToken)tokens[1]).GetArgument(formatString));
 
             Assert.Equal("bc", tokens[2].GetString(formatString));
-            Assert.IsType<LispRawFormatToken>(tokens[2]);
+            Assert.IsType<LispLiteralFormatToken>(tokens[2]);
 
             Assert.Equal("~&", tokens[3].GetString(formatString));
             Assert.IsType<LispEscapeSequenceFormatToken>(tokens[3]);
@@ -34,7 +34,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("", ((LispEscapeSequenceFormatToken)tokens[4]).GetArgument(formatString));
 
             Assert.Equal("de", tokens[5].GetString(formatString));
-            Assert.IsType<LispRawFormatToken>(tokens[5]);
+            Assert.IsType<LispLiteralFormatToken>(tokens[5]);
 
             Assert.Equal("~S", tokens[6].GetString(formatString));
             Assert.IsType<LispEscapeSequenceFormatToken>(tokens[6]);
@@ -42,7 +42,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("", ((LispEscapeSequenceFormatToken)tokens[6]).GetArgument(formatString));
 
             Assert.Equal("f", tokens[7].GetString(formatString));
-            Assert.IsType<LispRawFormatToken>(tokens[7]);
+            Assert.IsType<LispLiteralFormatToken>(tokens[7]);
         }
 
         [Fact]
