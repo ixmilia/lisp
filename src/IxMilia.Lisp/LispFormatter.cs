@@ -7,7 +7,7 @@ namespace IxMilia.Lisp
 {
     public static class LispFormatter
     {
-        public static IEnumerable<ILispFormatToken> GetFormatTokens(string s)
+        internal static IEnumerable<ILispFormatToken> GetFormatTokens(string s)
         {
             if (s is null)
             {

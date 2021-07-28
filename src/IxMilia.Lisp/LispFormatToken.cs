@@ -1,12 +1,12 @@
 namespace IxMilia.Lisp
 {
-    public interface ILispFormatToken
+    internal interface ILispFormatToken
     {
         int Offset { get; }
         int Length { get; }
     }
 
-    public static class ILispFormatTokenExtensions
+    internal static class ILispFormatTokenExtensions
     {
         public static string GetString(this ILispFormatToken token, string formatString)
         {
@@ -19,7 +19,7 @@ namespace IxMilia.Lisp
         }
     }
 
-    public struct LispLiteralFormatToken : ILispFormatToken
+    internal struct LispLiteralFormatToken : ILispFormatToken
     {
         public int Offset { get; }
         public int Length { get; }
@@ -31,7 +31,7 @@ namespace IxMilia.Lisp
         }
     }
 
-    public struct LispEscapeSequenceFormatToken : ILispFormatToken
+    internal struct LispEscapeSequenceFormatToken : ILispFormatToken
     {
         public int Offset { get; }
         public int Length { get; }
