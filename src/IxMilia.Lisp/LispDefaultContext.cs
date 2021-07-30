@@ -233,6 +233,71 @@ namespace IxMilia.Lisp
             return new LispError("Expected output type and string");
         }
 
+        [LispFunction("terpri")]
+        public LispObject TerPri(LispStackFrame frame, LispObject[] args)
+        {
+            LispStream outStream;
+            if (args.Length == 1 &&
+                args[0] is LispStream stream)
+            {
+                outStream = stream;
+            }
+            else
+            {
+                outStream = frame.TerminalIO;
+            }
+
+            outStream.Output.WriteLine();
+            return frame.Nil;
+        }
+
+        [LispFunction("prin1")]
+        public LispObject Prin1(LispStackFrame frame, LispObject[] args)
+        {
+            LispStream outStream;
+            if (args.Length == 2 &&
+                args[1] is LispStream stream)
+            {
+                outStream = stream;
+            }
+            else
+            {
+                outStream = frame.TerminalIO;
+            }
+
+            var displayedValue = args[0].ToString(useEscapeCharacters: true);
+            outStream.Output.WriteLine(displayedValue);
+            return args[0];
+        }
+
+        [LispFunction("princ")]
+        public LispObject PrinC(LispStackFrame frame, LispObject[] args)
+        {
+            LispStream outStream;
+            if (args.Length == 2 &&
+                args[1] is LispStream stream)
+            {
+                outStream = stream;
+            }
+            else
+            {
+                outStream = frame.TerminalIO;
+            }
+
+            var displayedValue = args[0].ToString(useEscapeCharacters: false);
+            outStream.Output.WriteLine(displayedValue);
+            return args[0];
+        }
+
+        [LispFunction("print")]
+        public LispObject Print(LispStackFrame frame, LispObject[] args)
+        {
+            TerPri(frame, args.Skip(1).ToArray());
+            Prin1(frame, args);
+            PrinC(frame, new LispObject[] { new LispString(" ") }.Concat(args.Skip(1)).ToArray());
+            return args[0];
+        }
+
         [LispFunction("read")]
         public LispObject Read(LispStackFrame frame, LispObject[] args)
         {

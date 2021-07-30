@@ -497,5 +497,109 @@ returned from average
             var actual = NormalizeNewlines(output.ToString());
             Assert.Equal("\"just a string\"\n(+ 2 3)\n", actual);
         }
+
+        [Fact]
+        public void TerPriFunction()
+        {
+            var output = new StringWriter();
+            var host = new LispHost(output: output);
+            var result = host.Eval(@"
+(terpri)
+");
+            Assert.True(result.IsNil());
+            Assert.Equal("\n", NormalizeNewlines(output.ToString()));
+        }
+
+        [Fact]
+        public void TerPriFunctionWithStream()
+        {
+            var output = new StringWriter();
+            var testStream = new LispStream("test-stream", TextReader.Null, output);
+            var host = new LispHost();
+            host.SetValue("test-stream", testStream);
+            var result = host.Eval(@"
+(terpri test-stream)
+");
+            Assert.True(result.IsNil());
+            Assert.Equal("\n", NormalizeNewlines(output.ToString()));
+        }
+
+        [Fact]
+        public void Prin1Function()
+        {
+            var output = new StringWriter();
+            var host = new LispHost(output: output);
+            var result = host.Eval(@"
+(prin1 ""abc"")
+");
+            Assert.Equal("abc", ((LispString)result).Value);
+            Assert.Equal("\"abc\"\n", NormalizeNewlines(output.ToString()));
+        }
+
+        [Fact]
+        public void Prin1FunctionWithStream()
+        {
+            var output = new StringWriter();
+            var testStream = new LispStream("test-stream", TextReader.Null, output);
+            var host = new LispHost();
+            host.SetValue("test-stream", testStream);
+            var result = host.Eval(@"
+(prin1 ""abc"" test-stream)
+");
+            Assert.Equal("abc", ((LispString)result).Value);
+            Assert.Equal("\"abc\"\n", NormalizeNewlines(output.ToString()));
+        }
+
+        [Fact]
+        public void PrinCFunction()
+        {
+            var output = new StringWriter();
+            var host = new LispHost(output: output);
+            var result = host.Eval(@"
+(princ ""abc"")
+");
+            Assert.Equal("abc", ((LispString)result).Value);
+            Assert.Equal("abc\n", NormalizeNewlines(output.ToString()));
+        }
+
+        [Fact]
+        public void PrinCFunctionWithStream()
+        {
+            var output = new StringWriter();
+            var testStream = new LispStream("test-stream", TextReader.Null, output);
+            var host = new LispHost();
+            host.SetValue("test-stream", testStream);
+            var result = host.Eval(@"
+(princ ""abc"" test-stream)
+");
+            Assert.Equal("abc", ((LispString)result).Value);
+            Assert.Equal("abc\n", NormalizeNewlines(output.ToString()));
+        }
+
+        [Fact]
+        public void PrintFunction()
+        {
+            var output = new StringWriter();
+            var host = new LispHost(output: output);
+            var result = host.Eval(@"
+(print ""abc"")
+");
+            Assert.Equal("abc", ((LispString)result).Value);
+            Assert.Equal("\n\"abc\"\n \n", NormalizeNewlines(output.ToString()));
+        }
+
+        [Fact]
+        public void PrintFunctionWithStream()
+        {
+            var output = new StringWriter();
+            var testStream = new LispStream("test-stream", TextReader.Null, output);
+            var host = new LispHost();
+            host.SetValue("test-stream", testStream);
+            var result = host.Eval(@"
+(print ""abc"" test-stream)
+");
+            Assert.Equal("abc", ((LispString)result).Value);
+            Assert.Equal("\n\"abc\"\n \n", NormalizeNewlines(output.ToString()));
+        }
     }
 }
