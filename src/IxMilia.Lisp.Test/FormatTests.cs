@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using Xunit;
+﻿using Xunit;
 
 namespace IxMilia.Lisp.Test
 {
@@ -8,41 +7,18 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public void NoArgumentTokens()
         {
-            var formatString = "a~%bc~&~Ade~Sf";
-            var tokens = LispFormatter.GetFormatTokens(formatString).ToList();
+            var formatString = "a~%bc~&~ade~sf";
+            Assert.True(LispFormatter.TryGetFormatTokens(formatString, out var tokens, out var errorMessage), $"Error from formatter: {errorMessage}");
             Assert.Equal(8, tokens.Count);
 
-            Assert.Equal("a", tokens[0].GetString(formatString));
-            Assert.IsType<LispLiteralFormatToken>(tokens[0]);
-
-            Assert.Equal("~%", tokens[1].GetString(formatString));
-            Assert.IsType<LispEscapeSequenceFormatToken>(tokens[1]);
-            Assert.Equal('%', ((LispEscapeSequenceFormatToken)tokens[1]).EscapeCode);
-            Assert.Equal("", ((LispEscapeSequenceFormatToken)tokens[1]).GetArgument(formatString));
-
-            Assert.Equal("bc", tokens[2].GetString(formatString));
-            Assert.IsType<LispLiteralFormatToken>(tokens[2]);
-
-            Assert.Equal("~&", tokens[3].GetString(formatString));
-            Assert.IsType<LispEscapeSequenceFormatToken>(tokens[3]);
-            Assert.Equal('&', ((LispEscapeSequenceFormatToken)tokens[3]).EscapeCode);
-            Assert.Equal("", ((LispEscapeSequenceFormatToken)tokens[3]).GetArgument(formatString));
-
-            Assert.Equal("~A", tokens[4].GetString(formatString));
-            Assert.IsType<LispEscapeSequenceFormatToken>(tokens[4]);
-            Assert.Equal('A', ((LispEscapeSequenceFormatToken)tokens[4]).EscapeCode);
-            Assert.Equal("", ((LispEscapeSequenceFormatToken)tokens[4]).GetArgument(formatString));
-
-            Assert.Equal("de", tokens[5].GetString(formatString));
-            Assert.IsType<LispLiteralFormatToken>(tokens[5]);
-
-            Assert.Equal("~S", tokens[6].GetString(formatString));
-            Assert.IsType<LispEscapeSequenceFormatToken>(tokens[6]);
-            Assert.Equal('S', ((LispEscapeSequenceFormatToken)tokens[6]).EscapeCode);
-            Assert.Equal("", ((LispEscapeSequenceFormatToken)tokens[6]).GetArgument(formatString));
-
-            Assert.Equal("f", tokens[7].GetString(formatString));
-            Assert.IsType<LispLiteralFormatToken>(tokens[7]);
+            Assert.Equal("a", ((LispLiteralFormatToken)tokens[0]).GetTokenText(formatString));
+            Assert.Equal("~%", ((LispFormatTokenNewLine)tokens[1]).GetTokenText(formatString));
+            Assert.Equal("bc", ((LispLiteralFormatToken)tokens[2]).GetTokenText(formatString));
+            Assert.Equal("~&", ((LispFormatTokenLineStart)tokens[3]).GetTokenText(formatString));
+            Assert.Equal("~a", ((LispFormatTokenAExpression)tokens[4]).GetTokenText(formatString));
+            Assert.Equal("de", ((LispLiteralFormatToken)tokens[5]).GetTokenText(formatString));
+            Assert.Equal("~s", ((LispFormatTokenSExpression)tokens[6]).GetTokenText(formatString));
+            Assert.Equal("f", ((LispLiteralFormatToken)tokens[7]).GetTokenText(formatString));
         }
 
         [Fact]
@@ -62,7 +38,7 @@ namespace IxMilia.Lisp.Test
         {
             TestFormat(
                 "A: a, B: (b), C: 5",
-                "A: ~S, B: ~S, C: ~S",
+                "A: ~s, B: ~s, C: ~s",
                 new LispSymbol("a"),
                 new LispList(new LispSymbol("b")),
                 new LispInteger(5));
@@ -73,11 +49,11 @@ namespace IxMilia.Lisp.Test
         {
             TestFormat(
                 "[ \"a\" ]",
-                "[ ~S ]",
+                "[ ~s ]",
                 new LispString("a"));
             TestFormat(
                 "[ a ]",
-                "[ ~A ]",
+                "[ ~a ]",
                 new LispString("a"));
         }
 
@@ -86,11 +62,19 @@ namespace IxMilia.Lisp.Test
         {
             TestFormat(
                 "\"abc\"     .4",
-                "~10S.~S",
+                "~10s.~s",
                 new LispString("abc"), new LispInteger(4));
             TestFormat(
                 "\"abc\".4",
-                "~2S.~S",
+                "~2s.~s",
+                new LispString("abc"), new LispInteger(4));
+            TestFormat(
+                "abc       .4",
+                "~10a.~a",
+                new LispString("abc"), new LispInteger(4));
+            TestFormat(
+                "abc.4",
+                "~2a.~a",
                 new LispString("abc"), new LispInteger(4));
         }
 
@@ -99,15 +83,14 @@ namespace IxMilia.Lisp.Test
         {
             TestFormat(
                 "\"abc\".4",
-                "~s.~s",
+                "~S.~s",
                 new LispString("abc"),
                 new LispInteger(4));
         }
 
         private static void TestFormat(string expected, string formatString, params LispObject[] args)
         {
-            string result;
-            Assert.True(LispFormatter.TryFormatString(formatString, args, out result), $"Error from formatter: {result}");
+            Assert.True(LispFormatter.TryFormatString(formatString, args, out var result), $"Error from formatter: {result}");
             Assert.Equal(expected, result);
         }
     }
