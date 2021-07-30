@@ -96,6 +96,21 @@ namespace IxMilia.Lisp
             return LispEvaluator.Evaluate(obj, this, true);
         }
 
+        internal LispObject EvalMany(IEnumerable<LispObject> objs)
+        {
+            LispObject result = Nil;
+            foreach (var command in objs)
+            {
+                result = Eval(command);
+                if (result is LispError)
+                {
+                    return result;
+                }
+            }
+
+            return result;
+        }
+
         public LispStackFrame Push(string frameName)
         {
             return new LispStackFrame(frameName, this);

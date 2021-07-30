@@ -80,7 +80,7 @@ namespace IxMilia.Lisp
         {
             // TODO: validate arguments
             var values = ((LispList)args[0]).ToList();
-            var body = args[1];
+            var body = args.Skip(1);
             foreach (var valuePair in values)
             {
                 // TODO: validate shape
@@ -96,7 +96,7 @@ namespace IxMilia.Lisp
                 frame.SetValue(varName, varValue);
             }
 
-            var result = frame.Eval(body);
+            var result = frame.EvalMany(body);
             return new LispObject[] { new LispQuotedObject(result) };
         }
 
@@ -105,7 +105,7 @@ namespace IxMilia.Lisp
         {
             // TODO: validate arguments
             var functionDefinitions = ((LispList)args[0]).ToList();
-            var body = args[1];
+            var body = args.Skip(1);
             foreach (var functionDefinitionSet in functionDefinitions)
             {
                 // TODO: validate shape
@@ -118,7 +118,7 @@ namespace IxMilia.Lisp
                 frame.SetValue(functionName, function);
             }
 
-            var result = frame.Eval(body);
+            var result = frame.EvalMany(body);
             return new LispObject[] { new LispQuotedObject(result) };
         }
 
@@ -340,16 +340,7 @@ namespace IxMilia.Lisp
                     {
                         var streamObject = new LispFileStream(filePath.Value, fileStream);
                         frame.SetValue(streamName.Value, streamObject);
-                        LispObject result = frame.Nil;
-                        foreach (var command in body)
-                        {
-                            result = frame.Eval(command);
-                            if (result is LispError)
-                            {
-                                return new LispObject[] { result };
-                            }
-                        }
-
+                        var result = frame.EvalMany(body);
                         return new LispObject[] { result };
                     }
                 }

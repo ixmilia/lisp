@@ -601,5 +601,17 @@ returned from average
             Assert.Equal("abc", ((LispString)result).Value);
             Assert.Equal("\n\"abc\"\n \n", NormalizeNewlines(output.ToString()));
         }
+
+        [Fact]
+        public void LetBlocksEvaluateManyStatements()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(let ((x 1))
+    x
+    (+ x 2)) ; this is the real result
+");
+            Assert.Equal(3, ((LispInteger)result).Value);
+        }
     }
 }
