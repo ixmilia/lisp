@@ -135,6 +135,21 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("apply")]
+        public LispObject Apply(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length == 2 &&
+                args[0] is LispFunctionReference functionRef &&
+                args[1] is LispList functionArguments)
+            {
+                return FunCall(frame, functionRef, functionArguments.ToList());
+            }
+            else
+            {
+                return new LispError("Expected function reference and list of arguments");
+            }
+        }
+
         private LispObject FunCall(LispStackFrame frame, LispFunctionReference functionReference, IEnumerable<LispObject> functionArguments)
         {
             string synthesizedFunctionName = null;

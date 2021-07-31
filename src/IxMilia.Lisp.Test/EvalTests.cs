@@ -341,6 +341,16 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void ApplyFunctionReference()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(apply #'+ '(2 3))
+");
+            Assert.Equal(5, ((LispInteger)result).Value);
+        }
+
+        [Fact]
         public void EnterAndReturnFunctionEvent()
         {
             var host = new LispHost();
