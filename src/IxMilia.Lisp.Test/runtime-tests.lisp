@@ -89,6 +89,7 @@
                  (consp '(1))
             (not (consp ()))
             (not (consp 4))
+                 (streamp *terminal-io*)
                  (atom 4)
                  (atom ())
             (not (atom '(1))))

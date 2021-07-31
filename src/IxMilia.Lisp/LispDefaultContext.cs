@@ -577,6 +577,14 @@ namespace IxMilia.Lisp
                 : frame.Nil;
         }
 
+        [LispFunction("streamp")]
+        public LispObject StreamP(LispStackFrame frame, LispObject[] args)
+        {
+            return args.Length == 1 && args[0] is LispStream
+                ? frame.T
+                : frame.Nil;
+        }
+
         [LispMacro("quote")]
         public IEnumerable<LispObject> Quote(LispStackFrame frame, LispObject[] args)
         {
