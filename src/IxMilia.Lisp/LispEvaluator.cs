@@ -125,19 +125,25 @@ namespace IxMilia.Lisp
                                     {
                                         case LispCodeFunction codeFunction:
                                             result = frame.Nil;
-                                            codeFunction.BindArguments(evaluatedArgs, frame);
-                                            for (int i = 0; i < codeFunction.Commands.Length; i++)
+                                            if (!codeFunction.TryBindArguments(evaluatedArgs, frame, out var bindingError))
                                             {
-                                                if (i == codeFunction.Commands.Length - 1)
+                                                result = bindingError;
+                                            }
+                                            else
+                                            {
+                                                for (int i = 0; i < codeFunction.Commands.Length; i++)
                                                 {
-                                                    // do tail call
-                                                    stack.Insert(0, Tuple.Create(codeFunction.Commands[i], frame));
-                                                    frame = frame.PopForTailCall(codeFunction.Arguments);
-                                                    doPop = false;
-                                                    break;
-                                                }
+                                                    if (i == codeFunction.Commands.Length - 1)
+                                                    {
+                                                        // do tail call
+                                                        stack.Insert(0, Tuple.Create(codeFunction.Commands[i], frame));
+                                                        frame = frame.PopForTailCall(codeFunction.Arguments);
+                                                        doPop = false;
+                                                        break;
+                                                    }
 
-                                                result = Evaluate(codeFunction.Commands[i], frame, true);
+                                                    result = Evaluate(codeFunction.Commands[i], frame, true);
+                                                }
                                             }
                                             break;
                                         case LispNativeFunction nativeFunction:

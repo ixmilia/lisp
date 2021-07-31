@@ -613,5 +613,22 @@ returned from average
 ");
             Assert.Equal(3, ((LispInteger)result).Value);
         }
+
+        [Fact]
+        public void BindRestArgumentsInFunction()
+        {
+            var host = new LispHost();
+            host.Eval(@"
+(defun test (a b &rest the-rest)
+    the-rest)
+(setf result-a (test 1 2)
+      result-b (test 1 2 3))
+");
+            var resultA = host.GetValue<LispList>("result-a");
+            var resultB = host.GetValue<LispList>("result-b");
+            Assert.True(resultA.IsNil());
+            Assert.Equal(1, resultB.Length);
+            Assert.Equal(3, ((LispInteger)resultB.Value).Value);
+        }
     }
 }

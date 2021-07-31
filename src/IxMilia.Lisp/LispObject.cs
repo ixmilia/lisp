@@ -1150,14 +1150,40 @@ namespace IxMilia.Lisp
             return $"{Name} ({string.Join(" ", Arguments)})";
         }
 
-        public void BindArguments(LispObject[] args, LispStackFrame frame)
+        public bool TryBindArguments(LispObject[] args, LispStackFrame frame, out LispError error)
         {
-            // bind arguments
-            // TODO: validate argument count
-            for (int i = 0; i < args.Length; i++)
+            error = default;
+            for (int i = 0; i < Arguments.Length; i++)
             {
-                frame.SetValue(Arguments[i], args[i]);
+                var argumentName = Arguments[i];
+                if (argumentName == "&rest")
+                {
+                    if (Arguments.Length > i + 1)
+                    {
+                        var restArgumentName = Arguments[i + 1];
+                        var restArgumentList = LispList.FromEnumerable(args.Skip(i));
+                        frame.SetValue(restArgumentName, restArgumentList);
+                        i++;
+                    }
+                    else
+                    {
+                        error = new LispError("Expected parameter name for `&rest` arguments");
+                        return false;
+                    }
+                }
+                else if (i < args.Length)
+                {
+                    // regular bind
+                    frame.SetValue(argumentName, args[i]);
+                }
+                else
+                {
+                    error = new LispError("Insufficient arguments");
+                    return false;
+                }
             }
+
+            return true;
         }
     }
 
