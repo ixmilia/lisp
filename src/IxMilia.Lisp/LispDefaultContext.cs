@@ -21,6 +21,29 @@ namespace IxMilia.Lisp
             return new LispObject[] { new LispQuotedObject(untracedList) };
         }
 
+        [LispFunction("error")]
+        public LispObject Error(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length >= 1)
+            {
+                var formatArgs = new List<LispObject>();
+                formatArgs.Add(frame.Nil); // force raw string generation
+                formatArgs.AddRange(args);
+                var candidateErrorString = Format(frame, formatArgs.ToArray());
+                switch (candidateErrorString)
+                {
+                    case LispString errorString:
+                        return new LispError(errorString.Value);
+                    case LispError _:
+                        return candidateErrorString;
+                    default:
+                        return new LispError($"Unable to format error string, got: {candidateErrorString}");
+                }
+            }
+
+            return new LispError("Expected format string");
+        }
+
         [LispMacro("defmacro")]
         public IEnumerable<LispObject> DefineMacro(LispStackFrame frame, LispObject[] args)
         {

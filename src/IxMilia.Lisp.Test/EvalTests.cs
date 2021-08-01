@@ -113,6 +113,16 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void ErrorGeneration()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(error ""Expected '~s' but got '~s'"" 1 2)
+");
+            Assert.Equal("Expected '1' but got '2'", ((LispError)result).Message);
+        }
+
+        [Fact]
         public void ErrorPropagation()
         {
             var host = new LispHost();
