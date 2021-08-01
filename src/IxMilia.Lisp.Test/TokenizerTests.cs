@@ -9,7 +9,7 @@ namespace IxMilia.Lisp.Test
     {
         private static IEnumerable<LispToken> Tokens(string code)
         {
-            var tokenizer = new LispTokenizer(code);
+            var tokenizer = new LispTokenizer(null, code);
             var tokens = tokenizer.GetTokens();
             return tokens;
         }

@@ -112,6 +112,11 @@ namespace IxMilia.Lisp.Parser
 
                 if (result != null)
                 {
+                    if (result.Location is null)
+                    {
+                        result.Location = token.Location;
+                    }
+
                     if (result.Line == 0 && result.Column == 0)
                     {
                         result.Line = token.Line;

@@ -5,12 +5,14 @@ namespace IxMilia.Lisp.Repl
 {
     public class ReplConsole
     {
+        public string Location { get; }
         public TextReader Input { get; }
         public TextWriter Output { get; }
         public TextWriter Error { get; }
 
-        public ReplConsole(TextReader input, TextWriter output, TextWriter error)
+        public ReplConsole(string location, TextReader input, TextWriter output, TextWriter error)
         {
+            Location = location;
             Input = input;
             Output = output;
             Error = error;
@@ -18,7 +20,7 @@ namespace IxMilia.Lisp.Repl
 
         public void Run()
         {
-            var repl = new LispRepl(input: Input, output: Output, traceWriter: Output);
+            var repl = new LispRepl(location: Location, input: Input, output: Output, traceWriter: Output);
 
             PrintPrompt(0);
             string line;

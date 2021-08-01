@@ -13,6 +13,7 @@ namespace IxMilia.Lisp
     {
         public static IEqualityComparer<LispObject> Comparer { get; } = new LispObjectEqualityComparer();
 
+        public string Location { get; internal set; }
         public int Line { get; internal set; }
         public int Column { get; internal set; }
 
@@ -143,6 +144,7 @@ namespace IxMilia.Lisp
             if (StackFrame == null)
             {
                 StackFrame = frame;
+                Location = frame.Location;
             }
         }
 
@@ -1356,7 +1358,7 @@ namespace IxMilia.Lisp
                 var input = Input.ReadLine();
                 lastInput.Append(input);
                 lastInput.Append('\n');
-                var tokenizer = new LispTokenizer(lastInput.ToString());
+                var tokenizer = new LispTokenizer(Name, lastInput.ToString());
                 var tokens = tokenizer.GetTokens();
                 var parser = new LispParser(errorOnIncompleteExpressions: false);
                 parser.AddTokens(tokens);

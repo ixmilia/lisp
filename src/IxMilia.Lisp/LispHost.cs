@@ -16,15 +16,17 @@ namespace IxMilia.Lisp
     {
         private const string TerminalIOString = "*terminal-io*";
 
+        private string _initialLocation;
         public readonly LispRootStackFrame RootFrame;
 
         public LispObject T { get; }
         public LispObject Nil { get; }
         public LispStream TerminalIO { get; }
 
-        public LispHost(TextReader input = null, TextWriter output = null)
+        public LispHost(string location = null, TextReader input = null, TextWriter output = null)
         {
-            RootFrame = new LispRootStackFrame(input ?? TextReader.Null, output ?? TextWriter.Null);
+            _initialLocation = location;
+            RootFrame = new LispRootStackFrame(_initialLocation, input ?? TextReader.Null, output ?? TextWriter.Null);
             T = RootFrame.T;
             Nil = RootFrame.Nil;
             TerminalIO = RootFrame.TerminalIO;
@@ -113,11 +115,16 @@ namespace IxMilia.Lisp
             using (var reader = new StreamReader(initStream))
             {
                 var content = reader.ReadToEnd();
-                var result = Eval(content);
+                var result = Eval("init.lisp", content);
                 if (result != T)
                 {
                     throw new Exception($"Expected 't' but found '{result}' at ({result.Line}, {result.Column}).");
                 }
+
+                RootFrame.UpdateCallStackLocation(new LispInteger(0)
+                {
+                    Location = _initialLocation
+                });
             }
         }
 
@@ -150,7 +157,12 @@ namespace IxMilia.Lisp
 
         public LispObject Eval(string code)
         {
-            var tokenizer = new LispTokenizer(code);
+            return Eval(RootFrame.Location, code);
+        }
+
+        public LispObject Eval(string location, string code)
+        {
+            var tokenizer = new LispTokenizer(location, code);
             var tokens = tokenizer.GetTokens();
             var parser = new LispParser(tokens);
             var nodes = parser.Parse().Nodes;

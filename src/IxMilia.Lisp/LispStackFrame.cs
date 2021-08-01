@@ -13,6 +13,7 @@ namespace IxMilia.Lisp
 
         private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
 
+        public string Location { get; private set; }
         public string FunctionName { get; }
         public LispStackFrame Parent { get; }
         public int Line { get; private set; }
@@ -38,15 +39,19 @@ namespace IxMilia.Lisp
             return Tuple.Create((LispRootStackFrame)candidate, depth - 1);
         }
 
-        public LispStackFrame(string functionName, LispStackFrame parent)
+        public LispStackFrame(string location, string functionName, LispStackFrame parent)
         {
+            Location = location;
             FunctionName = functionName;
             Parent = parent;
         }
 
         public override string ToString()
         {
-            return $"  at {FunctionName}: ({Line}, {Column})\n{Parent}";
+            var sourceLocation = Location == null
+                ? string.Empty
+                : $" in '{Location}'";
+            return $"  at {FunctionName}{sourceLocation}: ({Line}, {Column})\n{Parent}";
         }
 
         public void SetValue(string name, LispObject value)
@@ -111,9 +116,9 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        public LispStackFrame Push(string frameName)
+        public LispStackFrame Push(string location, string frameName)
         {
-            return new LispStackFrame(frameName, this);
+            return new LispStackFrame(location, frameName, this);
         }
 
         internal LispStackFrame Pop()
@@ -144,6 +149,7 @@ namespace IxMilia.Lisp
 
         internal void UpdateCallStackLocation(LispObject obj)
         {
+            Location = obj.Location;
             Line = obj.Line;
             Column = obj.Column;
         }
@@ -176,8 +182,8 @@ namespace IxMilia.Lisp
             }
         }
 
-        internal LispRootStackFrame(TextReader input, TextWriter output)
-            : base("(root)", null)
+        internal LispRootStackFrame(string location, TextReader input, TextWriter output)
+            : base(location, "(root)", null)
         {
             SetValue(TString, new LispSymbol(TString));
             SetValue(NilString, LispNilList.Instance);

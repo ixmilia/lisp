@@ -126,16 +126,35 @@ namespace IxMilia.Lisp.Test
         public void ErrorPropagation()
         {
             var host = new LispHost();
-            var result = (LispError)host.Eval(@"
+            var result = (LispError)host.Eval("test-file.lisp", @"
 (defun inc (x)
     (add x 1))
 (inc 2)
 ");
+            Assert.Equal("test-file.lisp", result.StackFrame.Location);
             Assert.Equal(3, result.StackFrame.Line); // inc: (add x 1), but tailcall inlined
             Assert.Equal(6, result.StackFrame.Column);
             Assert.Equal("(root)", result.StackFrame.FunctionName);
             Assert.Null(result.StackFrame.Parent);
             Assert.Equal("Undefined macro/function 'add', found '<null>'", result.Message);
+        }
+
+        [Fact]
+        public void SourcePropagationFromHostInit()
+        {
+            var host = new LispHost("test-file.lisp");
+            var result = host.Eval("(+ 1 2)");
+            Assert.Equal(3, ((LispInteger)result).Value);
+            Assert.Equal("test-file.lisp", result.Location);
+        }
+
+        [Fact]
+        public void SourcePropagationFromHostEval()
+        {
+            var host = new LispHost("host.lisp");
+            var result = host.Eval("some-other-location.lisp", "(+ 1 2)");
+            Assert.Equal(3, ((LispInteger)result).Value);
+            Assert.Equal("some-other-location.lisp", result.Location);
         }
 
         [Fact]

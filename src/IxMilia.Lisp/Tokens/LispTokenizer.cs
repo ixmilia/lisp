@@ -6,6 +6,7 @@ namespace IxMilia.Lisp.Tokens
 {
     public class LispTokenizer
     {
+        private string _location;
         private int _line;
         private int _column;
         private bool _tokenStartSet;
@@ -15,8 +16,9 @@ namespace IxMilia.Lisp.Tokens
         private char[] _characters;
         private List<LispTrivia> _triviaBuilder;
 
-        public LispTokenizer(char[] chars)
+        public LispTokenizer(string location, char[] chars)
         {
+            _location = location;
             _characters = chars;
             _line = 1;
             _column = 1;
@@ -24,8 +26,8 @@ namespace IxMilia.Lisp.Tokens
             _triviaBuilder = new List<LispTrivia>();
         }
 
-        public LispTokenizer(string code)
-            : this(code.ToCharArray())
+        public LispTokenizer(string location, string code)
+            : this(location, code.ToCharArray())
         {
         }
 
@@ -126,6 +128,7 @@ namespace IxMilia.Lisp.Tokens
         {
             Debug.Assert(_tokenStartSet, $"Expected {nameof(_tokenStartSet)}.  Did you forget to call {nameof(MarkTokenStart)}()?");
             _tokenStartSet = false;
+            token.Location = _location;
             token.Line = _tokenStartLine;
             token.Column = _tokenStartColumn;
             token.LeadingTrivia = new LispTriviaCollection(_triviaBuilder);
