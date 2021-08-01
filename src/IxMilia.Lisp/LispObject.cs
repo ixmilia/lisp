@@ -1349,33 +1349,37 @@ namespace IxMilia.Lisp
             Output = output;
         }
 
-        public IEnumerable<LispObject> ReadCompleteObjects()
+        public LispObject ReadObject(LispObject eofMarker = null)
         {
-            var lastInput = new StringBuilder();
-            IEnumerable<LispObject> nodes;
-            while (true)
+            eofMarker = eofMarker ?? new LispError("EOF");
+            var input = Input.ReadLine();
+            if (input is null)
             {
-                var input = Input.ReadLine();
-                lastInput.Append(input);
-                lastInput.Append('\n');
-                var tokenizer = new LispTokenizer(Name, lastInput.ToString());
-                var tokens = tokenizer.GetTokens();
-                var parser = new LispParser(errorOnIncompleteExpressions: false);
-                parser.AddTokens(tokens);
-                var result = parser.Parse();
-                if (result.RemainingTokens.Any())
-                {
-                    // need to keep reading
-                }
-                else if (result.Nodes.Any())
-                {
-                    // done
-                    nodes = result.Nodes;
-                    break;
-                }
+                return eofMarker;
             }
 
-            return nodes;
+            var tokenizer = new LispTokenizer(Name, input);
+            var tokens = tokenizer.GetTokens();
+            var parser = new LispParser();
+            parser.AddTokens(tokens);
+            var result = parser.Parse();
+            if (result.RemainingTokens.Any())
+            {
+                return new LispError("Incomplete expression");
+            }
+
+            var nodes = result.Nodes.ToList();
+            if (nodes.Count == 0)
+            {
+                return eofMarker;
+            }
+
+            if (nodes.Count > 1)
+            {
+                return new LispError("More than one expression read");
+            }
+
+            return nodes[0];
         }
 
         internal override LispObject Clone()

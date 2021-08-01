@@ -275,18 +275,27 @@ namespace IxMilia.Lisp
         public LispObject Read(LispStackFrame frame, LispObject[] args)
         {
             LispStream readStream;
-            if (args.Length >= 1 &&
-                args[0] is LispStream stream)
-            {
-                readStream = stream;
-            }
-            else
+            LispObject eofMarker = null;
+            if (args.Length == 0)
             {
                 readStream = frame.TerminalIO;
             }
+            else if (args.Length >= 1 && args[0] is LispStream stream)
+            {
+                readStream = stream;
+                if (args.Length == 3 &&
+                    args[1].IsNil())
+                {
+                    eofMarker = args[2];
+                }
+            }
+            else
+            {
+                return new LispError("Expected a stream");
+            }
 
-            var nodes = readStream.ReadCompleteObjects();
-            return nodes.Last();
+            var result = readStream.ReadObject(eofMarker);
+            return result;
         }
 
         [LispMacro("with-open-file")]
