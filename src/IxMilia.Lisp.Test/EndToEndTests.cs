@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
@@ -18,8 +17,6 @@ namespace IxMilia.Lisp.Test
         {
             var contents = GetFileContents(fileName);
             var host = new LispHost();
-            host.AddFunction("join", (h, args) => new LispString(string.Join(" ", (IEnumerable<LispObject>)args)));
-            host.AddFunction("fail", (h, args) => new LispError(args[0].ToString()));
             var result = host.Eval(contents);
             Assert.True(result.Equals(host.T), result.ToString());
         }

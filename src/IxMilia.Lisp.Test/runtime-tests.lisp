@@ -1,18 +1,18 @@
 (defun assert (pred message)
     "Asserts that the given predicate is true, otherwise fails"
-    (if pred t (fail message)))
+    (if pred t (error message)))
 
 (defun assert-not (pred message)
     "Asserts that the given predicate is false, otherwise fails"
-    (if pred (fail message) t))
+    (if pred (error message) t))
 
 (defun assert-eql (expected actual message)
     "Asserts the given values are equal, otherwise fails"
-    (assert (eql expected actual) (join "Error:" message ": Expected" expected "but received" actual)))
+    (assert (eql expected actual) (format nil "Error: ~a: Expected ~a but received ~a" message expected actual)))
 
 (defun assert-equal (expected actual message)
     "Asserts the given values are equal, otherwise fails"
-    (assert (equal expected actual) (join "Error:" message ": Expected" expected "but received" actual)))
+    (assert (equal expected actual) (format nil "Error: ~a: Expected ~a but received ~a" message expected actual)))
 
 (defun item-equality ()
     (assert (equal '(a b c) '(a b c)) "equivalent list")
