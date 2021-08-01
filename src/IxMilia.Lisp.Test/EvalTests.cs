@@ -178,6 +178,15 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void DotNotationLists()
+        {
+            var host = new LispHost();
+            var result = host.Eval("'(a . (b . (c)))");
+            var actual = result.ToString();
+            Assert.Equal("(a b c)", actual);
+        }
+
+        [Fact]
         public void CircularLists()
         {
             var host = new LispHost();
