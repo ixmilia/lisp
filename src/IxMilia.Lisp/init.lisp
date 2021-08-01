@@ -67,6 +67,32 @@
 (defun subst (r s items)
     (sublis (list (cons s r)) items))
 
+(defun terpri (&rest streams)
+    (let ((output-stream (cond ((eql streams ())                                        *terminal-io*)
+                               ((and (streamp (car streams)) (eql () (cdr streams)))    (car streams))
+                               (t                                                       (error "Expected no arguments or a single stream")))))
+        (format output-stream "~%")))
+
+(defun prin1 (value &rest streams)
+    (let ((output-stream (cond ((eql streams ())                                        *terminal-io*)
+                               ((and (streamp (car streams)) (eql () (cdr streams)))    (car streams))
+                            (t                                                           (error "Expected no arguments or a single stream")))))
+        (format output-stream "~s~%" value)
+        value))
+
+(defun princ (value &rest streams)
+    (let ((output-stream (cond ((eql streams ())                                        *terminal-io*)
+                               ((and (streamp (car streams)) (eql () (cdr streams)))    (car streams))
+                               (t                                                       (error "Expected no arguments or a single stream")))))
+        (format output-stream "~a~%" value)
+        value))
+
+(defun print (value &rest streams)
+    (apply #'terpri streams)
+    (apply #'prin1 (cons value streams))
+    (apply #'princ (cons " " streams))
+    value)
+
 (defun yes-or-no-p (prompt)
     (labels ((prompt-and-get-input ()
                 (format t prompt)
