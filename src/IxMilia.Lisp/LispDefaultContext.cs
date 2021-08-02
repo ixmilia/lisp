@@ -65,16 +65,27 @@ namespace IxMilia.Lisp
         [LispMacro("defun")]
         public IEnumerable<LispObject> DefineFunction(LispStackFrame frame, LispObject[] args)
         {
-            var function = CodeFunctionFromItems(args);
-            frame.SetValueInParentScope(function.Name, function);
+            if (!TryGetCodeFunctionFromItems(args, out var codeFunction, out var error))
+            {
+                return new LispObject[] { error };
+            }
+
+            frame.SetValueInParentScope(codeFunction.Name, codeFunction);
             return new LispObject[] { frame.Nil };
         }
 
-        internal static LispCodeFunction CodeFunctionFromItems(LispObject[] items)
+        internal static bool TryGetCodeFunctionFromItems(LispObject[] items, out LispCodeFunction codeFunction, out LispError error)
         {
+            codeFunction = default;
+
             // TODO: properly validate types and arg counts
             var name = ((LispSymbol)items[0]).Value;
-            var functionArgs = ((LispList)items[1]).ToList().Cast<LispSymbol>().Select(s => s.Value);
+            var argumentList = ((LispList)items[1]).ToList();
+            if (!LispFunctionArgument.TryBuildFunctionArguments(argumentList.ToArray(), out var arguments, out error))
+            {
+                return false;
+            }
+
             var commands = items.Skip(2).ToList();
             string documentation = null;
             if (commands[0] is LispString str)
@@ -83,8 +94,8 @@ namespace IxMilia.Lisp
                 commands.RemoveAt(0);
             }
 
-            var function = new LispCodeFunction(name, documentation, functionArgs, commands);
-            return function;
+            codeFunction = new LispCodeFunction(name, documentation, arguments, commands);
+            return true;
         }
 
         [LispMacro("defvar")]
@@ -133,12 +144,12 @@ namespace IxMilia.Lisp
             {
                 // TODO: validate shape
                 var functionDefinition = ((LispList)functionDefinitionSet).ToList();
-                var functionName = ((LispSymbol)functionDefinition[0]).Value;
-                var functionArguments = ((LispList)functionDefinition[1]).ToList().Cast<LispSymbol>().Select(s => s.Value).ToList();
-                var functionBody = functionDefinition.Skip(2).ToList();
-                var function = new LispCodeFunction(functionName, null, functionArguments, functionBody);
+                if (!TryGetCodeFunctionFromItems(functionDefinition.ToArray(), out var codeFunction, out var error))
+                {
+                    return new LispObject[] { error };
+                }
 
-                frame.SetValue(functionName, function);
+                frame.SetValue(codeFunction.Name, codeFunction);
             }
 
             var result = frame.EvalMany(body);

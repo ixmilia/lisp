@@ -678,5 +678,43 @@ returned from average
             Assert.Equal(1, resultB.Length);
             Assert.Equal(3, ((LispInteger)resultB.Value).Value);
         }
+
+        [Fact]
+        public void BindOptionalArgumentsInFunction()
+        {
+            var host = new LispHost();
+            host.Eval(@"
+(defun test (a &optional b (c 14))
+    (format nil ""~a:~a:~a"" a b c))
+(setf result-a (test 11)
+      result-b (test 22 33)
+      result-c (test 44 55 66))
+");
+            var resultA = host.GetValue<LispString>("result-a");
+            var resultB = host.GetValue<LispString>("result-b");
+            var resultC = host.GetValue<LispString>("result-c");
+            Assert.Equal("11:():14", resultA.Value);
+            Assert.Equal("22:33:14", resultB.Value);
+            Assert.Equal("44:55:66", resultC.Value);
+        }
+
+        [Fact]
+        public void BindOptionalAndRestArguments()
+        {
+            var host = new LispHost();
+            host.Eval(@"
+(defun test (a &optional b &rest the-rest)
+    (format nil ""~a:~a:~a"" a b the-rest))
+(setf result-a (test 11)
+      result-b (test 22 33)
+      result-c (test 44 55 66))
+");
+            var resultA = host.GetValue<LispString>("result-a");
+            var resultB = host.GetValue<LispString>("result-b");
+            var resultC = host.GetValue<LispString>("result-c");
+            Assert.Equal("11:():()", resultA.Value);
+            Assert.Equal("22:33:()", resultB.Value);
+            Assert.Equal("44:55:(66)", resultC.Value);
+        }
     }
 }

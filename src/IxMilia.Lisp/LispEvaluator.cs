@@ -137,7 +137,7 @@ namespace IxMilia.Lisp
                                                     {
                                                         // do tail call
                                                         stack.Insert(0, Tuple.Create(codeFunction.Commands[i], frame));
-                                                        frame = frame.PopForTailCall(codeFunction.Arguments);
+                                                        frame = frame.PopForTailCall(codeFunction.Arguments.Select(a => a.Name));
                                                         doPop = false;
                                                         break;
                                                     }

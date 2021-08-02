@@ -215,8 +215,13 @@ namespace IxMilia.Lisp.Parser
                         var lambdaItems = new List<LispObject>();
                         lambdaItems.Add(new LispSymbol(name));
                         lambdaItems.AddRange(lambdaList.ToList().Skip(1));
-                        var lambda = LispDefaultContext.CodeFunctionFromItems(lambdaItems.ToArray());
-                        return new LispQuotedLambdaFunctionReference(lambda);
+
+                        if (!LispDefaultContext.TryGetCodeFunctionFromItems(lambdaItems.ToArray(), out var lambdaFunction, out error))
+                        {
+                            return error;
+                        }
+
+                        return new LispQuotedLambdaFunctionReference(lambdaFunction);
                     }
 
                     return new LispError("Expected lambda definition");
