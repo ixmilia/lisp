@@ -11,7 +11,7 @@ namespace IxMilia.Lisp.Test
             return arguments;
         }
 
-        private static Tuple<string, LispObject>[] MatchArguments(LispFunctionArgument[] argumentDefinitions, LispObject[] argumentValues)
+        private static Tuple<LispFunctionArgument, LispObject>[] MatchArguments(LispFunctionArgument[] argumentDefinitions, LispObject[] argumentValues)
         {
             Assert.True(LispCodeFunction.TryMatchFunctionArguments(argumentDefinitions, argumentValues, out var matchedArguments, out var error), $"Error when matching arguments: [{error?.Message}]");
             return matchedArguments;
@@ -117,13 +117,13 @@ namespace IxMilia.Lisp.Test
             );
             Assert.Equal(3, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1);
+            Assert.Equal("a", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("b", matched[1].Item1);
+            Assert.Equal("b", matched[1].Item1.Name);
             Assert.Equal("two", ((LispString)matched[1].Item2).Value);
 
-            Assert.Equal("c", matched[2].Item1);
+            Assert.Equal("c", matched[2].Item1.Name);
             Assert.Equal(3.0, ((LispFloat)matched[2].Item2).Value);
         }
 
@@ -147,13 +147,13 @@ namespace IxMilia.Lisp.Test
             );
             Assert.Equal(3, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1);
+            Assert.Equal("a", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("defaults-to-fourteen", matched[1].Item1);
+            Assert.Equal("defaults-to-fourteen", matched[1].Item1.Name);
             Assert.Equal(2, ((LispInteger)matched[1].Item2).Value);
 
-            Assert.Equal("defaults-to-nil", matched[2].Item1);
+            Assert.Equal("defaults-to-nil", matched[2].Item1.Name);
             Assert.True(matched[2].Item2.IsNil());
         }
 
@@ -175,10 +175,10 @@ namespace IxMilia.Lisp.Test
             );
             Assert.Equal(2, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1);
+            Assert.Equal("a", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("the-rest", matched[1].Item1);
+            Assert.Equal("the-rest", matched[1].Item1.Name);
             Assert.True(matched[1].Item2.IsNil());
         }
 
@@ -202,10 +202,10 @@ namespace IxMilia.Lisp.Test
             );
             Assert.Equal(2, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1);
+            Assert.Equal("a", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("the-rest", matched[1].Item1);
+            Assert.Equal("the-rest", matched[1].Item1.Name);
             var rest = ((LispList)matched[1].Item2).ToList();
             Assert.Equal(2, rest.Count);
             Assert.Equal(2, ((LispInteger)rest[0]).Value);
@@ -231,13 +231,13 @@ namespace IxMilia.Lisp.Test
             );
             Assert.Equal(3, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1);
+            Assert.Equal("a", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("nil-list", matched[1].Item1);
+            Assert.Equal("nil-list", matched[1].Item1.Name);
             Assert.True(matched[1].Item2.IsNil());
 
-            Assert.Equal("the-rest", matched[2].Item1);
+            Assert.Equal("the-rest", matched[2].Item1.Name);
             Assert.True(matched[2].Item2.IsNil());
         }
 
@@ -263,13 +263,13 @@ namespace IxMilia.Lisp.Test
             );
             Assert.Equal(3, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1);
+            Assert.Equal("a", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("dos", matched[1].Item1);
+            Assert.Equal("dos", matched[1].Item1.Name);
             Assert.Equal(2, ((LispInteger)matched[1].Item2).Value);
 
-            Assert.Equal("the-rest", matched[2].Item1);
+            Assert.Equal("the-rest", matched[2].Item1.Name);
             var rest = ((LispList)matched[2].Item2).ToList();
             Assert.Equal(2, rest.Count);
             Assert.Equal(3, ((LispInteger)rest[0]).Value);

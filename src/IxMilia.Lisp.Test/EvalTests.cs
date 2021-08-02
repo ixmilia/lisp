@@ -716,5 +716,17 @@ returned from average
             Assert.Equal("22:33:()", resultB.Value);
             Assert.Equal("44:55:(66)", resultC.Value);
         }
+
+        [Fact]
+        public void OptionalArgumentDefaultValuesAreEvaluated()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(defun test (&optional (value (+ 1 1)))
+    (+ 1 value))
+(test)
+");
+            Assert.Equal(3, ((LispInteger)result).Value);
+        }
     }
 }

@@ -1160,41 +1160,54 @@ namespace IxMilia.Lisp
 
             foreach (var matchedArgument in matchedArguments)
             {
-                var argumentName = matchedArgument.Item1;
+                var argumentName = matchedArgument.Item1.Name;
                 var argumentValue = matchedArgument.Item2;
+                if (matchedArgument.Item1 is LispOptionalFunctionArgument)
+                {
+                    // `&optional` arguments need to be evaluated
+                    argumentValue = frame.Eval(argumentValue);
+                }
+
+                if (argumentValue is LispError argumentError)
+                {
+                    error = argumentError;
+                    return false;
+                }
+
                 frame.SetValue(argumentName, argumentValue);
             }
 
             return true;
         }
 
-        internal static bool TryMatchFunctionArguments(LispFunctionArgument[] argumentDefinitions, LispObject[] argumentValues, out Tuple<string, LispObject>[] matchedArguments, out LispError error)
+        internal static bool TryMatchFunctionArguments(LispFunctionArgument[] argumentDefinitions, LispObject[] argumentValues, out Tuple<LispFunctionArgument, LispObject>[] matchedArguments, out LispError error)
         {
             matchedArguments = default;
             error = default;
 
-            var matchedArgumentsList = new List<Tuple<string, LispObject>>();
+            var matchedArgumentsList = new List<Tuple<LispFunctionArgument, LispObject>>();
             var argumentDefinitionIndex = 0;
             var argumentValueIndex = 0;
             for (; argumentDefinitionIndex < argumentDefinitions.Length && argumentValueIndex < argumentValues.Length; argumentDefinitionIndex++, argumentValueIndex++)
             {
-                switch (argumentDefinitions[argumentDefinitionIndex])
+                var functionArgument = argumentDefinitions[argumentDefinitionIndex];
+                switch (functionArgument)
                 {
                     case LispRegularFunctionArgument regularArgument:
                         // regular match
-                        matchedArgumentsList.Add(Tuple.Create(regularArgument.Name, argumentValues[argumentValueIndex]));
+                        matchedArgumentsList.Add(Tuple.Create(functionArgument, argumentValues[argumentValueIndex]));
                         break;
                     case LispOptionalFunctionArgument optionalArgument:
                         // try to match the optional value
                         var optionalArgumentValue = argumentValueIndex < argumentValues.Length
                             ? argumentValues[argumentValueIndex]
                             : optionalArgument.DefaultValue;
-                        matchedArgumentsList.Add(Tuple.Create(optionalArgument.Name, optionalArgumentValue));
+                        matchedArgumentsList.Add(Tuple.Create(functionArgument, optionalArgumentValue));
                         break;
                     case LispRestFunctionArgument restArgument:
                         // consume and match the remaining arguments
                         var restArgumentList = LispList.FromEnumerable(argumentValues.Skip(argumentValueIndex));
-                        matchedArgumentsList.Add(Tuple.Create(restArgument.Name, (LispObject)restArgumentList));
+                        matchedArgumentsList.Add(Tuple.Create(functionArgument, (LispObject)restArgumentList));
                         argumentValueIndex = argumentValues.Length;
                         break;
                     default:
@@ -1206,15 +1219,16 @@ namespace IxMilia.Lisp
                 argumentDefinitionIndex < argumentDefinitions.Length)
             {
                 // bind remaining arguments
+                var functionArgument = argumentDefinitions[argumentDefinitionIndex];
                 switch (argumentDefinitions[argumentDefinitionIndex])
                 {
                     case LispOptionalFunctionArgument optionalArgument:
-                        matchedArgumentsList.Add(Tuple.Create(optionalArgument.Name, optionalArgument.DefaultValue));
+                        matchedArgumentsList.Add(Tuple.Create(functionArgument, optionalArgument.DefaultValue));
                         argumentValueIndex++; // consume the value
                         break;
                     case LispRestFunctionArgument restArgument:
                         var restArgumentList = LispList.FromEnumerable(argumentValues.Skip(argumentValueIndex));
-                        matchedArgumentsList.Add(Tuple.Create(restArgument.Name, (LispObject)restArgumentList));
+                        matchedArgumentsList.Add(Tuple.Create(functionArgument, (LispObject)restArgumentList));
                         argumentValueIndex = argumentValues.Length; // consume the values
                         break;
                     default:
