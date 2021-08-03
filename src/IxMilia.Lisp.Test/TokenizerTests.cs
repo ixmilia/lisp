@@ -73,11 +73,11 @@ namespace IxMilia.Lisp.Test
         }
 
         [Theory]
-        [InlineData("0", 0.0)]
-        [InlineData("3", 3.0)]
-        [InlineData("+3", 3.0)]
-        [InlineData("-3", -3.0)]
-        public void Integers(string code, double value)
+        [InlineData("0", 0)]
+        [InlineData("3", 3)]
+        [InlineData("+3", 3)]
+        [InlineData("-3", -3)]
+        public void Integers(string code, int value)
         {
             var number = (LispIntegerToken)SingleToken(code);
             Assert.Equal(value, number.Value);
