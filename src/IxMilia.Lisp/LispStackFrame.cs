@@ -13,11 +13,10 @@ namespace IxMilia.Lisp
 
         private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
 
-        public string Location { get; private set; }
         public string FunctionName { get; }
         public LispStackFrame Parent { get; }
-        public int Line { get; private set; }
-        public int Column { get; private set; }
+
+        public LispSourceLocation? SourceLocation { get; internal set; }
 
         public LispObject T => GetValue<LispSymbol>(TString);
         public LispObject Nil => GetValue<LispList>(NilString);
@@ -39,19 +38,19 @@ namespace IxMilia.Lisp
             return Tuple.Create((LispRootStackFrame)candidate, depth - 1);
         }
 
-        public LispStackFrame(string location, string functionName, LispStackFrame parent)
+        public LispStackFrame(LispSourceLocation sourceLocation, string functionName, LispStackFrame parent)
         {
-            Location = location;
+            SourceLocation = sourceLocation;
             FunctionName = functionName;
             Parent = parent;
         }
 
         public override string ToString()
         {
-            var sourceLocation = Location == null
+            var filePath = SourceLocation?.FilePath == null
                 ? string.Empty
-                : $" in '{Location}'";
-            return $"  at {FunctionName}{sourceLocation}: ({Line}, {Column})\n{Parent}";
+                : $" in '{SourceLocation.Value.FilePath}'";
+            return $"  at {FunctionName}{filePath}: ({SourceLocation?.Line}, {SourceLocation?.Column})\n{Parent}";
         }
 
         public void SetValue(string name, LispObject value)
@@ -116,9 +115,9 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        public LispStackFrame Push(string location, string frameName)
+        public LispStackFrame Push(LispSourceLocation sourceLocation, string frameName)
         {
-            return new LispStackFrame(location, frameName, this);
+            return new LispStackFrame(sourceLocation, frameName, this);
         }
 
         internal LispStackFrame Pop()
@@ -149,9 +148,7 @@ namespace IxMilia.Lisp
 
         internal void UpdateCallStackLocation(LispObject obj)
         {
-            Location = obj.Location;
-            Line = obj.Line;
-            Column = obj.Column;
+            SourceLocation = obj.SourceLocation;
         }
     }
 
@@ -182,8 +179,8 @@ namespace IxMilia.Lisp
             }
         }
 
-        internal LispRootStackFrame(string location, TextReader input, TextWriter output)
-            : base(location, "(root)", null)
+        internal LispRootStackFrame(LispSourceLocation sourceLocation, TextReader input, TextWriter output)
+            : base(sourceLocation, "(root)", null)
         {
             SetValue(TString, new LispSymbol(TString));
             SetValue(NilString, LispNilList.Instance);

@@ -57,8 +57,8 @@ namespace IxMilia.Lisp.Test
         public void TokenOffsets(string code, int line, int column)
         {
             var token = (LispRightParenToken)SingleToken(code);
-            Assert.Equal(line, token.Line);
-            Assert.Equal(column, token.Column);
+            Assert.Equal(line, token.SourceLocation?.Line);
+            Assert.Equal(column, token.SourceLocation?.Column);
         }
 
         [Fact]

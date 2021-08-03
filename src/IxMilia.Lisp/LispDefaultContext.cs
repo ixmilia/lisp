@@ -55,8 +55,7 @@ namespace IxMilia.Lisp
             var macroBody = args.Skip(2);
             var macro = new LispCodeMacro(macroName, macroArgs, macroBody)
             {
-                Line = macroNameSymbol.Line,
-                Column = macroNameSymbol.Column
+                SourceLocation = macroNameSymbol.SourceLocation,
             };
             frame.SetValueInParentScope(macroName, macro);
             return new LispObject[] { frame.Nil };
@@ -205,8 +204,7 @@ namespace IxMilia.Lisp
             if (synthesizedFunctionName != null)
             {
                 var synthesizedSymbol = new LispSymbol(synthesizedFunctionName);
-                synthesizedSymbol.Line = functionReference.Line;
-                synthesizedSymbol.Column = functionReference.Column;
+                synthesizedSymbol.SourceLocation = functionReference.SourceLocation;
                 var synthesizedFunctionItems = new List<LispObject>();
                 synthesizedFunctionItems.Add(synthesizedSymbol);
                 synthesizedFunctionItems.AddRange(functionArguments);
@@ -1172,8 +1170,7 @@ namespace IxMilia.Lisp
                     {
                         new LispError("Expected list of length 2")
                         {
-                            Line = arg.Line,
-                            Column = arg.Column
+                            SourceLocation = arg.SourceLocation,
                         }
                     };
                 }

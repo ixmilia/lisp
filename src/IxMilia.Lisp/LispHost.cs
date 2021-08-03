@@ -15,17 +15,17 @@ namespace IxMilia.Lisp
     {
         private const string TerminalIOString = "*terminal-io*";
 
-        private string _initialLocation;
+        private string _initialFilePath;
         public readonly LispRootStackFrame RootFrame;
 
         public LispObject T { get; }
         public LispObject Nil { get; }
         public LispStream TerminalIO { get; }
 
-        public LispHost(string location = null, TextReader input = null, TextWriter output = null)
+        public LispHost(string filePath = null, TextReader input = null, TextWriter output = null)
         {
-            _initialLocation = location;
-            RootFrame = new LispRootStackFrame(_initialLocation, input ?? TextReader.Null, output ?? TextWriter.Null);
+            _initialFilePath = filePath;
+            RootFrame = new LispRootStackFrame(new LispSourceLocation(_initialFilePath, 0, 0), input ?? TextReader.Null, output ?? TextWriter.Null);
             T = RootFrame.T;
             Nil = RootFrame.Nil;
             TerminalIO = RootFrame.TerminalIO;
@@ -117,12 +117,12 @@ namespace IxMilia.Lisp
                 var result = Eval("init.lisp", content);
                 if (result != T)
                 {
-                    throw new Exception($"Expected 't' but found '{result}' at ({result.Line}, {result.Column}).");
+                    throw new Exception($"Expected 't' but found '{result}' at ({result.SourceLocation?.Line}, {result.SourceLocation?.Column}).");
                 }
 
                 RootFrame.UpdateCallStackLocation(new LispInteger(0)
                 {
-                    Location = _initialLocation
+                    SourceLocation = new LispSourceLocation(_initialFilePath, RootFrame.SourceLocation?.Line ?? 0, RootFrame.SourceLocation?.Column ?? 0)
                 });
             }
         }
@@ -156,12 +156,12 @@ namespace IxMilia.Lisp
 
         public LispObject Eval(string code)
         {
-            return Eval(RootFrame.Location, code);
+            return Eval(RootFrame.SourceLocation?.FilePath, code);
         }
 
-        public LispObject Eval(string location, string code)
+        public LispObject Eval(string filePath, string code)
         {
-            var tokenizer = new LispTokenizer(location, code);
+            var tokenizer = new LispTokenizer(filePath, code);
             var tokens = tokenizer.GetTokens();
             var parser = new LispParser(tokens);
             var nodes = parser.Parse().Nodes;

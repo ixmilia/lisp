@@ -166,9 +166,7 @@ namespace IxMilia.Lisp
                 else
                 {
                     error = new LispError("Expected argument name");
-                    error.Location = argumentListValue.Location;
-                    error.Line = argumentListValue.Line;
-                    error.Column = argumentListValue.Column;
+                    error.SourceLocation = argumentListValue.SourceLocation;
                     return false;
                 }
             }

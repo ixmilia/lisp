@@ -6,17 +6,13 @@ namespace IxMilia.Lisp.Tokens
     public abstract class LispToken
     {
         public abstract LispTokenType Type { get; }
-        public string Location { get; internal set; }
-        public int Line { get; internal set; }
-        public int Column { get; internal set; }
+        public LispSourceLocation? SourceLocation { get; internal set; }
         public LispTriviaCollection LeadingTrivia { get; internal set; }
         public LispTriviaCollection TrailingTrivia { get; internal set; }
 
         protected LispToken()
         {
-            Location = null;
-            Line = 0;
-            Column = 0;
+            SourceLocation = null;
             LeadingTrivia = new LispTriviaCollection();
             TrailingTrivia = new LispTriviaCollection();
         }

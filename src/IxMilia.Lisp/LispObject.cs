@@ -12,9 +12,7 @@ namespace IxMilia.Lisp
     {
         public static IEqualityComparer<LispObject> Comparer { get; } = new LispObjectEqualityComparer();
 
-        public string Location { get; internal set; }
-        public int Line { get; internal set; }
-        public int Column { get; internal set; }
+        public LispSourceLocation? SourceLocation { get; internal set; }
 
         internal abstract LispObject Clone();
 
@@ -143,7 +141,7 @@ namespace IxMilia.Lisp
             if (StackFrame == null)
             {
                 StackFrame = frame;
-                Location = frame.Location;
+                SourceLocation = frame.SourceLocation;
             }
         }
 

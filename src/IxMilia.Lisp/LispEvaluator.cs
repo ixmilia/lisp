@@ -70,7 +70,7 @@ namespace IxMilia.Lisp
                             frame.UpdateCallStackLocation(functionNameSymbol);
                             if (value is LispMacro macro)
                             {
-                                frame = frame.Push(macro.Location, macro.Name);
+                                frame = frame.Push(macro.SourceLocation.GetValueOrDefault(), macro.Name);
 
                                 var firstError = args.OfType<LispError>().FirstOrDefault();
                                 if (firstError != null)
@@ -105,7 +105,7 @@ namespace IxMilia.Lisp
                             else if (value is LispFunction function)
                             {
                                 // TODO: what if it's a regular variable?
-                                frame = frame.Push(function.Location, function.Name);
+                                frame = frame.Push(function.SourceLocation.GetValueOrDefault(), function.Name);
                                 var doPop = true;
 
                                 // evaluate arguments
@@ -215,15 +215,9 @@ namespace IxMilia.Lisp
 
         private static void TryApplyLocation(LispObject obj, LispObject parent)
         {
-            if (obj.Location is null)
+            if (!obj.SourceLocation.HasValue)
             {
-                obj.Location = parent.Location;
-            }
-
-            if (obj.Line == 0 && obj.Column == 0)
-            {
-                obj.Line = parent.Line;
-                obj.Column = parent.Column;
+                obj.SourceLocation = parent.SourceLocation;
             }
         }
 

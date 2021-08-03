@@ -68,8 +68,8 @@ namespace IxMilia.Lisp.Test
         public void BadDottedList()
         {
             var error = (LispError)Parse("(1 2 . 3 . 4)").First();
-            Assert.Equal(1, error.Line);
-            Assert.Equal(10, error.Column);
+            Assert.Equal(1, error.SourceLocation?.Line);
+            Assert.Equal(10, error.SourceLocation?.Column);
             Assert.Equal("Unexpected duplicate '.' in list at (1, 10); first '.' at (1, 6)", error.Message);
         }
 
@@ -87,8 +87,8 @@ namespace IxMilia.Lisp.Test
         {
             var error = (LispError)SingleSyntaxNode("(+ 1 2");
             Assert.Equal("Unmatched '(' at (1, 1) (depth 1)", error.Message);
-            Assert.Equal(1, error.Line);
-            Assert.Equal(1, error.Column);
+            Assert.Equal(1, error.SourceLocation?.Line);
+            Assert.Equal(1, error.SourceLocation?.Column);
         }
 
         [Fact]
@@ -99,8 +99,8 @@ namespace IxMilia.Lisp.Test
             Assert.IsType<LispList>(nodes.First());
             var error = (LispError)nodes.Last();
             Assert.Equal("Unexpected ')' at (1, 8)", error.Message);
-            Assert.Equal(1, error.Line);
-            Assert.Equal(8, error.Column);
+            Assert.Equal(1, error.SourceLocation?.Line);
+            Assert.Equal(8, error.SourceLocation?.Column);
         }
     }
 }

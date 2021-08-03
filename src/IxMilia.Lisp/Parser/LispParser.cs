@@ -105,26 +105,20 @@ namespace IxMilia.Lisp.Parser
                     case LispDotToken _:
                         // This should have been handled in `ParseList()`
                         Advance();
-                        result = new LispError($"Unexpected '.' at ({token.Line}, {token.Column})");
+                        result = new LispError($"Unexpected '.' at ({token.SourceLocation?.Line}, {token.SourceLocation?.Column})");
                         break;
                     case LispRightParenToken _:
                         // This should have been handled in `ParseList()`
                         Advance();
-                        result = new LispError($"Unexpected ')' at ({token.Line}, {token.Column})");
+                        result = new LispError($"Unexpected ')' at ({token.SourceLocation?.Line}, {token.SourceLocation?.Column})");
                         break;
                 }
 
                 if (result != null)
                 {
-                    if (result.Location is null)
+                    if (!result.SourceLocation.HasValue)
                     {
-                        result.Location = token.Location;
-                    }
-
-                    if (result.Line == 0 && result.Column == 0)
-                    {
-                        result.Line = token.Line;
-                        result.Column = token.Column;
+                        result.SourceLocation = token.SourceLocation;
                     }
 
                     return true;
@@ -215,7 +209,7 @@ namespace IxMilia.Lisp.Parser
                         lambdaList.Value is LispSymbol lambdaSymbol &&
                         lambdaSymbol.Value == "lambda")
                     {
-                        var name = $"(lambda-{functionQuote.Line}-{functionQuote.Column})"; // surrounded by parens to make it un-utterable
+                        var name = $"(lambda-{functionQuote.SourceLocation?.Line}-{functionQuote.SourceLocation?.Column})"; // surrounded by parens to make it un-utterable
                         var lambdaItems = new List<LispObject>();
                         lambdaItems.Add(new LispSymbol(name));
                         lambdaItems.AddRange(lambdaList.ToList().Skip(1));
@@ -253,10 +247,9 @@ namespace IxMilia.Lisp.Parser
                         }
                         else
                         {
-                            return new LispError($"Unexpected duplicate '.' in list at ({token.Line}, {token.Column}); first '.' at ({dot.Line}, {dot.Column})")
+                            return new LispError($"Unexpected duplicate '.' in list at ({token.SourceLocation?.Line}, {token.SourceLocation?.Column}); first '.' at ({dot.SourceLocation?.Line}, {dot.SourceLocation?.Column})")
                             {
-                                Line = token.Line,
-                                Column = token.Column
+                                SourceLocation = token.SourceLocation,
                             };
                         }
                         break;
@@ -296,7 +289,7 @@ namespace IxMilia.Lisp.Parser
             {
                 if (_errorOnIncompleteExpressions)
                 {
-                    return new LispError($"Unmatched '(' at ({_leftParens.Peek().Line}, {_leftParens.Peek().Column}) (depth {_leftParens.Count})");
+                    return new LispError($"Unmatched '(' at ({_leftParens.Peek().SourceLocation?.Line}, {_leftParens.Peek().SourceLocation?.Column}) (depth {_leftParens.Count})");
                 }
                 else
                 {
