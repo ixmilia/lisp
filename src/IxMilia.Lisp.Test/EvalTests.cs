@@ -728,5 +728,17 @@ returned from average
 ");
             Assert.Equal(3, ((LispInteger)result).Value);
         }
+
+        [Fact]
+        public void KeywordArgumentDefaultValuesAreEvaluated()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(defun test (&key (value (+ 1 1)))
+    (+ 1 value))
+(test)
+");
+            Assert.Equal(3, ((LispInteger)result).Value);
+        }
     }
 }

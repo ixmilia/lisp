@@ -81,7 +81,7 @@ namespace IxMilia.Lisp
             // TODO: properly validate types and arg counts
             var name = ((LispSymbol)items[0]).Value;
             var argumentList = ((LispList)items[1]).ToList();
-            if (!LispFunctionArgument.TryBuildFunctionArguments(argumentList.ToArray(), out var arguments, out error))
+            if (!LispArgumentCollection.TryBuildArgumentCollection(argumentList.ToArray(), out var argumentCollection, out error))
             {
                 return false;
             }
@@ -94,7 +94,7 @@ namespace IxMilia.Lisp
                 commands.RemoveAt(0);
             }
 
-            codeFunction = new LispCodeFunction(name, documentation, arguments, commands);
+            codeFunction = new LispCodeFunction(name, documentation, argumentCollection, commands);
             return true;
         }
 

@@ -1131,29 +1131,29 @@ namespace IxMilia.Lisp
     public class LispCodeFunction : LispFunction
     {
         // TODO: make these read only collections
-        public LispFunctionArgument[] Arguments { get; }
+        public LispArgumentCollection ArgumentCollection { get; }
         public LispObject[] Commands { get; }
 
-        public LispCodeFunction(string name, string documentation, LispFunctionArgument[] arguments, IEnumerable<LispObject> commands)
+        public LispCodeFunction(string name, string documentation, LispArgumentCollection argumentCollection, IEnumerable<LispObject> commands)
             : base(name, documentation)
         {
-            Arguments = arguments;
+            ArgumentCollection = argumentCollection;
             Commands = commands.ToArray();
         }
 
         internal override LispObject Clone()
         {
-            return new LispCodeFunction(Name, Documentation, Arguments, Commands);
+            return new LispCodeFunction(Name, Documentation, ArgumentCollection, Commands);
         }
 
         public override string ToString()
         {
-            return $"{Name} ({string.Join(" ", Arguments.Select(a => a.ToString()))})";
+            return $"{Name} ({ArgumentCollection})";
         }
 
         public bool TryBindArguments(LispObject[] args, LispStackFrame frame, out LispError error)
         {
-            if (!TryMatchFunctionArguments(Arguments, args, out var matchedArguments, out error))
+            if (!TryMatchFunctionArguments(ArgumentCollection, args, out var matchedArguments, out error))
             {
                 return false;
             }
@@ -1162,10 +1162,13 @@ namespace IxMilia.Lisp
             {
                 var argumentName = matchedArgument.Item1.Name;
                 var argumentValue = matchedArgument.Item2;
-                if (matchedArgument.Item1 is LispOptionalFunctionArgument)
+                switch (matchedArgument.Item1)
                 {
-                    // `&optional` arguments need to be evaluated
-                    argumentValue = frame.Eval(argumentValue);
+                    case LispKeywordFunctionArgument _:
+                    case LispOptionalFunctionArgument _:
+                        // `&key` and `&optional` arguments need to be evaluated
+                        argumentValue = frame.Eval(argumentValue);
+                        break;
                 }
 
                 if (argumentValue is LispError argumentError)
@@ -1180,75 +1183,139 @@ namespace IxMilia.Lisp
             return true;
         }
 
-        internal static bool TryMatchFunctionArguments(LispFunctionArgument[] argumentDefinitions, LispObject[] argumentValues, out Tuple<LispFunctionArgument, LispObject>[] matchedArguments, out LispError error)
+        internal static bool TryMatchFunctionArguments(LispArgumentCollection argumentCollection, LispObject[] argumentValues, out Tuple<LispFunctionArgument, LispObject>[] matchedArguments, out LispError error)
         {
             matchedArguments = default;
             error = default;
 
-            var matchedArgumentsList = new List<Tuple<LispFunctionArgument, LispObject>>();
-            var argumentDefinitionIndex = 0;
+            var regularArgumentIndex = 0;
+            var optionalArgumentIndex = 0;
             var argumentValueIndex = 0;
-            for (; argumentDefinitionIndex < argumentDefinitions.Length && argumentValueIndex < argumentValues.Length; argumentDefinitionIndex++, argumentValueIndex++)
+            var matchedArgumentsList = new List<Tuple<LispFunctionArgument, LispObject>>();
+            var boundArguments = new HashSet<string>();
+            var assignedRest = false;
+            for (; argumentValueIndex < argumentValues.Length; argumentValueIndex++)
             {
-                var functionArgument = argumentDefinitions[argumentDefinitionIndex];
-                switch (functionArgument)
+                var argumentValue = argumentValues[argumentValueIndex];
+                if (argumentValue is LispKeyword keyword)
                 {
-                    case LispRegularFunctionArgument regularArgument:
-                        // regular match
-                        matchedArgumentsList.Add(Tuple.Create(functionArgument, argumentValues[argumentValueIndex]));
-                        break;
-                    case LispOptionalFunctionArgument optionalArgument:
-                        // try to match the optional value
-                        var optionalArgumentValue = argumentValueIndex < argumentValues.Length
-                            ? argumentValues[argumentValueIndex]
-                            : optionalArgument.DefaultValue;
-                        matchedArgumentsList.Add(Tuple.Create(functionArgument, optionalArgumentValue));
-                        break;
-                    case LispRestFunctionArgument restArgument:
-                        // consume and match the remaining arguments
-                        var restArgumentList = LispList.FromEnumerable(argumentValues.Skip(argumentValueIndex));
-                        matchedArgumentsList.Add(Tuple.Create(functionArgument, (LispObject)restArgumentList));
-                        argumentValueIndex = argumentValues.Length;
-                        break;
-                    default:
-                        throw new InvalidOperationException($"Unexpected argument type [{argumentDefinitions[argumentDefinitionIndex].GetType().Name}]");
-                }
-            }
+                    if (argumentValueIndex < argumentValues.Length - 1)
+                    {
+                        var keywordArgumentName = keyword.Keyword.Substring(1);
+                        if (argumentCollection.KeywordArguments.TryGetValue(keywordArgumentName, out var keywordArgument))
+                        {
+                            if (!boundArguments.Add(keywordArgumentName))
+                            {
+                                error = new LispError($"Duplicate value for keyword argument {keywordArgumentName}");
+                                return false;
+                            }
 
-            while (argumentDefinitions.Length > 0 &&
-                argumentDefinitionIndex < argumentDefinitions.Length)
-            {
-                // bind remaining arguments
-                var functionArgument = argumentDefinitions[argumentDefinitionIndex];
-                switch (argumentDefinitions[argumentDefinitionIndex])
-                {
-                    case LispOptionalFunctionArgument optionalArgument:
-                        matchedArgumentsList.Add(Tuple.Create(functionArgument, optionalArgument.DefaultValue));
-                        argumentValueIndex++; // consume the value
-                        break;
-                    case LispRestFunctionArgument restArgument:
-                        var restArgumentList = LispList.FromEnumerable(argumentValues.Skip(argumentValueIndex));
-                        matchedArgumentsList.Add(Tuple.Create(functionArgument, (LispObject)restArgumentList));
-                        argumentValueIndex = argumentValues.Length; // consume the values
-                        break;
-                    default:
-                        error = new LispError("Too few arguments");
+                            matchedArgumentsList.Add(Tuple.Create((LispFunctionArgument)keywordArgument, argumentValues[argumentValueIndex + 1]));
+                            argumentValueIndex++;
+                        }
+                    }
+                    else
+                    {
+                        error = new LispError($"Missing value for keyword argument {keyword.Keyword}");
                         return false;
+                    }
                 }
+                else
+                {
+                    if (regularArgumentIndex < argumentCollection.RegularArguments.Count)
+                    {
+                        var regularArgument = argumentCollection.RegularArguments[regularArgumentIndex];
+                        if (!boundArguments.Add(regularArgument.Name))
+                        {
+                            error = new LispError($"Duplicate value for argument {regularArgument.Name}");
+                            return false;
+                        }
 
-                argumentDefinitionIndex++; // consume the argument definition
+                        matchedArgumentsList.Add(Tuple.Create((LispFunctionArgument)regularArgument, argumentValue));
+                        regularArgumentIndex++;
+                    }
+                    else if (optionalArgumentIndex < argumentCollection.OptionalArguments.Count)
+                    {
+                        var optionalArgument = argumentCollection.OptionalArguments[optionalArgumentIndex];
+                        if (!boundArguments.Add(optionalArgument.Name))
+                        {
+                            error = new LispError($"Duplicate value for optional argument {optionalArgument.Name}");
+                            return false;
+                        }
+
+                        matchedArgumentsList.Add(Tuple.Create((LispFunctionArgument)optionalArgument, argumentValue));
+                        optionalArgumentIndex++;
+                    }
+                    else if (argumentCollection.RestArgument is object)
+                    {
+                        if (!boundArguments.Add(argumentCollection.RestArgument.Name))
+                        {
+                            error = new LispError($"Duplicate binding for `&rest` argument {argumentCollection.RestArgument.Name}");
+                            return false;
+                        }
+
+                        var restArgumentList = LispList.FromEnumerable(argumentValues.Skip(argumentValueIndex));
+                        matchedArgumentsList.Add(Tuple.Create((LispFunctionArgument)argumentCollection.RestArgument, (LispObject)restArgumentList));
+                        argumentValueIndex = argumentValues.Length;
+                        assignedRest = true;
+                    }
+                    else
+                    {
+                        error = new LispError("Too many arguments");
+                        return false;
+                    }
+                }
             }
 
-            if (argumentDefinitionIndex < argumentDefinitions.Length)
+            if (regularArgumentIndex < argumentCollection.RegularArguments.Count)
             {
-                error = new LispError("Too few arguments supplied");
+                error = new LispError("Too few arguments");
                 return false;
+            }
+
+            // use defaults on any remaining optional arguments
+            foreach (var optionalArgument in argumentCollection.OptionalArguments.Skip(optionalArgumentIndex))
+            {
+                if (!boundArguments.Add(optionalArgument.Name))
+                {
+                    error = new LispError($"Duplicate binding for optional argument {optionalArgument.Name}");
+                    return false;
+                }
+
+                matchedArgumentsList.Add(Tuple.Create((LispFunctionArgument)optionalArgument, optionalArgument.DefaultValue));
+            }
+
+            // use defaults on any remaining keyword arguments
+            foreach (var keywordArgument in argumentCollection.KeywordArguments)
+            {
+                if (!boundArguments.Contains(keywordArgument.Key))
+                {
+                    matchedArgumentsList.Add(Tuple.Create((LispFunctionArgument)keywordArgument.Value, keywordArgument.Value.DefaultValue));
+                    boundArguments.Add(keywordArgument.Key);
+                }
             }
 
             if (argumentValueIndex < argumentValues.Length)
             {
-                error = new LispError("Too many arguments supplied");
-                return false;
+                // any remaining values are `&rest`
+                if (argumentCollection.RestArgument is null)
+                {
+                    error = new LispError("Too many arguments");
+                    return false;
+                }
+                else
+                {
+                    var restArgumentList = LispList.FromEnumerable(argumentValues.Skip(argumentValueIndex));
+                    matchedArgumentsList.Add(Tuple.Create((LispFunctionArgument)argumentCollection.RestArgument, (LispObject)restArgumentList));
+                }
+            }
+            else if (!assignedRest)
+            {
+                if (argumentCollection.RestArgument is object)
+                {
+                    // `&rest` is empty
+                    matchedArgumentsList.Add(Tuple.Create((LispFunctionArgument)argumentCollection.RestArgument, (LispObject)LispNilList.Instance));
+                }
             }
 
             matchedArguments = matchedArgumentsList.ToArray();
