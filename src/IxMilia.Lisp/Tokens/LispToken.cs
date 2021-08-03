@@ -83,6 +83,24 @@ namespace IxMilia.Lisp.Tokens
         }
     }
 
+    public class LispLambdaListKeywordToken : LispToken
+    {
+        public override LispTokenType Type => LispTokenType.LambdaListKeyword;
+
+        public string Keyword { get; }
+
+        public LispLambdaListKeywordToken(string keyword)
+        {
+            Debug.Assert(keyword.StartsWith("&"));
+            Keyword = keyword;
+        }
+
+        public override string ToString()
+        {
+            return Keyword;
+        }
+    }
+
     public class LispDotToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.Dot;

@@ -73,6 +73,10 @@ namespace IxMilia.Lisp.Parser
                         Advance();
                         result = new LispKeyword(keyword.Keyword);
                         break;
+                    case LispLambdaListKeywordToken lambdaListKeyword:
+                        Advance();
+                        result = new LispLambdaListKeyword(lambdaListKeyword.Keyword);
+                        break;
                     case LispIntegerToken num:
                         Advance();
                         result = new LispInteger(num.Value);

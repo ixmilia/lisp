@@ -56,7 +56,7 @@ namespace IxMilia.Lisp.Test
             // a &optional (should-be-fourteen 14) should-be-nil
             var argumentCollection = GetArgumentCollection(
                 new LispSymbol("a"),
-                new LispSymbol("&optional"),
+                new LispLambdaListKeyword("&optional"),
                 LispList.FromItems(
                     new LispSymbol("should-be-fourteen"),
                     new LispInteger(14)),
@@ -81,7 +81,7 @@ namespace IxMilia.Lisp.Test
             // a &key (should-be-fourteen 14) should-be-nil
             var argumentCollection = GetArgumentCollection(
                 new LispSymbol("a"),
-                new LispSymbol("&key"),
+                new LispLambdaListKeyword("&key"),
                 LispList.FromItems(
                     new LispSymbol("should-be-fourteen"),
                     new LispInteger(14)),
@@ -104,7 +104,7 @@ namespace IxMilia.Lisp.Test
             // a &aux (two 2) nniill
             var argumentCollection = GetArgumentCollection(
                 new LispSymbol("a"),
-                new LispSymbol("&aux"),
+                new LispLambdaListKeyword("&aux"),
                 LispList.FromItems(
                     new LispSymbol("two"),
                     new LispInteger(2)),
@@ -129,7 +129,7 @@ namespace IxMilia.Lisp.Test
             // a &rest the-rest
             var argumentCollection = GetArgumentCollection(
                 new LispSymbol("a"),
-                new LispSymbol("&rest"),
+                new LispLambdaListKeyword("&rest"),
                 new LispSymbol("the-rest")
             );
             Assert.Equal(1, argumentCollection.RegularArguments.Count);
@@ -147,11 +147,11 @@ namespace IxMilia.Lisp.Test
             // a &optional should-be-nil &key some-special-value &rest the-rest
             var argumentCollection = GetArgumentCollection(
                 new LispSymbol("a"),
-                new LispSymbol("&optional"),
+                new LispLambdaListKeyword("&optional"),
                 new LispSymbol("should-be-nil"),
-                new LispSymbol("&key"),
+                new LispLambdaListKeyword("&key"),
                 new LispSymbol("some-special-value"),
-                new LispSymbol("&rest"),
+                new LispLambdaListKeyword("&rest"),
                 new LispSymbol("the-rest")
             );
             Assert.Equal(1, argumentCollection.RegularArguments.Count);

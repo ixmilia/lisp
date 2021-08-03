@@ -219,6 +219,26 @@ namespace IxMilia.Lisp
         }
     }
 
+    public class LispLambdaListKeyword : LispObject
+    {
+        public string Keyword { get; }
+
+        public LispLambdaListKeyword(string keyword)
+        {
+            Keyword = keyword;
+        }
+
+        internal override LispObject Clone()
+        {
+            return new LispLambdaListKeyword(Keyword);
+        }
+
+        public override string ToString()
+        {
+            return Keyword;
+        }
+    }
+
     public enum LispNumberType
     {
         Integer = 0,

@@ -51,6 +51,12 @@ namespace IxMilia.Lisp.Tokens
                     Advance();
                     yield return ApplyProperties(ParseKeyword());
                 }
+                else if (IsAmpersand(c))
+                {
+                    MarkTokenStart();
+                    Advance();
+                    yield return ApplyProperties(ParseLambdaListKeyword());
+                }
                 else if (IsLeftParen(c))
                 {
                     MarkTokenStart();
@@ -259,6 +265,13 @@ namespace IxMilia.Lisp.Tokens
         {
             var keyword = ParseSymbolLike(":");
             var token = new LispKeywordToken(keyword);
+            return token;
+        }
+
+        private LispLambdaListKeywordToken ParseLambdaListKeyword()
+        {
+            var kekyword = ParseSymbolLike("&");
+            var token = new LispLambdaListKeywordToken(kekyword);
             return token;
         }
 
@@ -529,6 +542,11 @@ namespace IxMilia.Lisp.Tokens
         private static bool IsColon(char c)
         {
             return c == ':';
+        }
+
+        private static bool IsAmpersand(char c)
+        {
+            return c == '&';
         }
 
         private static bool IsMinus(char c)

@@ -31,6 +31,7 @@ namespace IxMilia.Lisp
                     case LispRatio _:
                     case LispString _:
                     case LispKeyword _:
+                    case LispLambdaListKeyword _:
                     case LispQuotedNamedFunctionReference _:
                     case LispStream _:
                         result = item;

@@ -65,9 +65,9 @@ namespace IxMilia.Lisp
             for (int i = 0; i < argumentList.Length; i++)
             {
                 var argumentListValue = argumentList[i];
-                if (argumentListValue is LispSymbol symbol)
+                if (argumentListValue is LispLambdaListKeyword lambdaListKeyword)
                 {
-                    switch (symbol.Value)
+                    switch (lambdaListKeyword.Keyword)
                     {
                         case "&aux":
                         case "&key":
@@ -75,7 +75,7 @@ namespace IxMilia.Lisp
                             i++;
 
                             Action<string, LispObject> addArgument;
-                            switch (symbol.Value)
+                            switch (lambdaListKeyword.Keyword)
                             {
                                 case "&aux":
                                     addArgument = (name, initialValue) => auxiliaryArguments.Add(new LispAuxiliaryFunctionArgument(name, initialValue));
@@ -87,22 +87,19 @@ namespace IxMilia.Lisp
                                     addArgument = (name, defaultValue) => optionalArguments.Add(new LispOptionalFunctionArgument(name, defaultValue));
                                     break;
                                 default:
-                                    throw new InvalidOperationException($"Unexpected argument specifier [{symbol.Value}]");
+                                    throw new InvalidOperationException($"Unexpected argument specifier [{lambdaListKeyword.Keyword}]");
                             }
 
                             for (int j = i; j < argumentList.Length; i++, j++)
                             {
                                 switch (argumentList[j])
                                 {
+                                    case LispLambdaListKeyword _:
+                                        // another special argument, backtrack and force-break out of this loop
+                                        i--;
+                                        j = argumentList.Length;
+                                        break;
                                     case LispSymbol argWithNilDefault:
-                                        if (argWithNilDefault.Value.StartsWith("&"))
-                                        {
-                                            // another special argument, backtrack and force-break out of this loop
-                                            i--;
-                                            j = argumentList.Length;
-                                            break;
-                                        }
-
                                         if (!seenArguments.Add(argWithNilDefault.Value))
                                         {
                                             error = new LispError($"Duplicate argument declaration for {argWithNilDefault.Value}");
@@ -121,6 +118,7 @@ namespace IxMilia.Lisp
                                                 error = new LispError($"Duplicate argument declaration for {defaultArgName.Value}");
                                                 return false;
                                             }
+
                                             addArgument(defaultArgName.Value, defaultValue.Value);
                                         }
                                         else
@@ -156,10 +154,14 @@ namespace IxMilia.Lisp
                             }
                             break;
                         default:
-                            // regular variable
-                            regularArguments.Add(new LispRegularFunctionArgument(symbol.Value));
-                            break;
+                            error = new LispError($"Unsupported lambda list keyword {lambdaListKeyword.Keyword}");
+                            return false;
                     }
+                }
+                else if (argumentListValue is LispSymbol symbol)
+                {
+                    // regular variable
+                    regularArguments.Add(new LispRegularFunctionArgument(symbol.Value));
                 }
                 else
                 {
