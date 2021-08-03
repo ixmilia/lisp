@@ -55,6 +55,22 @@
         }
     }
 
+    public class LispAuxiliaryFunctionArgument : LispFunctionArgument
+    {
+        public LispObject InitialValue { get; }
+
+        internal LispAuxiliaryFunctionArgument(string name, LispObject initialValue)
+            : base(name)
+        {
+            InitialValue = initialValue;
+        }
+
+        public override string ToString()
+        {
+            return $"&aux ({Name} {InitialValue})";
+        }
+    }
+
     public class LispRestFunctionArgument : LispFunctionArgument
     {
         internal LispRestFunctionArgument(string name)

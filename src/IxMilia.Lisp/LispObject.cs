@@ -1164,9 +1164,10 @@ namespace IxMilia.Lisp
                 var argumentValue = matchedArgument.Item2;
                 switch (matchedArgument.Item1)
                 {
+                    case LispAuxiliaryFunctionArgument _:
                     case LispKeywordFunctionArgument _:
                     case LispOptionalFunctionArgument _:
-                        // `&key` and `&optional` arguments need to be evaluated
+                        // `&aux`, `&key`, and `&optional` arguments need to be evaluated
                         argumentValue = frame.Eval(argumentValue);
                         break;
                 }
@@ -1316,6 +1317,12 @@ namespace IxMilia.Lisp
                     // `&rest` is empty
                     matchedArgumentsList.Add(Tuple.Create((LispFunctionArgument)argumentCollection.RestArgument, (LispObject)LispNilList.Instance));
                 }
+            }
+
+            // `&aux` are always last
+            foreach (var auxiliaryArgument in argumentCollection.AuxiliaryArguments)
+            {
+                matchedArgumentsList.Add(Tuple.Create((LispFunctionArgument)auxiliaryArgument, auxiliaryArgument.InitialValue));
             }
 
             matchedArguments = matchedArgumentsList.ToArray();

@@ -740,5 +740,17 @@ returned from average
 ");
             Assert.Equal(3, ((LispInteger)result).Value);
         }
+
+        [Fact]
+        public void AuxiliaryArgumentsAreComputed()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(defun test (the-list &aux (len (length the-list)))
+    (+ 1 len))
+(test '(1 2))
+");
+            Assert.Equal(3, ((LispInteger)result).Value);
+        }
     }
 }

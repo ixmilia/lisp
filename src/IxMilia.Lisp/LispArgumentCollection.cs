@@ -9,6 +9,7 @@ namespace IxMilia.Lisp
         public IReadOnlyList<LispRegularFunctionArgument> RegularArguments { get; }
         public IReadOnlyList<LispOptionalFunctionArgument> OptionalArguments { get; }
         public IReadOnlyDictionary<string, LispKeywordFunctionArgument> KeywordArguments { get; }
+        public IReadOnlyList<LispAuxiliaryFunctionArgument> AuxiliaryArguments { get; }
         public LispRestFunctionArgument RestArgument { get; }
 
         internal IEnumerable<string> ArgumentNames
@@ -18,7 +19,8 @@ namespace IxMilia.Lisp
                 var argumentNames =
                     RegularArguments.Select(r => r.Name)
                     .Concat(OptionalArguments.Select(o => o.Name))
-                    .Concat(KeywordArguments.Select(k => k.Key));
+                    .Concat(KeywordArguments.Select(k => k.Key))
+                    .Concat(AuxiliaryArguments.Select(a => a.Name));
                 if (RestArgument is object)
                 {
                     argumentNames = argumentNames.Concat(new[] { RestArgument.Name });
@@ -28,11 +30,12 @@ namespace IxMilia.Lisp
             }
         }
 
-        public LispArgumentCollection(IEnumerable<LispRegularFunctionArgument> regularArguments, IEnumerable<LispOptionalFunctionArgument> optionalArguments, IEnumerable<LispKeywordFunctionArgument> keywordArguments, LispRestFunctionArgument rest)
+        public LispArgumentCollection(IEnumerable<LispRegularFunctionArgument> regularArguments, IEnumerable<LispOptionalFunctionArgument> optionalArguments, IEnumerable<LispKeywordFunctionArgument> keywordArguments, IEnumerable<LispAuxiliaryFunctionArgument> auxiliaryArguments, LispRestFunctionArgument rest)
         {
             RegularArguments = regularArguments.ToList();
             OptionalArguments = optionalArguments.ToList();
             KeywordArguments = keywordArguments.ToDictionary(k => k.Name, k => k);
+            AuxiliaryArguments = auxiliaryArguments.ToList();
             RestArgument = rest;
         }
 
@@ -41,8 +44,9 @@ namespace IxMilia.Lisp
             var regularArguments = string.Join(" ", RegularArguments.Select(a => a.ToString()));
             var optionalArguments = string.Join(" ", OptionalArguments.Select(a => a.ToString()));
             var keywordArguments = string.Join(" ", KeywordArguments.Select(a => a.ToString()));
+            var auxiliaryArguments = string.Join(" ", AuxiliaryArguments.Select(a => a.ToString()));
             var rest = RestArgument?.ToString();
-            return string.Join(" ", new[] { regularArguments, optionalArguments, keywordArguments, rest });
+            return string.Join(" ", new[] { regularArguments, optionalArguments, keywordArguments, auxiliaryArguments, rest });
         }
 
         internal static bool TryBuildArgumentCollection(LispObject[] argumentList, out LispArgumentCollection argumentCollection, out LispError error)
@@ -53,6 +57,7 @@ namespace IxMilia.Lisp
             var regularArguments = new List<LispRegularFunctionArgument>();
             var optionalArguments = new List<LispOptionalFunctionArgument>();
             var keywordArguments = new List<LispKeywordFunctionArgument>();
+            var auxiliaryArguments = new List<LispAuxiliaryFunctionArgument>();
             LispRestFunctionArgument rest = null;
 
             var seenArguments = new HashSet<string>();
@@ -64,6 +69,7 @@ namespace IxMilia.Lisp
                 {
                     switch (symbol.Value)
                     {
+                        case "&aux":
                         case "&key":
                         case "&optional":
                             i++;
@@ -71,6 +77,9 @@ namespace IxMilia.Lisp
                             Action<string, LispObject> addArgument;
                             switch (symbol.Value)
                             {
+                                case "&aux":
+                                    addArgument = (name, initialValue) => auxiliaryArguments.Add(new LispAuxiliaryFunctionArgument(name, initialValue));
+                                    break;
                                 case "&key":
                                     addArgument = (name, defaultValue) => keywordArguments.Add(new LispKeywordFunctionArgument(name, defaultValue));
                                     break;
@@ -96,7 +105,7 @@ namespace IxMilia.Lisp
 
                                         if (!seenArguments.Add(argWithNilDefault.Value))
                                         {
-                                            error = new LispError($"Duplicate argument declaratio for {argWithNilDefault.Value}");
+                                            error = new LispError($"Duplicate argument declaration for {argWithNilDefault.Value}");
                                             return false;
                                         }
 
@@ -109,7 +118,7 @@ namespace IxMilia.Lisp
                                         {
                                             if (!seenArguments.Add(defaultArgName.Value))
                                             {
-                                                error = new LispError($"Duplicate argument declaratio for {defaultArgName.Value}");
+                                                error = new LispError($"Duplicate argument declaration for {defaultArgName.Value}");
                                                 return false;
                                             }
                                             addArgument(defaultArgName.Value, defaultValue.Value);
@@ -162,7 +171,7 @@ namespace IxMilia.Lisp
                 }
             }
 
-            argumentCollection = new LispArgumentCollection(regularArguments, optionalArguments, keywordArguments, rest);
+            argumentCollection = new LispArgumentCollection(regularArguments, optionalArguments, keywordArguments, auxiliaryArguments, rest);
             return true;
         }
     }
