@@ -27,17 +27,22 @@ namespace IxMilia.Lisp
 
         private void TraceFunctionEntered(object sender, LispFunctionEnteredEventArgs e)
         {
-            WriteTraceLine($"{CreateTracePrefix(e.Frame)}: ({e.Frame.FunctionName}{(e.FunctionArguments.Length > 0 ? " " + string.Join<LispObject>(" ", e.FunctionArguments) : "")})");
+            WriteTraceLine($"{CreateTracePrefix(e.Frame, isFunctionEnter: true)}: ({e.Frame.FunctionName}{(e.FunctionArguments.Length > 0 ? " " + string.Join<LispObject>(" ", e.FunctionArguments) : "")})");
         }
 
         private void TraceFunctionReturned(object sender, LispFunctionReturnedEventArgs e)
         {
-            WriteTraceLine($"{CreateTracePrefix(e.Frame)}: returned {e.ReturnValue}");
+            WriteTraceLine($"{CreateTracePrefix(e.Frame, isFunctionEnter: false)}: returned {e.ReturnValue}");
         }
 
-        private string CreateTracePrefix(LispStackFrame frame)
+        private string CreateTracePrefix(LispStackFrame frame, bool isFunctionEnter)
         {
             var depth = frame.Depth;
+            if (isFunctionEnter)
+            {
+                depth--;
+            }
+
             var indent = new string(' ', depth);
             return $"{indent}{depth}";
         }
@@ -54,7 +59,8 @@ namespace IxMilia.Lisp
             var tokens = tokenizer.GetTokens();
             _parser.AddTokens(tokens);
             var result = _parser.Parse();
-            var lastValue = _host.Eval(result.Nodes);
+            var executionState = _host.Eval(result.Nodes);
+            var lastValue = executionState.LastResult;
             return new LispReplResult(lastValue, result.ParseDepth);
         }
     }

@@ -253,7 +253,7 @@ namespace IxMilia.Lisp
                         // write to terminal
                         stream = frame.TerminalIO;
                     }
-                    else if (args[0] == frame.Nil)
+                    else if (args[0].IsNil())
                     {
                         // return formatted string
                         return new LispString(result);
@@ -877,6 +877,7 @@ namespace IxMilia.Lisp
                     : int.MaxValue;
                 var items = inputList.ToList();
                 var resultItems = new List<LispObject>();
+                var removed = 0;
                 foreach (var item in items)
                 {
                     var result = FunCall(frame, functionReference, new LispObject[] { item });
@@ -885,8 +886,12 @@ namespace IxMilia.Lisp
                         return result;
                     }
 
-                    if (result.IsTLike() &&
-                        resultItems.Count <= count)
+                    if (result.IsTLike() && removed < count)
+                    {
+                        // remove it
+                        removed++;
+                    }
+                    else
                     {
                         // keep it
                         resultItems.Add(item);
@@ -915,6 +920,7 @@ namespace IxMilia.Lisp
                     : int.MaxValue;
                 var items = inputList.ToList();
                 var resultItems = new List<LispObject>();
+                var removed = 0;
                 foreach (var item in items)
                 {
                     var result = FunCall(frame, functionReference, new LispObject[] { item });
@@ -923,8 +929,12 @@ namespace IxMilia.Lisp
                         return result;
                     }
 
-                    if (result.IsNil() &&
-                        resultItems.Count <= count)
+                    if (result.IsNil() && removed < count)
+                    {
+                        // remove it
+                        removed++;
+                    }
+                    else
                     {
                         // keep it
                         resultItems.Add(item);
@@ -957,11 +967,11 @@ namespace IxMilia.Lisp
 
                 while (items.Count > 1)
                 {
-                    var arg1 = items[0];
-                    var arg2 = items[1];
+                    var arg1 = items[fromEnd ? 1 : 0];
+                    var arg2 = items[fromEnd ? 0 : 1];
                     items.RemoveAt(0);
                     items.RemoveAt(0);
-                    var result = FunCall(frame, functionReference, new LispObject[] { arg1, arg2 });
+                    var result = FunCall(frame, functionReference, new LispObject[] { new LispQuotedObject(arg1), new LispQuotedObject(arg2) });
                     if (result is LispError)
                     {
                         return result;
@@ -994,7 +1004,7 @@ namespace IxMilia.Lisp
                 case LispList list when list.ToList().Any(o => o.IsNil()):
                     return frame.Nil;
                 default:
-                    return result;
+                    return frame.T;
             }
         }
 

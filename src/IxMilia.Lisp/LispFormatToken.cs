@@ -149,7 +149,7 @@ namespace IxMilia.Lisp
             token = default;
             errorMessage = default;
             var argumentString = formatString.Substring(offset + 1, length - 2);
-            var count = 0;
+            var count = 1;
             if (argumentString.Length > 0)
             {
                 if (!int.TryParse(argumentString, out count))

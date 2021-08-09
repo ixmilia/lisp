@@ -1,231 +1,336 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace IxMilia.Lisp
 {
-    internal static class LispEvaluator
+    internal class LispEvaluator
     {
-        internal static LispObject Evaluate(LispObject obj, LispStackFrame frame, bool errorOnMissingValue)
+        public static LispExecutionState Evaluate(LispExecutionState executionState)
         {
-            return Evaluate(new List<Tuple<LispObject, LispStackFrame>>() { Tuple.Create<LispObject, LispStackFrame>(obj, null) }, frame, errorOnMissingValue);
-        }
-
-        private static LispObject Evaluate(List<Tuple<LispObject, LispStackFrame>> stack, LispStackFrame frame, bool errorOnMissingValue)
-        {
-            var rootFrame = frame.Root;
-            var result = frame.Nil;
-            while (stack.Count > 0)
+            var shouldDribbleReturnValue = executionState.StackFrame.Root.DribbleStream != null;
+            while (executionState.TryDequeueOperation(out var operation))
             {
-                var item = stack[0].Item1;
-                var lastFrame = stack[0].Item2;
-                stack.RemoveAt(0);
-
-                frame.UpdateCallStackLocation(item);
-                switch (item)
+                switch (operation)
                 {
-                    case LispError _:
-                        return item;
-                    case LispInteger _:
-                    case LispFloat _:
-                    case LispRatio _:
-                    case LispString _:
-                    case LispKeyword _:
-                    case LispLambdaListKeyword _:
-                    case LispQuotedNamedFunctionReference _:
-                    case LispStream _:
-                        result = item;
-                        break;
-                    case LispQuotedLambdaFunctionReference lambda:
-                        lambda.StackFrame = frame;
-                        result = lambda;
-                        break;
-                    case LispQuotedObject quote:
-                        result = quote.Value;
-                        break;
-                    case LispSymbol symbol:
+                    case LispEvaluatorPopForTailCall tailPop:
                         {
-                            result = frame.GetValue(symbol.Value);
-                            if (result == null && errorOnMissingValue)
+                            // the shape of the operation stack at the time of a tail call should be either:
+                            //   pop
+                            //   tail-call-expression
+                            //   function-return
+                            // or
+                            //   tail-call-expression
+                            //   function-return
+                            ILispEvaluatorOperation tailCallExpression = null;
+                            ILispEvaluatorOperation invocationExit = null;
+                            if ((executionState.PeekOperation() is LispEvaluatorPopArgument pop &&
+                                    executionState.TryDequeueOperation(out var _) &&
+                                    executionState.PeekOperation() is LispEvaluatorObjectExpression &&
+                                    executionState.TryDequeueOperation(out tailCallExpression) &&
+                                    executionState.PeekOperation() is LispEvaluatorInvocationExit &&
+                                    executionState.TryDequeueOperation(out invocationExit)) ||
+                                (executionState.PeekOperation() is LispEvaluatorObjectExpression &&
+                                    executionState.TryDequeueOperation(out tailCallExpression) &&
+                                    executionState.PeekOperation() is LispEvaluatorInvocationExit &&
+                                    executionState.TryDequeueOperation(out invocationExit)))
                             {
-                                var error = new LispError($"Symbol '{symbol.Value}' not found");
-                                TryApplyLocation(error, symbol);
-                                result = error;
-                            }
+                                var concreteInvocationExit = (LispEvaluatorInvocationExit)invocationExit;
+                                Debug.Assert(ReferenceEquals(tailPop.InvocationObject, concreteInvocationExit.InvocationObject));
 
-                            break;
-                        }
-                    case LispList list:
-                        {
-                            if (list.IsNil())
-                            {
-                                result = list;
-                                break;
-                            }
-
-                            var functionNameSymbol = (LispSymbol)list.Value;
-                            var functionName = functionNameSymbol.Value;
-                            var args = list.ToList().Skip(1).ToArray();
-                            var value = frame.GetValue(functionName);
-                            frame.UpdateCallStackLocation(functionNameSymbol);
-                            if (value is LispMacro macro)
-                            {
-                                frame = frame.Push(macro.SourceLocation.GetValueOrDefault(), macro.Name);
-
-                                var firstError = args.OfType<LispError>().FirstOrDefault();
-                                if (firstError != null)
-                                {
-                                    result = firstError;
-                                }
-                                else
-                                {
-                                    List<Tuple<LispObject, LispStackFrame>> macroExpansion;
-                                    switch (macro)
-                                    {
-                                        case LispCodeMacro codeMacro:
-                                            macroExpansion = codeMacro.ExpandBody(args).Select(m => Tuple.Create<LispObject, LispStackFrame>(m, null)).ToList();
-                                            break;
-                                        case LispNativeMacro nativeMacro:
-                                            macroExpansion = nativeMacro.Macro.Invoke(frame, args).Select(m => Tuple.Create<LispObject, LispStackFrame>(m, null)).ToList();
-                                            break;
-                                        default:
-                                            throw new InvalidOperationException($"Unsupported macro type {macro.GetType().Name}");
-                                    }
-
-                                    if (macroExpansion.Count > 0)
-                                    {
-                                        result = macroExpansion[macroExpansion.Count - 1].Item1;
-                                    }
-
-                                    stack.InsertRange(0, macroExpansion);
-                                }
-
-                                frame = frame.Pop();
-                            }
-                            else if (value is LispFunction function)
-                            {
-                                // TODO: what if it's a regular variable?
-                                frame = frame.Push(function.SourceLocation.GetValueOrDefault(), function.Name);
-                                var doPop = true;
-
-                                // evaluate arguments
-                                var evaluatedArgs = args.Select(a => Evaluate(a, frame, true)).ToArray();
-
-                                // tracing
-                                rootFrame.OnFunctionEnter(frame, evaluatedArgs);
-
-                                // early exit
-                                var firstError = evaluatedArgs.OfType<LispError>().FirstOrDefault();
-                                if (firstError != null)
-                                {
-                                    result = firstError;
-                                }
-                                else
-                                {
-                                    switch (function)
-                                    {
-                                        case LispCodeFunction codeFunction:
-                                            result = frame.Nil;
-                                            if (!codeFunction.TryBindArguments(evaluatedArgs, frame, out var bindingError))
-                                            {
-                                                result = bindingError;
-                                            }
-                                            else
-                                            {
-                                                for (int i = 0; i < codeFunction.Commands.Length; i++)
-                                                {
-                                                    if (i == codeFunction.Commands.Length - 1)
-                                                    {
-                                                        // do tail call
-                                                        stack.Insert(0, Tuple.Create(codeFunction.Commands[i], frame));
-                                                        frame = frame.PopForTailCall(codeFunction.ArgumentCollection.ArgumentNames);
-                                                        doPop = false;
-                                                        break;
-                                                    }
-
-                                                    result = Evaluate(codeFunction.Commands[i], frame, true);
-                                                }
-                                            }
-                                            break;
-                                        case LispNativeFunction nativeFunction:
-                                            result = nativeFunction.Function.Invoke(frame, evaluatedArgs);
-                                            break;
-                                        default:
-                                            throw new InvalidOperationException($"Unsupported function type {function.GetType().Name}");
-                                    }
-                                }
-
-                                if (doPop)
-                                {
-                                    // non-tail-call exit of code function
-                                    rootFrame.OnFunctionReturn(frame, result);
-                                    frame = frame.Pop();
-                                }
+                                // restore the tail call operation and pop the stack
+                                executionState.InsertOperation(concreteInvocationExit.WithoutFramePop());
+                                executionState.InsertOperation(tailCallExpression);
+                                executionState.StackFrame.CopyLocalsToParentForTailCall(new HashSet<string>(tailPop.InvocationArgumentNames));
+                                executionState.StackFrame = executionState.StackFrame.Parent;
                             }
                             else
                             {
-                                result = GenerateError($"Undefined macro/function '{functionName}', found '{value?.ToString() ?? "<null>"}'", frame);
+                                throw new InvalidOperationException("Unrecognized tail call operation pattern");
+                            }
+                        }
+                        break;
+                    case LispEvaluatorObjectExpression expression:
+                        executionState.StackFrame.UpdateCallStackLocation(expression.Expression.SourceLocation);
+                        switch (expression.Expression)
+                        {
+                            case LispError error:
+                                if (error.StackFrame == null)
+                                {
+                                    error.StackFrame = executionState.StackFrame;
+                                }
+
+                                executionState.PushArgument(error);
+                                return executionState;
+                            case LispInteger _:
+                            case LispFloat _:
+                            case LispRatio _:
+                            case LispString _:
+                            case LispKeyword _:
+                            case LispLambdaListKeyword _:
+                            case LispQuotedNamedFunctionReference _:
+                            case LispStream _:
+                                executionState.PushArgument(expression.Expression);
+                                break;
+                            case LispQuotedLambdaFunctionReference lambda:
+                                lambda.StackFrame = executionState.StackFrame;
+                                executionState.PushArgument(expression.Expression);
+                                break;
+                            case LispQuotedObject quote:
+                                executionState.PushArgument(quote.Value);
+                                break;
+                            case LispForwardListReference forwardRef:
+                                {
+                                    LispObject result;
+                                    var finalList = new LispCircularList();
+                                    executionState.StackFrame.SetValue(forwardRef.ForwardReference.SymbolReference, finalList);
+                                    var values = forwardRef.List.ToList();
+                                    var evaluatedValues = values.Select(v =>
+                                    {
+                                        // TODO: evaluate using the operation queue
+                                        var itemExecutionState = LispExecutionState.CreateExecutionState(executionState.StackFrame, new LispObject[] { v });
+                                        var itemResult = Evaluate(itemExecutionState);
+                                        return itemResult.LastResult;
+                                    });
+                                    var firstError = evaluatedValues.OfType<LispError>().FirstOrDefault();
+                                    if (firstError != null)
+                                    {
+                                        result = firstError;
+                                    }
+                                    else
+                                    {
+                                        var tempList = forwardRef.List.IsProperList
+                                            ? LispList.FromEnumerable(evaluatedValues)
+                                            : LispList.FromEnumerableImproper(evaluatedValues.First(), evaluatedValues.Skip(1).First(), evaluatedValues.Skip(2));
+                                        finalList.ApplyForCircularReference(tempList, isProperList: forwardRef.List.IsProperList);
+                                        result = finalList;
+                                    }
+
+                                    TryApplySourceLocation(result, forwardRef);
+                                    executionState.PushArgument(result);
+                                }
+                                break;
+                            case LispSymbol symbol:
+                                {
+                                    var value = executionState.StackFrame.GetValue(symbol.Value);
+                                    if (value is null)
+                                    {
+                                        executionState.ReportError(new LispError($"Symbol '{symbol.Value}' not found"), symbol);
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        executionState.PushArgument(value);
+                                    }
+                                }
+                                break;
+                            case LispList list when list.IsNil():
+                                executionState.PushArgument(list);
+                                break;
+                            case LispList sList:
+                                {
+                                    if (!(sList.Value is LispSymbol invocationSymbol))
+                                    {
+                                        executionState.ReportError(new LispError($"Expected symbol for invocation, but found [{sList.Value}]"), sList.Value);
+                                        break;
+                                    }
+
+                                    var arguments = sList.ToList().Skip(1).ToList();
+                                    var invocationObject = executionState.StackFrame.GetValue<LispMacroOrFunction>(invocationSymbol.Value);
+                                    if (invocationObject is null)
+                                    {
+                                        executionState.ReportError( new LispError($"Undefined macro/function '{invocationSymbol.Value}', found '<null>'"), sList.Value);
+                                        break;
+                                    }
+                                    executionState.InsertOperation(new LispEvaluatorInvocationExit(invocationObject, executionState.StackFrame));
+
+                                    // insert function body back to front
+                                    switch (invocationObject)
+                                    {
+                                        case LispNativeMacro _:
+                                        case LispCodeMacro _:
+                                        case LispNativeFunction _:
+                                            // nothing; handled during execution
+                                            break;
+                                        case LispCodeFunction codeFunction:
+                                            for (int i = codeFunction.Commands.Length - 1;  i >= 0; i--)
+                                            {
+                                                executionState.InsertOperation(new LispEvaluatorObjectExpression(codeFunction.Commands[i]));
+                                                if (i != 0)
+                                                {
+                                                    executionState.InsertOperation(new LispEvaluatorPopArgument());
+                                                }
+
+                                                var isTailCallCandidate = i == codeFunction.Commands.Length - 1;
+                                                if (isTailCallCandidate)
+                                                {
+                                                    // the previously inserted operation is a candidate for a tail call
+                                                    executionState.InsertOperation(new LispEvaluatorPopForTailCall(invocationObject, codeFunction.ArgumentCollection.ArgumentNames));
+                                                }
+                                            }
+                                            break;
+                                        default:
+                                            throw new NotSupportedException($"Unexpected function/macro object '{invocationObject.GetType().Name}'");
+                                    }
+
+                                    executionState.InsertOperation(new LispEvaluatorInvocation(invocationObject, sList.SourceLocation, arguments.Count));
+
+                                    // evaluate/add arguments
+                                    switch (invocationObject)
+                                    {
+                                        case LispMacro _:
+                                            for (int i = 0; i < arguments.Count; i++)
+                                            {
+                                                executionState.PushArgument(arguments[i]);
+                                            }
+                                            break;
+                                        case LispFunction _:
+                                            for (int i = arguments.Count - 1; i >= 0; i--)
+                                            {
+                                                executionState.InsertOperation(new LispEvaluatorObjectExpression(arguments[i]));
+                                            }
+                                            break;
+                                        default:
+                                            throw new NotSupportedException($"Unexpected function/macro object '{invocationObject.GetType().Name}'");
+                                    }
+                                }
+                                break;
+                            default:
+                                throw new NotSupportedException($"Unexpected object type {expression.Expression.GetType().Name} with value {expression.Expression}");
+                        }
+                        break;
+                    case LispEvaluatorDribbleEnter dribbleEnter:
+                        {
+                            var dribbleOutput = executionState.StackFrame.Root.DribbleStream?.Output;
+                            if (dribbleOutput != null)
+                            {
+                                shouldDribbleReturnValue = true;
+                                dribbleOutput.WriteLine($"> {dribbleEnter.Expression}");
+                            }
+                            else
+                            {
+                                shouldDribbleReturnValue = false;
+                            }
+                        }
+                        break;
+                    case LispEvaluatorDribbleExit _:
+                        {
+                            var dribbleOutput = executionState.StackFrame.Root.DribbleStream?.Output;
+                            if (shouldDribbleReturnValue && dribbleOutput != null)
+                            {
+                                dribbleOutput.WriteLine(executionState.LastResult?.ToString());
+                                dribbleOutput.WriteLine();
+                            }
+                        }
+                        break;
+                    case LispEvaluatorInvocationExit exit:
+                        executionState.StackFrame.Root.OnFunctionReturn(exit.InvocationObject, exit.StackFrame, executionState.LastResult);
+                        if (exit.PopFrame)
+                        {
+                            executionState.StackFrame = executionState.StackFrame.Parent;
+                        }
+                        break;
+                    case LispEvaluatorPopArgument _:
+                        if (!executionState.TryPopArgument(out var _))
+                        {
+                            executionState.ReportError(new LispError($"Expected argument to pop off the stack but found nothing"), null);
+                            return executionState;
+                        }
+                        break;
+                    case LispEvaluatorInvocation invocation:
+                        {
+                            var arguments = new LispObject[invocation.ArgumentCount];
+                            var foundArgumentCount = 0;
+                            for (int i = invocation.ArgumentCount - 1; i >= 0; i--)
+                            {
+                                if (!executionState.TryPopArgument(out arguments[i]))
+                                {
+                                    executionState.ReportError(new LispError($"Insufficient arguments for function '{invocation.InvocationObject.Name}'.  Expected {invocation.ArgumentCount} arguments but only found {foundArgumentCount}"), invocation.InvocationObject);
+                                }
+
+                                foundArgumentCount++;
                             }
 
-                            TryApplyLocation(result, functionNameSymbol);
-                            break;
+                            executionState.StackFrame = new LispStackFrame(invocation.InvocationObject.Name, executionState.StackFrame);
+                            executionState.StackFrame.Root.OnFunctionEnter(executionState.StackFrame, arguments);
+
+                            // bind arguments
+                            switch (invocation.InvocationObject)
+                            {
+                                case LispMacro macro:
+                                    string[] macroArguments;
+                                    List<LispObject> macroExpansion;
+                                    switch (macro)
+                                    {
+                                        case LispCodeMacro codeMacro:
+                                            macroArguments = codeMacro.Arguments;
+                                            macroExpansion = codeMacro.ExpandBody(arguments).ToList();
+                                            break;
+                                        case LispNativeMacro nativeMacro:
+                                            macroArguments = Array.Empty<string>();
+                                            macroExpansion = nativeMacro.Macro.Invoke(executionState.StackFrame, arguments).ToList();
+                                            break;
+                                        default:
+                                            throw new NotImplementedException($"Unsupported macro object {invocation.InvocationObject.GetType().Name}");
+                                    }
+
+                                    for (int i = macroExpansion.Count - 1; i >= 0; i--)
+                                    {
+                                        executionState.InsertOperation(new LispEvaluatorObjectExpression(macroExpansion[i]));
+                                        if (i != 0)
+                                        {
+                                            executionState.InsertOperation(new LispEvaluatorPopArgument());
+                                        }
+
+                                        var isTailCallCandidate = i == macroExpansion.Count - 1;
+                                        if (isTailCallCandidate)
+                                        {
+                                            // the previously inserted operation is a candidate for a tail call
+                                            executionState.InsertOperation(new LispEvaluatorPopForTailCall(invocation.InvocationObject, macroArguments));
+                                        }
+                                    }
+                                    break;
+                                case LispCodeFunction codeFunction:
+                                    if (!codeFunction.TryBindArguments(arguments, executionState.StackFrame, out var bindError))
+                                    {
+                                        executionState.ReportError(bindError, invocation.InvocationObject);
+                                        goto invocation_done;
+                                    }
+                                    break;
+                                case LispNativeFunction nativeFunction:
+                                    var evaluationResult = nativeFunction.Function.Invoke(executionState.StackFrame, arguments);
+                                    if (!evaluationResult.SourceLocation.HasValue)
+                                    {
+                                        evaluationResult.SourceLocation = invocation.SourceLocation;
+                                    }
+
+                                    executionState.PushArgument(evaluationResult);
+                                    if (evaluationResult is LispError)
+                                    {
+                                        return executionState;
+                                    }
+                                    break;
+                                default:
+                                    throw new NotImplementedException($"Unsupported macro/function object {invocation.InvocationObject.GetType().Name}");
+                            }
                         }
-                    case LispForwardListReference forwardRef:
-                        result = EvalForwardReference(forwardRef, frame);
+                    invocation_done:
                         break;
                     default:
-                        result = frame.Nil;
-                        break;
-                }
-
-                if (lastFrame != null)
-                {
-                    // tail-call exit of code function
-                    rootFrame.OnFunctionReturn(lastFrame, result);
+                        throw new NotImplementedException($"Unhandled RPN operation {operation.GetType().Name}");
                 }
             }
 
-            return result;
+            return executionState;
         }
 
-        private static LispObject EvalForwardReference(LispForwardListReference forwardRef, LispStackFrame frame)
-        {
-            LispObject result;
-            var finalList = new LispCircularList();
-            frame.SetValue(forwardRef.ForwardReference.SymbolReference, finalList);
-            var values = forwardRef.List.ToList();
-            var evaluatedValues = values.Select(v => LispEvaluator.Evaluate(v, frame, true));
-            var firstError = evaluatedValues.OfType<LispError>().FirstOrDefault();
-            if (firstError != null)
-            {
-                result = firstError;
-            }
-            else
-            {
-                var tempList = forwardRef.List.IsProperList
-                    ? LispList.FromEnumerable(evaluatedValues)
-                    : LispList.FromEnumerableImproper(evaluatedValues.First(), evaluatedValues.Skip(1).First(), evaluatedValues.Skip(2));
-                finalList.ApplyForCircularReference(tempList, isProperList: forwardRef.List.IsProperList);
-                result = finalList;
-            }
-
-            TryApplyLocation(result, forwardRef);
-            return result;
-        }
-
-        private static void TryApplyLocation(LispObject obj, LispObject parent)
+        private static void TryApplySourceLocation(LispObject obj, LispObject parent)
         {
             if (!obj.SourceLocation.HasValue)
             {
                 obj.SourceLocation = parent.SourceLocation;
             }
-        }
-
-        private static LispError GenerateError(string message, LispStackFrame frame)
-        {
-            var error = new LispError(message);
-            error.TryApplyStackFrame(frame);
-            return error;
         }
     }
 }

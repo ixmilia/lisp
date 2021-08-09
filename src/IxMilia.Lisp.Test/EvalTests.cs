@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using IxMilia.Lisp.Parser;
+using IxMilia.Lisp.Tokens;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
@@ -12,9 +14,9 @@ namespace IxMilia.Lisp.Test
         public void SingleItem()
         {
             var host = new LispHost();
-            Assert.Equal(new LispInteger(3), host.Eval("3"));
-            Assert.Equal(new LispFloat(3.0), host.Eval("3.0"));
-            Assert.Equal(new LispString("a"), host.Eval("\"a\""));
+            Assert.Equal(new LispInteger(3), host.Eval("3").LastResult);
+            Assert.Equal(new LispFloat(3.0), host.Eval("3.0").LastResult);
+            Assert.Equal(new LispString("a"), host.Eval("\"a\"").LastResult);
         }
 
         [Fact]
@@ -22,68 +24,68 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             host.AddFunction("add", (h, args) => (LispInteger)args[0] + (LispInteger)args[1]);
-            Assert.Equal(new LispInteger(3), host.Eval("(add 1 2)"));
+            Assert.Equal(new LispInteger(3), host.Eval("(add 1 2)").LastResult);
         }
 
         [Fact]
         public void Quoted()
         {
             var host = new LispHost();
-            Assert.Equal(new LispSymbol("a"), host.Eval("'a"));
-            Assert.Equal(new LispQuotedObject(new LispSymbol("a")), host.Eval("''a"));
-            Assert.Equal(LispList.FromItems(new LispInteger(1)), host.Eval("'(1)"));
-            Assert.Equal("'a", host.Eval("(eval '''a)").ToString());
+            Assert.Equal(new LispSymbol("a"), host.Eval("'a").LastResult);
+            Assert.Equal(new LispQuotedObject(new LispSymbol("a")), host.Eval("''a").LastResult);
+            Assert.Equal(LispList.FromItems(new LispInteger(1)), host.Eval("'(1)").LastResult);
+            Assert.Equal("'a", host.Eval("(eval '''a)").LastResult.ToString());
         }
 
         [Fact]
         public void Variables()
         {
             var host = new LispHost();
-            Assert.Equal(new LispInteger(3), host.Eval("(setq x 3) x"));
+            Assert.Equal(new LispInteger(3), host.Eval("(setq x 3) x").LastResult);
         }
 
         [Fact]
         public void IntegerNumericFolding()
         {
             var host = new LispHost();
-            Assert.Equal(new LispInteger(-4), host.Eval("(- 4)"));
-            Assert.Equal(new LispInteger(10), host.Eval("(+ 1 2 3 4)"));
-            Assert.Equal(new LispInteger(1), host.Eval("(- 10 4 3 2)"));
-            Assert.Equal(new LispInteger(24), host.Eval("(* 1 2 3 4)"));
-            Assert.Equal(new LispInteger(4), host.Eval("(/ 24 3 2)"));
+            Assert.Equal(new LispInteger(-4), host.Eval("(- 4)").LastResult);
+            Assert.Equal(new LispInteger(10), host.Eval("(+ 1 2 3 4)").LastResult);
+            Assert.Equal(new LispInteger(1), host.Eval("(- 10 4 3 2)").LastResult);
+            Assert.Equal(new LispInteger(24), host.Eval("(* 1 2 3 4)").LastResult);
+            Assert.Equal(new LispInteger(4), host.Eval("(/ 24 3 2)").LastResult);
         }
 
         [Fact]
         public void FloatNumericFolding()
         {
             var host = new LispHost();
-            Assert.Equal(new LispFloat(-4.0), host.Eval("(- 4.0)"));
-            Assert.Equal(new LispFloat(10.0), host.Eval("(+ 1.0 2.0 3.0 4.0)"));
-            Assert.Equal(new LispFloat(1.0), host.Eval("(- 10.0 4.0 3.0 2.0)"));
-            Assert.Equal(new LispFloat(24.0), host.Eval("(* 1.0 2.0 3.0 4.0)"));
-            Assert.Equal(new LispFloat(4.0), host.Eval("(/ 24.0 3.0 2.0)"));
+            Assert.Equal(new LispFloat(-4.0), host.Eval("(- 4.0)").LastResult);
+            Assert.Equal(new LispFloat(10.0), host.Eval("(+ 1.0 2.0 3.0 4.0)").LastResult);
+            Assert.Equal(new LispFloat(1.0), host.Eval("(- 10.0 4.0 3.0 2.0)").LastResult);
+            Assert.Equal(new LispFloat(24.0), host.Eval("(* 1.0 2.0 3.0 4.0)").LastResult);
+            Assert.Equal(new LispFloat(4.0), host.Eval("(/ 24.0 3.0 2.0)").LastResult);
         }
 
         [Fact]
         public void MixedNumericFolding()
         {
             var host = new LispHost();
-            Assert.Equal(new LispFloat(10.0), host.Eval("(+ 1.0 2 3 4)"));
-            Assert.Equal(new LispFloat(10.0), host.Eval("(+ 1 2.0 3 4)"));
-            Assert.Equal(new LispRatio(5, 4), host.Eval("(+ (/ 1 4) 1)"));
-            Assert.Equal(new LispRatio(5, 4), host.Eval("(+ 1 (/ 1 4))"));
+            Assert.Equal(new LispFloat(10.0), host.Eval("(+ 1.0 2 3 4)").LastResult);
+            Assert.Equal(new LispFloat(10.0), host.Eval("(+ 1 2.0 3 4)").LastResult);
+            Assert.Equal(new LispRatio(5, 4), host.Eval("(+ (/ 1 4) 1)").LastResult);
+            Assert.Equal(new LispRatio(5, 4), host.Eval("(+ 1 (/ 1 4))").LastResult);
         }
 
         [Fact]
         public void MixedNumericComparisons()
         {
             var host = new LispHost();
-            Assert.Equal(host.T, host.Eval("(< 1 2.0)"));
-            Assert.Equal(host.T, host.Eval("(< 1.0 2)"));
-            Assert.Equal(host.T, host.Eval("(< 1 (/ 5 4))"));
-            Assert.Equal(host.T, host.Eval("(< 1.0 (/ 5 4))"));
-            Assert.Equal(host.T, host.Eval("(< (/ 3 4) 1)"));
-            Assert.Equal(host.T, host.Eval("(< (/ 3 4) 1.0)"));
+            Assert.Equal(host.T, host.Eval("(< 1 2.0)").LastResult);
+            Assert.Equal(host.T, host.Eval("(< 1.0 2)").LastResult);
+            Assert.Equal(host.T, host.Eval("(< 1 (/ 5 4))").LastResult);
+            Assert.Equal(host.T, host.Eval("(< 1.0 (/ 5 4))").LastResult);
+            Assert.Equal(host.T, host.Eval("(< (/ 3 4) 1)").LastResult);
+            Assert.Equal(host.T, host.Eval("(< (/ 3 4) 1.0)").LastResult);
         }
 
         [Fact]
@@ -96,7 +98,7 @@ namespace IxMilia.Lisp.Test
           (t fv)))
 (if2 (= 1 1) ""one"" ""two"")
 ";
-            var result = host.Eval(code);
+            var result = host.Eval(code).LastResult;
             Assert.Equal("one", ((LispString)result).Value);
         }
 
@@ -109,7 +111,7 @@ namespace IxMilia.Lisp.Test
     (+ x 1))
 (inc 2)
 ";
-            Assert.Equal(new LispInteger(3), host.Eval(code));
+            Assert.Equal(new LispInteger(3), host.Eval(code).LastResult);
         }
 
         [Fact]
@@ -118,32 +120,70 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             var result = host.Eval(@"
 (error ""Expected '~s' but got '~s'"" 1 2)
-");
+").LastResult;
             Assert.Equal("Expected '1' but got '2'", ((LispError)result).Message);
         }
 
         [Fact]
-        public void ErrorPropagation()
+        public void ErrorPropagationFromCodeFunctionBody()
         {
             var host = new LispHost();
-            var result = (LispError)host.Eval("test-file.lisp", @"
+            var executionState = host.Eval("test-file.lisp", @"
 (defun inc (x)
     (add x 1))
 (inc 2)
 ");
-            Assert.Equal("test-file.lisp", result.StackFrame.SourceLocation.Value.FilePath);
-            Assert.Equal(3, result.StackFrame.SourceLocation.Value.Line); // inc: (add x 1), but tailcall inlined
-            Assert.Equal(6, result.StackFrame.SourceLocation.Value.Column);
-            Assert.Equal("(root)", result.StackFrame.FunctionName);
-            Assert.Null(result.StackFrame.Parent);
-            Assert.Equal("Undefined macro/function 'add', found '<null>'", result.Message);
+            var error = (LispError)executionState.LastResult;
+            Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
+            Assert.Equal(3, error.SourceLocation.Value.Line);
+            Assert.Equal(6, error.SourceLocation.Value.Column);
+            Assert.Equal("(root)", error.StackFrame.FunctionName);
+            Assert.Null(error.StackFrame.Parent);
+            Assert.Equal("Undefined macro/function 'add', found '<null>'", error.Message);
+        }
+
+        [Fact]
+        public void ErrorPropagationFromCodeFunctionArgument()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval("test-file.lisp", @"
+(defun inc (x)
+    (add x 1))
+(inc two)
+");
+            var error = (LispError)executionState.LastResult;
+            Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
+            Assert.Equal(4, error.SourceLocation.Value.Line);
+            Assert.Equal(6, error.SourceLocation.Value.Column);
+            Assert.Equal("(root)", error.StackFrame.FunctionName);
+            Assert.Null(error.StackFrame.Parent);
+            Assert.Equal("Symbol 'two' not found", error.Message);
+        }
+
+        [Fact]
+        public void ErrorPropagationFromMultipleExpressions()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval("test-file.lisp", @"
+(+ 1 1)
+(* 2 2)
+(+ one 2)
+(+ 3 3)
+");
+            var error = (LispError)executionState.LastResult;
+            Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
+            Assert.Equal(4, error.SourceLocation.Value.Line);
+            Assert.Equal(4, error.SourceLocation.Value.Column);
+            Assert.Equal("(root)", error.StackFrame.FunctionName);
+            Assert.Null(error.StackFrame.Parent);
+            Assert.Equal("Symbol 'one' not found", error.Message);
         }
 
         [Fact]
         public void SourcePropagationFromHostInit()
         {
             var host = new LispHost("test-file.lisp");
-            var result = host.Eval("(+ 1 2)");
+            var result = host.Eval("(+ 1 2)").LastResult;
             Assert.Equal(3, ((LispInteger)result).Value);
             Assert.Equal("test-file.lisp", result.SourceLocation.Value.FilePath);
         }
@@ -152,7 +192,7 @@ namespace IxMilia.Lisp.Test
         public void SourcePropagationFromHostEval()
         {
             var host = new LispHost("host.lisp");
-            var result = host.Eval("some-other-location.lisp", "(+ 1 2)");
+            var result = host.Eval("some-other-location.lisp", "(+ 1 2)").LastResult;
             Assert.Equal(3, ((LispInteger)result).Value);
             Assert.Equal("some-other-location.lisp", result.SourceLocation.Value.FilePath);
         }
@@ -166,14 +206,14 @@ namespace IxMilia.Lisp.Test
             var result = (LispString)host.Eval(@"
 (if (< 1 2)
     ""one""
-    ""two"")");
+    ""two"")").LastResult;
             Assert.Equal("one", result.Value);
 
             // 'false' branch
             result = (LispString)host.Eval(@"
 (if (< 2 1)
     ""one""
-    ""two"")");
+    ""two"")").LastResult;
             Assert.Equal("two", result.Value);
         }
 
@@ -181,7 +221,7 @@ namespace IxMilia.Lisp.Test
         public void DotNotationLists()
         {
             var host = new LispHost();
-            var result = host.Eval("'(a . (b . (c)))");
+            var result = host.Eval("'(a . (b . (c)))").LastResult;
             var actual = result.ToString();
             Assert.Equal("(a b c)", actual);
         }
@@ -190,21 +230,21 @@ namespace IxMilia.Lisp.Test
         public void CircularLists()
         {
             var host = new LispHost();
-            var result = host.Eval("#1=(3 4 5 . #1#)");
+            var result = host.Eval("#1=(3 4 5 . #1#)").LastResult;
             var list = (LispList)result;
             Assert.False(list.IsProperList);
             Assert.Equal(-3, list.Length); // not dictated anywhere, simply convention
             Assert.Equal(new LispInteger(3), list.Value);
             Assert.Equal("#1=(3 4 5 . #1#)", list.ToString());
 
-            list = (LispList)host.Eval("#1=(#1# . 2)");
+            list = (LispList)host.Eval("#1=(#1# . 2)").LastResult;
             Assert.False(list.IsProperList);
             Assert.Equal(-1, list.Length);
             Assert.Equal(new LispInteger(2), list.Next);
             Assert.True(ReferenceEquals(list, list.Value));
             Assert.Equal("#1=(#1# . 2)", list.ToString());
 
-            list = (LispList)host.Eval("#1=(2 3 #1#)");
+            list = (LispList)host.Eval("#1=(2 3 #1#)").LastResult;
             Assert.True(list.IsProperList);
             Assert.Equal(-3, list.Length);
             Assert.Equal("#1=(2 3 #1#)", list.ToString());
@@ -219,7 +259,7 @@ namespace IxMilia.Lisp.Test
     (let ((sum (+ x y)))
         (/ sum 2.0)))
 (avg 3.0 7.0)
-");
+").LastResult;
             Assert.Equal(new LispFloat(5.0), result);
         }
 
@@ -238,7 +278,7 @@ namespace IxMilia.Lisp.Test
 (defun asrt (pred msg)
     (if pred t msg))
 (asrt t ""not hit"")
-");
+").LastResult;
             Assert.Equal(host.T, result);
         }
 
@@ -247,20 +287,23 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             var lastInterpreterStackDepth = 0;
-            var lastNativeStackDepth = 0;
+            var lastDotNetStackDepth = 0;
             var invocationCount = 0;
             var maxInvocationCount = 10;
             host.AddFunction("record-stack-depth", (frame, args) =>
             {
+                var currentInterpreterStackDepth = frame.Depth;
+                var currentDotNetStackDepth = new StackTrace().FrameCount;
+
                 if (invocationCount++ > maxInvocationCount)
                 {
-                    throw new Exception($"Executed more than {maxInvocationCount} times; probably not going to tailcall");
+                    throw new Exception($@"Executed more than {maxInvocationCount} times; probably not going to tailcall.
+Last/current interpreter stack depth = {lastInterpreterStackDepth}/{currentInterpreterStackDepth}.
+Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}");
                 }
 
-                var currentInterpreterStackDepth = frame.Depth;
-                var currentNativeStackDepth = new StackTrace().FrameCount;
                 if (currentInterpreterStackDepth == lastInterpreterStackDepth &&
-                    currentNativeStackDepth == lastNativeStackDepth)
+                    currentDotNetStackDepth == lastDotNetStackDepth)
                 {
                     // done
                     return frame.T;
@@ -269,7 +312,7 @@ namespace IxMilia.Lisp.Test
                 {
                     // haven't reached a stable stack depth; keep going
                     lastInterpreterStackDepth = currentInterpreterStackDepth;
-                    lastNativeStackDepth = currentNativeStackDepth;
+                    lastDotNetStackDepth = currentDotNetStackDepth;
                     return frame.Nil;
                 }
             });
@@ -278,8 +321,8 @@ namespace IxMilia.Lisp.Test
     (cond ((record-stack-depth) t)                                      ; done
           (t                    (do-lots-of-tail-calls-with-cond))))    ; keep going
 (do-lots-of-tail-calls-with-cond)
-");
-            Assert.True(invocationCount >= 2, "Must have been invoked at least twice");
+").LastResult;
+            Assert.True(invocationCount >= 2, $"Must have been invoked at least twice, but was only invoked {invocationCount} time(s).");
             Assert.Equal(host.T, result);
         }
 
@@ -288,20 +331,23 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             var lastInterpreterStackDepth = 0;
-            var lastNativeStackDepth = 0;
+            var lastDotNetStackDepth = 0;
             var invocationCount = 0;
             var maxInvocationCount = 10;
             host.AddFunction("record-stack-depth", (frame, args) =>
             {
-                if (invocationCount++ > 10)
+                var currentInterpreterStackDepth = frame.Depth;
+                var currentDotNetStackDepth = new StackTrace().FrameCount;
+
+                if (invocationCount++ > maxInvocationCount)
                 {
-                    throw new Exception($"Executed more than {maxInvocationCount} times; probably not going to tailcall");
+                    throw new Exception($@"Executed more than {maxInvocationCount} times; probably not going to tailcall.
+Last/current interpreter stack depth = {lastInterpreterStackDepth}/{currentInterpreterStackDepth}.
+Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}");
                 }
 
-                var currentInterpreterStackDepth = frame.Depth;
-                var currentNativeStackDepth = new StackTrace().FrameCount;
                 if (currentInterpreterStackDepth == lastInterpreterStackDepth &&
-                    currentNativeStackDepth == lastNativeStackDepth)
+                    currentDotNetStackDepth == lastDotNetStackDepth)
                 {
                     // done
                     return frame.T;
@@ -310,7 +356,7 @@ namespace IxMilia.Lisp.Test
                 {
                     // haven't reached a stable stack depth; keep going
                     lastInterpreterStackDepth = currentInterpreterStackDepth;
-                    lastNativeStackDepth = currentNativeStackDepth;
+                    lastDotNetStackDepth = currentDotNetStackDepth;
                     return frame.Nil;
                 }
             });
@@ -320,8 +366,8 @@ namespace IxMilia.Lisp.Test
         t                                   ; done
         (do-lots-of-tail-calls-with-if)))   ; keep going
 (do-lots-of-tail-calls-with-if)
-");
-            Assert.True(invocationCount >= 2, "Must have been invoked at least twice");
+").LastResult;
+            Assert.True(invocationCount >= 2, $"Must have been invoked at least twice, but was only invoked {invocationCount} time(s).");
             Assert.Equal(host.T, result);
         }
 
@@ -329,7 +375,7 @@ namespace IxMilia.Lisp.Test
         public void InvokeBuiltInNamedFunctionReference()
         {
             var host = new LispHost();
-            var result = host.Eval(@"(funcall #'cons 'a 'b)");
+            var result = host.Eval(@"(funcall #'cons 'a 'b)").LastResult;
             var expected = LispList.FromItemsImproper(new LispSymbol("a"), new LispSymbol("b"));
             Assert.Equal(expected, result);
         }
@@ -342,7 +388,7 @@ namespace IxMilia.Lisp.Test
 (defun add (a b)
     (+ a b))
 (funcall #'add 2 3)
-");
+").LastResult;
             Assert.Equal(new LispInteger(5), result);
         }
 
@@ -353,7 +399,7 @@ namespace IxMilia.Lisp.Test
             var result = host.Eval(@"
 (setf plus-function #'+)
 (funcall plus-function 2 3)
-");
+").LastResult;
             Assert.Equal(new LispInteger(5), result);
         }
 
@@ -363,7 +409,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             var result = host.Eval(@"
 (funcall #'(lambda (n) (+ 1 n)) 2)
-");
+").LastResult;
             Assert.Equal(new LispInteger(3), result);
         }
 
@@ -374,7 +420,7 @@ namespace IxMilia.Lisp.Test
             var result = host.Eval(@"
 (setf inc-function #'(lambda (n) (+ 1 n)))
 (funcall inc-function 2)
-");
+").LastResult;
             Assert.Equal(new LispInteger(3), result);
         }
 
@@ -384,7 +430,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             var result = host.Eval(@"
 (apply #'+ '(2 3))
-");
+").LastResult;
             Assert.Equal(5, ((LispInteger)result).Value);
         }
 
@@ -393,28 +439,28 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             var sb = new StringBuilder();
-            host.RootFrame.FunctionEntered += (sender, e) => sb.AppendLine($"entered {e.Frame.FunctionName}");
-            host.RootFrame.FunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.Frame.FunctionName}");
             host.Eval(@"
 (defun half (n) (* n 0.5))
 (defun average (x y)
     (+ (half x) (half y)))
 ");
+            host.RootFrame.FunctionEntered += (sender, e) => sb.AppendLine($"entered {e.Frame.FunctionName}");
+            host.RootFrame.FunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.InvocationObject.Name} with {e.ReturnValue}");
             host.Eval("(average 3 7)");
             var actual = NormalizeNewlines(sb.ToString().Trim());
             var expected = NormalizeNewlines(@"
 entered average
 entered half
 entered *
-returned from *
-returned from half
+returned from * with 1.5
+returned from half with 1.5
 entered half
 entered *
-returned from *
-returned from half
+returned from * with 3.5
+returned from half with 3.5
 entered +
-returned from +
-returned from average
+returned from + with 5
+returned from average with 5
 ".Trim());
             Assert.Equal(expected, actual);
         }
@@ -425,7 +471,7 @@ returned from average
             var host = new LispHost();
             var sb = new StringBuilder();
             host.RootFrame.TraceFunctionEntered += (sender, args) => sb.AppendLine($"entered {args.Frame.FunctionName}");
-            host.RootFrame.TraceFunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.Frame.FunctionName}");
+            host.RootFrame.TraceFunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.InvocationObject.Name}");
             host.Eval(@"
 (defun half (n) (* n 0.5))
 (defun average (x y)
@@ -456,7 +502,7 @@ returned from average
     (equal key (first entry)))
   table))
 (my-assoc 'two words)
-");
+").LastResult;
             var expected = LispList.FromItems(new LispSymbol("two"), new LispSymbol("dos"));
             Assert.Equal(expected, result);
         }
@@ -470,9 +516,9 @@ returned from average
     #'(lambda (x) (> x n)))
 (setf pred (make-greater-p 3))
 ");
-            Assert.Equal(host.Nil, host.Eval("(funcall pred 2)"));
-            Assert.Equal(host.T, host.Eval("(funcall pred 5)"));
-            Assert.Equal(new LispInteger(4), host.Eval("(find-if pred '(2 3 4 5 6 7 8 9))"));
+            Assert.Equal(host.Nil, host.Eval("(funcall pred 2)").LastResult);
+            Assert.Equal(host.T, host.Eval("(funcall pred 5)").LastResult);
+            Assert.Equal(new LispInteger(4), host.Eval("(find-if pred '(2 3 4 5 6 7 8 9))").LastResult);
         }
 
         [Fact]
@@ -487,7 +533,7 @@ returned from average
         )
     (+ (increment-by-one 1) (increment-by-two 4)) ; (1 + 1) + (4 + 2) = 8
 )
-");
+").LastResult;
             Assert.Equal(new LispInteger(8), result);
 
             // ensure nothing leaked
@@ -553,7 +599,7 @@ returned from average
             var host = new LispHost(output: output);
             var result = host.Eval(@"
 (terpri)
-");
+").LastResult;
             Assert.True(result.IsNil());
             Assert.Equal("\n", NormalizeNewlines(output.ToString()));
         }
@@ -567,7 +613,7 @@ returned from average
             host.SetValue("test-stream", testStream);
             var result = host.Eval(@"
 (terpri test-stream)
-");
+").LastResult;
             Assert.True(result.IsNil());
             Assert.Equal("\n", NormalizeNewlines(output.ToString()));
         }
@@ -579,7 +625,7 @@ returned from average
             var host = new LispHost(output: output);
             var result = host.Eval(@"
 (prin1 ""abc"")
-");
+").LastResult;
             Assert.Equal("abc", ((LispString)result).Value);
             Assert.Equal("\"abc\"\n", NormalizeNewlines(output.ToString()));
         }
@@ -593,7 +639,7 @@ returned from average
             host.SetValue("test-stream", testStream);
             var result = host.Eval(@"
 (prin1 ""abc"" test-stream)
-");
+").LastResult;
             Assert.Equal("abc", ((LispString)result).Value);
             Assert.Equal("\"abc\"\n", NormalizeNewlines(output.ToString()));
         }
@@ -605,7 +651,7 @@ returned from average
             var host = new LispHost(output: output);
             var result = host.Eval(@"
 (princ ""abc"")
-");
+").LastResult;
             Assert.Equal("abc", ((LispString)result).Value);
             Assert.Equal("abc\n", NormalizeNewlines(output.ToString()));
         }
@@ -619,7 +665,7 @@ returned from average
             host.SetValue("test-stream", testStream);
             var result = host.Eval(@"
 (princ ""abc"" test-stream)
-");
+").LastResult;
             Assert.Equal("abc", ((LispString)result).Value);
             Assert.Equal("abc\n", NormalizeNewlines(output.ToString()));
         }
@@ -631,7 +677,7 @@ returned from average
             var host = new LispHost(output: output);
             var result = host.Eval(@"
 (print ""abc"")
-");
+").LastResult;
             Assert.Equal("abc", ((LispString)result).Value);
             Assert.Equal("\n\"abc\"\n \n", NormalizeNewlines(output.ToString()));
         }
@@ -645,7 +691,7 @@ returned from average
             host.SetValue("test-stream", testStream);
             var result = host.Eval(@"
 (print ""abc"" test-stream)
-");
+").LastResult;
             Assert.Equal("abc", ((LispString)result).Value);
             Assert.Equal("\n\"abc\"\n \n", NormalizeNewlines(output.ToString()));
         }
@@ -658,7 +704,7 @@ returned from average
 (let ((x 1))
     x
     (+ x 2)) ; this is the real result
-");
+").LastResult;
             Assert.Equal(3, ((LispInteger)result).Value);
         }
 
@@ -725,7 +771,7 @@ returned from average
 (defun test (&optional (value (+ 1 1)))
     (+ 1 value))
 (test)
-");
+").LastResult;
             Assert.Equal(3, ((LispInteger)result).Value);
         }
 
@@ -737,7 +783,7 @@ returned from average
 (defun test (&key (value (+ 1 1)))
     (+ 1 value))
 (test)
-");
+").LastResult;
             Assert.Equal(3, ((LispInteger)result).Value);
         }
 
@@ -749,8 +795,22 @@ returned from average
 (defun test (the-list &aux (len (length the-list)))
     (+ 1 len))
 (test '(1 2))
-");
+").LastResult;
             Assert.Equal(3, ((LispInteger)result).Value);
+        }
+
+        [Fact]
+        public void IntermediateValuesAreRemovedFromTheArgumentStack()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(+ 1 1)
+(+ 2 2)
+");
+            Assert.Equal(4, ((LispInteger)executionState.LastResult).Value);
+            Assert.True(executionState.TryPopArgument(out var lastResult));
+            Assert.Equal(4, ((LispInteger)lastResult).Value);
+            Assert.False(executionState.TryPopArgument(out var shouldNotBeHere), $"Expected no more arguments, but found [{shouldNotBeHere}]");
         }
     }
 }

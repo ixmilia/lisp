@@ -18,7 +18,7 @@ namespace IxMilia.Lisp.Test
             var contents = GetFileContents(fileName);
             var host = new LispHost();
             var result = host.Eval(contents);
-            Assert.True(result.Equals(host.T), result.ToString());
+            Assert.True(result.LastResult.Equals(host.T), result.LastResult.ToString());
         }
 
         [Fact]

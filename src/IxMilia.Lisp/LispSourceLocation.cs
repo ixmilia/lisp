@@ -12,5 +12,10 @@
             Line = line;
             Column = column;
         }
+
+        public override string ToString()
+        {
+            return $"{FilePath}: {Line},{Column}";
+        }
     }
 }

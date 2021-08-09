@@ -43,7 +43,7 @@ namespace IxMilia.Lisp.Test
             var testStream = new LispStream("test-stream", input, TextWriter.Null);
             var host = new LispHost();
             host.SetValue("test-stream", testStream);
-            var result = host.Eval("(list (read test-stream) (read test-stream))"); // EOF propagates to the top
+            var result = host.Eval("(list (read test-stream) (read test-stream))").LastResult; // EOF propagates to the top
             Assert.Equal("EOF", ((LispError)result).Message);
         }
 
@@ -54,7 +54,7 @@ namespace IxMilia.Lisp.Test
             var testStream = new LispStream("test-stream", input, TextWriter.Null);
             var host = new LispHost();
             host.SetValue("test-stream", testStream);
-            var result = host.Eval("(list (read test-stream) (read test-stream nil -54))");
+            var result = host.Eval("(list (read test-stream) (read test-stream nil -54))").LastResult;
             var resultList = ((LispList)result).ToList();
             Assert.Equal(2, resultList.Count);
             Assert.Equal(14, ((LispInteger)resultList[0]).Value);

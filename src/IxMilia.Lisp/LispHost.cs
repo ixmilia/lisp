@@ -25,7 +25,7 @@ namespace IxMilia.Lisp
         public LispHost(string filePath = null, TextReader input = null, TextWriter output = null)
         {
             _initialFilePath = filePath;
-            RootFrame = new LispRootStackFrame(new LispSourceLocation(_initialFilePath, 0, 0), input ?? TextReader.Null, output ?? TextWriter.Null);
+            RootFrame = new LispRootStackFrame(input ?? TextReader.Null, output ?? TextWriter.Null);
             T = RootFrame.T;
             Nil = RootFrame.Nil;
             TerminalIO = RootFrame.TerminalIO;
@@ -114,16 +114,16 @@ namespace IxMilia.Lisp
             using (var reader = new StreamReader(initStream))
             {
                 var content = reader.ReadToEnd();
-                var result = Eval("init.lisp", content);
-                if (result != T)
+                var executionState = Eval("init.lisp", content);
+                if (executionState.LastResult != T)
                 {
-                    throw new Exception($"Expected 't' but found '{result}' at ({result.SourceLocation?.Line}, {result.SourceLocation?.Column}).");
+                    throw new Exception($"Expected 't' but found '{executionState.LastResult}' at ({executionState.LastResult.SourceLocation?.Line}, {executionState.LastResult.SourceLocation?.Column}).");
                 }
 
-                RootFrame.UpdateCallStackLocation(new LispInteger(0)
-                {
-                    SourceLocation = new LispSourceLocation(_initialFilePath, RootFrame.SourceLocation?.Line ?? 0, RootFrame.SourceLocation?.Column ?? 0)
-                });
+                //RootFrame.UpdateCallStackLocation(new LispInteger(0)
+                //{
+                //    SourceLocation = new LispSourceLocation(_initialFilePath, RootFrame.SourceLocation?.Line ?? 0, RootFrame.SourceLocation?.Column ?? 0)
+                //});
             }
         }
 
@@ -154,12 +154,12 @@ namespace IxMilia.Lisp
             return RootFrame.GetValue<TObject>(name);
         }
 
-        public LispObject Eval(string code)
+        public LispExecutionState Eval(string code)
         {
-            return Eval(RootFrame.SourceLocation?.FilePath, code);
+            return Eval(_initialFilePath, code);
         }
 
-        public LispObject Eval(string filePath, string code)
+        public LispExecutionState Eval(string filePath, string code)
         {
             var tokenizer = new LispTokenizer(filePath, code);
             var tokens = tokenizer.GetTokens();
@@ -168,41 +168,16 @@ namespace IxMilia.Lisp
             return Eval(nodes);
         }
 
-        public LispObject Eval(IEnumerable<LispObject> nodes)
+        public LispExecutionState Eval(IEnumerable<LispObject> nodes)
         {
-            LispObject lastValue = null;
-            foreach (var node in nodes)
-            {
-                lastValue = Eval(node);
-                if (lastValue is LispError error)
-                {
-                    TryApplyStackFrame(error);
-                    break;
-                }
-            }
-
-            return lastValue;
+            var executionState = LispExecutionState.CreateExecutionState(RootFrame, nodes);
+            executionState = LispEvaluator.Evaluate(executionState);
+            return executionState;
         }
 
-        public LispObject Eval(LispObject obj)
+        public LispExecutionState Eval(LispObject obj)
         {
-            var dribbleOutput = RootFrame.DribbleStream?.Output;
-            if (dribbleOutput != null)
-            {
-                dribbleOutput.WriteLine($"> {obj}");
-            }
-
-            var result = LispEvaluator.Evaluate(obj, RootFrame, false);
-
-            if (dribbleOutput != null)
-            {
-                // only write result if we were already recording the session and it wasn't closed by the last eval
-                dribbleOutput = RootFrame.DribbleStream?.Output;
-                dribbleOutput?.WriteLine(result.ToString());
-                dribbleOutput?.WriteLine();
-            }
-
-            return result;
+            return Eval(new LispObject[] { obj });
         }
 
         private void TryApplyStackFrame(LispError error)

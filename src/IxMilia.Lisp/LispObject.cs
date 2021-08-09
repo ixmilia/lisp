@@ -136,14 +136,14 @@ namespace IxMilia.Lisp
             StackFrame = stackFrame;
         }
 
-        internal void TryApplyStackFrame(LispStackFrame frame)
-        {
-            if (StackFrame == null)
-            {
-                StackFrame = frame;
-                SourceLocation = frame.SourceLocation;
-            }
-        }
+        //internal void TryApplyStackFrame(LispStackFrame frame)
+        //{
+        //    if (StackFrame == null)
+        //    {
+        //        StackFrame = frame;
+        //        SourceLocation = frame.SourceLocation;
+        //    }
+        //}
 
         internal override LispObject Clone()
         {
@@ -1134,14 +1134,23 @@ namespace IxMilia.Lisp
         }
     }
 
-    public abstract class LispFunction : LispObject
+    public abstract class LispMacroOrFunction : LispObject
     {
         public string Name { get; }
+
+        protected LispMacroOrFunction(string name)
+        {
+            Name = name;
+        }
+    }
+
+    public abstract class LispFunction : LispMacroOrFunction
+    {
         public string Documentation { get; }
 
         public LispFunction(string name, string documentation)
+            : base(name)
         {
-            Name = name;
             Documentation = documentation;
         }
     }
@@ -1414,13 +1423,11 @@ namespace IxMilia.Lisp
         }
     }
 
-    public abstract class LispMacro : LispObject
+    public abstract class LispMacro : LispMacroOrFunction
     {
-        public string Name { get; }
-
         public LispMacro(string name)
+            : base(name)
         {
-            Name = name;
         }
     }
 

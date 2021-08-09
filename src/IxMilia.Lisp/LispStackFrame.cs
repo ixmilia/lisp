@@ -7,50 +7,40 @@ namespace IxMilia.Lisp
 {
     public class LispStackFrame
     {
-        protected const string NilString = "nil";
         protected const string TString = "t";
+        protected const string NilString = "nil";
         protected const string TerminalIOString = "*terminal-io*";
-
-        private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
 
         public string FunctionName { get; }
         public LispStackFrame Parent { get; }
+        public LispSourceLocation? SourceLocation { get; private set; }
 
-        public LispSourceLocation? SourceLocation { get; internal set; }
+        public virtual LispRootStackFrame Root { get; }
+        public virtual int Depth { get; }
 
         public LispObject T => GetValue<LispSymbol>(TString);
         public LispObject Nil => GetValue<LispList>(NilString);
         public LispStream TerminalIO => GetValue<LispStream>(TerminalIOString);
 
-        public LispRootStackFrame Root => NavigateToRoot().Item1;
-        public int Depth => NavigateToRoot().Item2;
+        private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
 
-        private Tuple<LispRootStackFrame, int> NavigateToRoot()
+        public LispStackFrame(string functionName, LispStackFrame parent)
         {
-            int depth = 0;
-            var candidate = this;
-            while (!(candidate is LispRootStackFrame))
-            {
-                depth++;
-                candidate = candidate.Parent;
-            }
-
-            return Tuple.Create((LispRootStackFrame)candidate, depth - 1);
-        }
-
-        public LispStackFrame(LispSourceLocation sourceLocation, string functionName, LispStackFrame parent)
-        {
-            SourceLocation = sourceLocation;
             FunctionName = functionName;
             Parent = parent;
+            Root = Parent?.Root;
+            Depth = (Parent?.Depth ?? LispRootStackFrame.RootStackDepth) + 1;
         }
 
-        public override string ToString()
+        internal void CopyLocalsToParentForTailCall(HashSet<string> invocationArgumentNames)
         {
-            var filePath = SourceLocation?.FilePath == null
-                ? string.Empty
-                : $" in '{SourceLocation.Value.FilePath}'";
-            return $"  at {FunctionName}{filePath}: ({SourceLocation?.Line}, {SourceLocation?.Column})\n{Parent}";
+            foreach (var valuePair in _values)
+            {
+                if (invocationArgumentNames.Contains(valuePair.Key))
+                {
+                    Parent?.SetValue(valuePair.Key, valuePair.Value);
+                }
+            }
         }
 
         public void SetValue(string name, LispObject value)
@@ -58,21 +48,10 @@ namespace IxMilia.Lisp
             _values[name] = value;
         }
 
-        internal void DeleteValue(string name)
+        internal void SetValueInParentScope(string name, LispObject value)
         {
-            _values.Remove(name);
-        }
-
-        public void SetValueInParentScope(string name, LispObject value)
-        {
-            if (Parent is object)
-            {
-                Parent.SetValue(name, value);
-            }
-            else
-            {
-                SetValue(name, value);
-            }
+            var target = Parent ?? this;
+            target.SetValue(name, value);
         }
 
         public LispObject GetValue(string name)
@@ -82,12 +61,7 @@ namespace IxMilia.Lisp
                 return value;
             }
 
-            if (Parent is object)
-            {
-                return Parent.GetValue(name);
-            }
-
-            return null;
+            return Parent?.GetValue(name);
         }
 
         public TObject GetValue<TObject>(string name) where TObject : LispObject
@@ -95,66 +69,41 @@ namespace IxMilia.Lisp
             return (TObject)GetValue(name);
         }
 
+        public void DeleteValue(string name)
+        {
+            _values.Remove(name);
+        }
+
         public LispObject Eval(LispObject obj)
         {
-            return LispEvaluator.Evaluate(obj, this, true);
+            return EvalMany(new LispObject[] { obj });
         }
 
-        internal LispObject EvalMany(IEnumerable<LispObject> objs)
+        public LispObject EvalMany(IEnumerable<LispObject> nodes)
         {
-            LispObject result = Nil;
-            foreach (var command in objs)
-            {
-                result = Eval(command);
-                if (result is LispError)
-                {
-                    return result;
-                }
-            }
-
-            return result;
+            var executionState = LispExecutionState.CreateExecutionState(this, nodes);
+            var resultExecutionState = LispEvaluator.Evaluate(executionState);
+            return resultExecutionState.LastResult;
         }
 
-        public LispStackFrame Push(LispSourceLocation sourceLocation, string frameName)
+        internal void UpdateCallStackLocation(LispSourceLocation? sourceLocation)
         {
-            return new LispStackFrame(sourceLocation, frameName, this);
+            SourceLocation = sourceLocation;
         }
 
-        internal LispStackFrame Pop()
+        public override string ToString()
         {
-            return Parent;
-        }
-
-        internal LispStackFrame PopForTailCall()
-        {
-            return PopForTailCall(Enumerable.Empty<string>());
-        }
-
-        internal LispStackFrame PopForTailCall(IEnumerable<string> arguments)
-        {
-            var argsHash = new HashSet<string>(arguments);
-
-            // copy variables to parent
-            foreach (var value in _values)
-            {
-                if (argsHash.Contains(value.Key))
-                {
-                    Parent.SetValue(value.Key, value.Value);
-                }
-            }
-
-            return Parent;
-        }
-
-        internal void UpdateCallStackLocation(LispObject obj)
-        {
-            SourceLocation = obj.SourceLocation;
+            var filePath = SourceLocation?.FilePath == null
+                ? string.Empty
+                : $" in '{SourceLocation.Value.FilePath}'";
+            return $"  at {FunctionName}{filePath}: ({SourceLocation?.Line}, {SourceLocation?.Column})\n{Parent}";
         }
     }
 
     public class LispRootStackFrame : LispStackFrame
     {
-        private const string DribbleStreamVariableName = "(dribble-stream)"; // surrounded by parens to make it un-utterable
+        private const string DribbleStreamString = "(dribble-stream)"; // should be un-utterable
+        internal const int RootStackDepth = 0;
 
         public event EventHandler<LispFunctionEnteredEventArgs> FunctionEntered;
         public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
@@ -165,26 +114,29 @@ namespace IxMilia.Lisp
 
         internal LispFileStream DribbleStream
         {
-            get => GetValue<LispFileStream>(DribbleStreamVariableName);
+            get => GetValue<LispFileStream>(DribbleStreamString);
             set
             {
                 if (value is null)
                 {
-                    DeleteValue(DribbleStreamVariableName);
+                    DeleteValue(DribbleStreamString);
                 }
                 else
                 {
-                    SetValue(DribbleStreamVariableName, value);
+                    SetValue(DribbleStreamString, value);
                 }
             }
         }
 
-        internal LispRootStackFrame(LispSourceLocation sourceLocation, TextReader input, TextWriter output)
-            : base(sourceLocation, "(root)", null)
+        public override LispRootStackFrame Root => this;
+        public override int Depth => RootStackDepth;
+
+        internal LispRootStackFrame(TextReader input, TextWriter output)
+            : base("(root)", null)
         {
             SetValue(TString, new LispSymbol(TString));
             SetValue(NilString, LispNilList.Instance);
-            SetValue(TerminalIOString, new LispStream("#<terminal>", input, output));
+            SetValue(TerminalIOString, new LispStream(TerminalIOString, input, output));
         }
 
         internal void OnFunctionEnter(LispStackFrame frame, LispObject[] functionArguments)
@@ -197,11 +149,11 @@ namespace IxMilia.Lisp
             }
         }
 
-        internal void OnFunctionReturn(LispStackFrame frame, LispObject returnValue)
+        internal void OnFunctionReturn(LispMacroOrFunction invocationObject, LispStackFrame frame, LispObject returnValue)
         {
-            var args = new LispFunctionReturnedEventArgs(frame, returnValue);
+            var args = new LispFunctionReturnedEventArgs(invocationObject, frame, returnValue);
             FunctionReturned?.Invoke(this, args);
-            if (TracedFunctions.Contains(frame.FunctionName))
+            if (TracedFunctions.Contains(invocationObject.Name))
             {
                 TraceFunctionReturned?.Invoke(this, args);
             }
