@@ -7,20 +7,6 @@ namespace IxMilia.Lisp
 {
     public class LispDefaultContext
     {
-        [LispMacro("trace")]
-        public IEnumerable<LispObject> Trace(LispStackFrame frame, LispObject[] args)
-        {
-            var tracedList = frame.Root.Trace(args);
-            return new LispObject[] { new LispQuotedObject(tracedList) };
-        }
-
-        [LispMacro("untrace")]
-        public IEnumerable<LispObject> Untrace(LispStackFrame frame, LispObject[] args)
-        {
-            var untracedList = frame.Root.Untrace(args);
-            return new LispObject[] { new LispQuotedObject(untracedList) };
-        }
-
         [LispFunction("error")]
         public LispObject Error(LispStackFrame frame, LispObject[] args)
         {

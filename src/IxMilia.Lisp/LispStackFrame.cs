@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 namespace IxMilia.Lisp
 {
@@ -107,10 +106,6 @@ namespace IxMilia.Lisp
 
         public event EventHandler<LispFunctionEnteredEventArgs> FunctionEntered;
         public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
-        public event EventHandler<LispFunctionEnteredEventArgs> TraceFunctionEntered;
-        public event EventHandler<LispFunctionReturnedEventArgs> TraceFunctionReturned;
-
-        public HashSet<string> TracedFunctions { get; } = new HashSet<string>();
 
         internal LispFileStream DribbleStream
         {
@@ -143,92 +138,12 @@ namespace IxMilia.Lisp
         {
             var args = new LispFunctionEnteredEventArgs(frame, functionArguments);
             FunctionEntered?.Invoke(this, args);
-            if (TracedFunctions.Contains(frame.FunctionName))
-            {
-                TraceFunctionEntered?.Invoke(this, args);
-            }
         }
 
         internal void OnFunctionReturn(LispMacroOrFunction invocationObject, LispStackFrame frame, LispObject returnValue)
         {
             var args = new LispFunctionReturnedEventArgs(invocationObject, frame, returnValue);
             FunctionReturned?.Invoke(this, args);
-            if (TracedFunctions.Contains(invocationObject.Name))
-            {
-                TraceFunctionReturned?.Invoke(this, args);
-            }
-        }
-
-        internal LispObject Trace(LispObject[] args)
-        {
-            if (args.Length == 0)
-            {
-                return LispList.FromEnumerable(TracedFunctions.Select(f => new LispSymbol(f)));
-            }
-            else
-            {
-                var addedFunctions = new HashSet<string>();
-                var hasInvalidArguments = false;
-                foreach (var arg in args)
-                {
-                    if (arg is LispSymbol symbol)
-                    {
-                        TracedFunctions.Add(symbol.Value);
-                        addedFunctions.Add(symbol.Value);
-                    }
-                    else
-                    {
-                        hasInvalidArguments = true;
-                    }
-                }
-
-                if (hasInvalidArguments)
-                {
-                    return new LispError("Expected only symbols");
-                }
-                else
-                {
-                    return LispList.FromEnumerable(addedFunctions.Select(f => new LispSymbol(f)));
-                }
-            }
-        }
-
-        internal LispObject Untrace(LispObject[] args)
-        {
-            if (args.Length == 0)
-            {
-                var result = LispList.FromEnumerable(TracedFunctions.Select(f => new LispSymbol(f)));
-                TracedFunctions.Clear();
-                return result;
-            }
-            else
-            {
-                var removedFunctions = new HashSet<string>();
-                var hasInvalidArguments = false;
-                foreach (var arg in args)
-                {
-                    if (arg is LispSymbol symbol)
-                    {
-                        if (TracedFunctions.Remove(symbol.Value))
-                        {
-                            removedFunctions.Add(symbol.Value);
-                        }
-                    }
-                    else
-                    {
-                        hasInvalidArguments = true;
-                    }
-                }
-
-                if (hasInvalidArguments)
-                {
-                    return new LispError("Expected only symbols");
-                }
-                else
-                {
-                    return LispList.FromEnumerable(removedFunctions.Select(f => new LispSymbol(f)));
-                }
-            }
         }
     }
 }

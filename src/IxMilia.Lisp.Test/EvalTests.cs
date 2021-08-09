@@ -2,8 +2,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using IxMilia.Lisp.Parser;
-using IxMilia.Lisp.Tokens;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
@@ -461,32 +459,6 @@ returned from half with 3.5
 entered +
 returned from + with 5
 returned from average with 5
-".Trim());
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void TraceEnterAndReturnFunctionEvent()
-        {
-            var host = new LispHost();
-            var sb = new StringBuilder();
-            host.RootFrame.TraceFunctionEntered += (sender, args) => sb.AppendLine($"entered {args.Frame.FunctionName}");
-            host.RootFrame.TraceFunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.InvocationObject.Name}");
-            host.Eval(@"
-(defun half (n) (* n 0.5))
-(defun average (x y)
-    (+ (half x) (half y)))
-(trace half average)
-");
-            host.Eval("(average 3 7)");
-            var actual = NormalizeNewlines(sb.ToString().Trim());
-            var expected = NormalizeNewlines(@"
-entered average
-entered half
-returned from half
-entered half
-returned from half
-returned from average
 ".Trim());
             Assert.Equal(expected, actual);
         }
