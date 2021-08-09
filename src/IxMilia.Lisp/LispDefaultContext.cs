@@ -1209,14 +1209,22 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("+")]
-        public LispObject Add(LispStackFrame frame, LispObject[] args)
+        [LispFunction("kernel:two-arg-+")]
+        public LispObject TwoAgumentPlus(LispStackFrame frame, LispObject[] args)
         {
-            return FoldNumber(args, LispInteger.Zero, (a, b) => LispNumber.Add(a, b));
+            if (args.Length == 2 &&
+                args[0] is LispNumber n1 &&
+                args[1] is LispNumber n2)
+            {
+                var result = LispNumber.Add(n1, n2);
+                return result;
+            }
+
+            return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("-")]
-        public LispObject Subtract(LispStackFrame frame, LispObject[] args)
+        [LispFunction("kernel:one-arg--")]
+        public LispObject OneArgumentMinus(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 1)
             {
@@ -1234,71 +1242,50 @@ namespace IxMilia.Lisp
                         return new LispError($"Expected type number but found {value.GetType()}");
                 }
             }
-            else
-            {
-                return FoldNumber(args, LispInteger.Zero, (a, b) => LispNumber.Sub(a, b), useFirstAsInit: true);
-            }
+
+            return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("*")]
-        public LispObject Multiply(LispStackFrame frame, LispObject[] args)
+        [LispFunction("kernel:two-arg--")]
+        public LispObject TwoArgumentMinus(LispStackFrame frame, LispObject[] args)
         {
-            return FoldNumber(args, LispInteger.One, (a, b) => LispNumber.Mul(a, b));
+            if (args.Length == 2 &&
+                args[0] is LispNumber n1 &&
+                args[1] is LispNumber n2)
+            {
+                var result = LispNumber.Sub(n1, n2);
+                return result;
+            }
+
+            return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("/")]
-        public LispObject Divide(LispStackFrame frame, LispObject[] args)
+        [LispFunction("kernel:two-arg-*")]
+        public LispObject TwoArgumentAsterisk(LispStackFrame frame, LispObject[] args)
         {
-            return FoldNumber(args, LispInteger.One, (a, b) => LispNumber.Div(a, b), useFirstAsInit: true);
+            if (args.Length == 2 &&
+                args[0] is LispNumber n1 &&
+                args[1] is LispNumber n2)
+            {
+                var result = LispNumber.Mul(n1, n2);
+                return result;
+            }
+
+            return new LispError("Expected exactly two numbers");
         }
 
-        private static LispObject FoldNumber(LispObject[] args, LispNumber init, Func<LispNumber, LispNumber, LispNumber> operation, bool useFirstAsInit = false)
+        [LispFunction("kernel:two-arg-/")]
+        public LispObject TwoArgumentSlash(LispStackFrame frame, LispObject[] args)
         {
-            if (args.Length == 0)
+            if (args.Length == 2 &&
+                args[0] is LispNumber n1 &&
+                args[1] is LispNumber n2)
             {
-                return new LispError("Missing arguments");
+                var result = LispNumber.Div(n1, n2);
+                return result;
             }
 
-            int skip = 0;
-            if (useFirstAsInit)
-            {
-                skip = 1;
-                switch (args[0])
-                {
-                    case LispInteger i:
-                        init = i;
-                        break;
-                    case LispFloat f:
-                        init = f;
-                        break;
-                    case LispRatio r:
-                        init = r;
-                        break;
-                    default:
-                        return new LispError($"Expected number, found {args[0].GetType().Name} with value {args[0]}");
-                }
-            }
-
-            var result = init;
-            foreach (var value in args.Skip(skip))
-            {
-                switch (value)
-                {
-                    case LispInteger i:
-                        result = operation(result, i);
-                        break;
-                    case LispFloat f:
-                        result = operation(result, f);
-                        break;
-                    case LispRatio r:
-                        result = operation(result, r);
-                        break;
-                    default:
-                        return new LispError($"Expected number, found {args[0].GetType().Name} with value {args[0]}");
-                }
-            }
-
-            return result;
+            return new LispError("Expected exactly two numbers");
         }
 
         private static IEnumerable<LispObject> FoldBoolean(LispStackFrame frame, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation)

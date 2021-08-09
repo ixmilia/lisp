@@ -244,6 +244,27 @@
     (assert-equal 5 (funcall (function +) 2 3) "funcall with `function` keyword")
 )
 
+(defun basic-math ()
+    ; addition
+    (assert-equal 0 (+) "+/0")
+    (assert-equal 1 (+ 1) "+/1")
+    (assert-equal 3 (+ 1 2) "+/2")
+    (assert-equal 6 (+ 1 2 3) "+/*")
+    ; subtraction
+    (assert-equal -1 (- 1) "-/1")
+    (assert-equal 3 (- 5 2) "-/2")
+    (assert-equal 2 (- 5 2 1) "-/*")
+    ; multiplication
+    (assert-equal 1 (*) "*/0")
+    (assert-equal 2 (* 2) "*/1")
+    (assert-equal 6 (* 2 3) "*/2")
+    (assert-equal 24 (* 1 2 3 4) "*/*")
+    ; division
+    (assert-equal 0.5 (/ 2.0) "//1")
+    (assert-equal 1.5 (/ 3 2.0) "//2")
+    (assert-equal 4 (/ 24 3 2) "//*")
+)
+
 (and (item-equality)
      (abs-and-sqrt)
      (short-circuit-and)
@@ -255,4 +276,5 @@
      (format-tests)
      (test-cond)
      (function-references)
+     (basic-math)
 )

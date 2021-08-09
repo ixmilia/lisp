@@ -80,7 +80,7 @@ namespace IxMilia.Lisp
 
         public LispObject EvalMany(IEnumerable<LispObject> nodes)
         {
-            var executionState = LispExecutionState.CreateExecutionState(this, nodes);
+            var executionState = LispExecutionState.CreateExecutionState(this, nodes, createDribbleInstructions: false);
             var resultExecutionState = LispEvaluator.Evaluate(executionState);
             return resultExecutionState.LastResult;
         }

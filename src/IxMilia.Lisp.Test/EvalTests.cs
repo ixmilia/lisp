@@ -450,13 +450,37 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
 entered average
 entered half
 entered *
+entered cons
+returned from cons with (1 3 0.5)
+entered reduce
+entered kernel:two-arg-*
+returned from kernel:two-arg-* with 3
+entered kernel:two-arg-*
+returned from kernel:two-arg-* with 1.5
+returned from reduce with 1.5
 returned from * with 1.5
 returned from half with 1.5
 entered half
 entered *
+entered cons
+returned from cons with (1 7 0.5)
+entered reduce
+entered kernel:two-arg-*
+returned from kernel:two-arg-* with 7
+entered kernel:two-arg-*
+returned from kernel:two-arg-* with 3.5
+returned from reduce with 3.5
 returned from * with 3.5
 returned from half with 3.5
 entered +
+entered cons
+returned from cons with (0 1.5 3.5)
+entered reduce
+entered kernel:two-arg-+
+returned from kernel:two-arg-+ with 1.5
+entered kernel:two-arg-+
+returned from kernel:two-arg-+ with 5
+returned from reduce with 5
 returned from + with 5
 returned from average with 5
 ".Trim());

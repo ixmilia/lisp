@@ -89,7 +89,7 @@ namespace IxMilia.Lisp
                                     var evaluatedValues = values.Select(v =>
                                     {
                                         // TODO: evaluate using the operation queue
-                                        var itemExecutionState = LispExecutionState.CreateExecutionState(executionState.StackFrame, new LispObject[] { v });
+                                        var itemExecutionState = LispExecutionState.CreateExecutionState(executionState.StackFrame, new LispObject[] { v }, createDribbleInstructions: false);
                                         var itemResult = Evaluate(itemExecutionState);
                                         return itemResult.LastResult;
                                     });
@@ -143,7 +143,7 @@ namespace IxMilia.Lisp
                                         executionState.ReportError( new LispError($"Undefined macro/function '{invocationSymbol.Value}', found '<null>'"), sList.Value);
                                         break;
                                     }
-                                    executionState.InsertOperation(new LispEvaluatorInvocationExit(invocationObject, executionState.StackFrame));
+                                    executionState.InsertOperation(new LispEvaluatorInvocationExit(invocationObject, invocationSymbol.SourceLocation, executionState.StackFrame));
 
                                     // insert function body back to front
                                     switch (invocationObject)
@@ -225,6 +225,11 @@ namespace IxMilia.Lisp
                         }
                         break;
                     case LispEvaluatorInvocationExit exit:
+                        if (executionState.LastResult != null)
+                        {
+                            executionState.LastResult.SourceLocation = exit.InvocationLocation;
+                        }
+
                         executionState.StackFrame.Root.OnFunctionReturn(exit.InvocationObject, exit.StackFrame, executionState.LastResult);
                         if (exit.PopFrame)
                         {

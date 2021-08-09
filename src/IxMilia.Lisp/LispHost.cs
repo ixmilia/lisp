@@ -170,7 +170,7 @@ namespace IxMilia.Lisp
 
         public LispExecutionState Eval(IEnumerable<LispObject> nodes)
         {
-            var executionState = LispExecutionState.CreateExecutionState(RootFrame, nodes);
+            var executionState = LispExecutionState.CreateExecutionState(RootFrame, nodes, createDribbleInstructions: true);
             executionState = LispEvaluator.Evaluate(executionState);
             return executionState;
         }

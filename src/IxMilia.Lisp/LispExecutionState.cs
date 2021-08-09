@@ -72,16 +72,23 @@ namespace IxMilia.Lisp
             return false;
         }
 
-        internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, IEnumerable<LispObject> nodes)
+        internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, IEnumerable<LispObject> nodes, bool createDribbleInstructions)
         {
             var operations = new List<ILispEvaluatorOperation>();
             var nodeList = nodes.ToList();
             for (int i = 0; i < nodeList.Count; i++)
             {
                 var node = nodeList[i];
-                operations.Add(new LispEvaluatorDribbleEnter(node));
+                if (createDribbleInstructions)
+                {
+                    operations.Add(new LispEvaluatorDribbleEnter(node));
+                }
+
                 operations.Add(new LispEvaluatorObjectExpression(node));
-                operations.Add(new LispEvaluatorDribbleExit());
+                if (createDribbleInstructions)
+                {
+                    operations.Add(new LispEvaluatorDribbleExit());
+                }
                 if (i != nodeList.Count - 1)
                 {
                     operations.Add(new LispEvaluatorPopArgument());

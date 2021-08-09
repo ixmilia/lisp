@@ -102,5 +102,22 @@
                           (t (prompt-and-get-input))))))
         (prompt-and-get-input)))
 
+; math
+(defun + (&rest values)
+    (reduce #'kernel:two-arg-+ (cons 0 values)))
+
+(defun - (&rest values)
+    (cond ((equal () values)            (error "At least one argument required"))
+          ((equal 1 (length values))    (kernel:one-arg-- (car values)))
+          (t                            (reduce #'kernel:two-arg-- values))))
+
+(defun * (&rest values)
+    (reduce #'kernel:two-arg-* (cons 1 values)))
+
+(defun / (&rest values)
+    (cond ((equal () values)            (error "At least one argument required"))
+          ((equal 1 (length values))    (/ 1 (car values)))
+          (t                            (reduce #'kernel:two-arg-/ values))))
+
 ; just to ensure the script was properly loaded
 t
