@@ -47,7 +47,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(6, error.SourceLocation?.Column);
         }
 
-        [Fact(Skip = "Overly-agressive tail calls promote all invocations to the root frame.")]
+        [Fact]
         public void FunctionTracing()
         {
             var traceWriter = new StringWriter();

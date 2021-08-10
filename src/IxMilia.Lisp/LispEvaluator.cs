@@ -89,7 +89,7 @@ namespace IxMilia.Lisp
                                     var evaluatedValues = values.Select(v =>
                                     {
                                         // TODO: evaluate using the operation queue
-                                        var itemExecutionState = LispExecutionState.CreateExecutionState(executionState.StackFrame, new LispObject[] { v }, createDribbleInstructions: false);
+                                        var itemExecutionState = LispExecutionState.CreateExecutionState(executionState.StackFrame, new LispObject[] { v }, executionState.UseTailCalls, createDribbleInstructions: false);
                                         var itemResult = Evaluate(itemExecutionState);
                                         return itemResult.LastResult;
                                     });
@@ -143,7 +143,7 @@ namespace IxMilia.Lisp
                                         executionState.ReportError( new LispError($"Undefined macro/function '{invocationSymbol.Value}', found '<null>'"), sList.Value);
                                         break;
                                     }
-                                    executionState.InsertOperation(new LispEvaluatorInvocationExit(invocationObject, invocationSymbol.SourceLocation, executionState.StackFrame));
+                                    executionState.InsertOperation(new LispEvaluatorInvocationExit(invocationObject, invocationSymbol.SourceLocation));
 
                                     // insert function body back to front
                                     switch (invocationObject)
@@ -163,7 +163,7 @@ namespace IxMilia.Lisp
                                                 }
 
                                                 var isTailCallCandidate = i == codeFunction.Commands.Length - 1;
-                                                if (isTailCallCandidate)
+                                                if (executionState.UseTailCalls && isTailCallCandidate)
                                                 {
                                                     // the previously inserted operation is a candidate for a tail call
                                                     executionState.InsertOperation(new LispEvaluatorPopForTailCall(invocationObject, codeFunction.ArgumentCollection.ArgumentNames));
@@ -230,7 +230,7 @@ namespace IxMilia.Lisp
                             executionState.LastResult.SourceLocation = exit.InvocationLocation;
                         }
 
-                        executionState.StackFrame.Root.OnFunctionReturn(exit.InvocationObject, exit.StackFrame, executionState.LastResult);
+                        executionState.StackFrame.Root.OnFunctionReturn(exit.InvocationObject, executionState.StackFrame, executionState.LastResult);
                         if (exit.PopFrame)
                         {
                             executionState.StackFrame = executionState.StackFrame.Parent;
@@ -289,7 +289,7 @@ namespace IxMilia.Lisp
                                         }
 
                                         var isTailCallCandidate = i == macroExpansion.Count - 1;
-                                        if (isTailCallCandidate)
+                                        if (executionState.UseTailCalls && isTailCallCandidate)
                                         {
                                             // the previously inserted operation is a candidate for a tail call
                                             executionState.InsertOperation(new LispEvaluatorPopForTailCall(invocation.InvocationObject, macroArguments));

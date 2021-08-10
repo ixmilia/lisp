@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using IxMilia.Lisp.Parser;
@@ -17,13 +18,13 @@ namespace IxMilia.Lisp
 
         public HashSet<string> TracedFunctions { get; } = new HashSet<string>();
 
-        public LispRepl(string location = null, TextReader input = null, TextWriter output = null, TextWriter traceWriter = null)
+        public LispRepl(string location = null, TextReader input = null, TextWriter output = null, TextWriter traceWriter = null, bool useTailCalls = false)
         {
             _location = location;
             _input = input ?? TextReader.Null;
             _output = output ?? TextWriter.Null;
             _traceWriter = traceWriter ?? TextWriter.Null;
-            _host = new LispHost(_location, _input, _output);
+            _host = new LispHost(_location, _input, _output, useTailCalls);
             _host.RootFrame.FunctionEntered += FunctionEntered;
             _host.RootFrame.FunctionReturned += FunctionReturned;
             _parser = new LispParser(errorOnIncompleteExpressions: false);
@@ -50,12 +51,7 @@ namespace IxMilia.Lisp
 
         private string CreateTracePrefix(LispStackFrame frame, bool isFunctionEnter)
         {
-            var depth = frame.Depth;
-            if (isFunctionEnter)
-            {
-                depth--;
-            }
-
+            var depth = Math.Max(0, frame.Depth - 1);
             var indent = new string(' ', depth);
             return $"{indent}{depth}";
         }

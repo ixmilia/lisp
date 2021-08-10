@@ -8,13 +8,15 @@ namespace IxMilia.Lisp
         private Stack<LispObject> _argumentStack = new Stack<LispObject>();
         private List<ILispEvaluatorOperation> _operationQueue;
         internal LispStackFrame StackFrame { get; set; }
+        internal bool UseTailCalls { get; }
 
         public LispObject LastResult => _argumentStack.Count > 0 ? _argumentStack.Peek() : null;
 
-        private LispExecutionState(IEnumerable<ILispEvaluatorOperation> operations, LispStackFrame stackFrame)
+        private LispExecutionState(IEnumerable<ILispEvaluatorOperation> operations, LispStackFrame stackFrame, bool useTailCalls)
         {
             _operationQueue = operations.ToList();
             StackFrame = stackFrame;
+            UseTailCalls = useTailCalls;
         }
 
         internal ILispEvaluatorOperation PeekOperation()
@@ -72,7 +74,7 @@ namespace IxMilia.Lisp
             return false;
         }
 
-        internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, IEnumerable<LispObject> nodes, bool createDribbleInstructions)
+        internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, IEnumerable<LispObject> nodes, bool useTailCalls, bool createDribbleInstructions)
         {
             var operations = new List<ILispEvaluatorOperation>();
             var nodeList = nodes.ToList();
@@ -95,7 +97,7 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return new LispExecutionState(operations, stackFrame);
+            return new LispExecutionState(operations, stackFrame, useTailCalls);
         }
     }
 }

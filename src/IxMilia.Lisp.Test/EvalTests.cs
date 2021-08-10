@@ -135,8 +135,8 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
             Assert.Equal(3, error.SourceLocation.Value.Line);
             Assert.Equal(6, error.SourceLocation.Value.Column);
-            Assert.Equal("(root)", error.StackFrame.FunctionName);
-            Assert.Null(error.StackFrame.Parent);
+            Assert.Equal("inc", error.StackFrame.FunctionName);
+            Assert.Equal("(root)", error.StackFrame.Parent.FunctionName);
             Assert.Equal("Undefined macro/function 'add', found '<null>'", error.Message);
         }
 
@@ -283,7 +283,7 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public void TailCallWithCond()
         {
-            var host = new LispHost();
+            var host = new LispHost(useTailCalls: true);
             var lastInterpreterStackDepth = 0;
             var lastDotNetStackDepth = 0;
             var invocationCount = 0;
@@ -327,7 +327,7 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
         [Fact]
         public void TailCallWithIf()
         {
-            var host = new LispHost();
+            var host = new LispHost(useTailCalls: true);
             var lastInterpreterStackDepth = 0;
             var lastDotNetStackDepth = 0;
             var invocationCount = 0;

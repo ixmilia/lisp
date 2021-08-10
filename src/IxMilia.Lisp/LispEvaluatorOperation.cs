@@ -30,20 +30,18 @@ namespace IxMilia.Lisp
     {
         public LispMacroOrFunction InvocationObject { get; }
         public LispSourceLocation? InvocationLocation { get; }
-        public LispStackFrame StackFrame { get; }
         public bool PopFrame { get; }
 
-        public LispEvaluatorInvocationExit(LispMacroOrFunction invocationObject, LispSourceLocation? invocationLocation, LispStackFrame stackFrame, bool popFrame = true)
+        public LispEvaluatorInvocationExit(LispMacroOrFunction invocationObject, LispSourceLocation? invocationLocation, bool popFrame = true)
         {
             InvocationObject = invocationObject;
             InvocationLocation = invocationLocation;
-            StackFrame = stackFrame;
             PopFrame = popFrame;
         }
 
         public LispEvaluatorInvocationExit WithoutFramePop()
         {
-            return new LispEvaluatorInvocationExit(InvocationObject, InvocationLocation, StackFrame, popFrame: false);
+            return new LispEvaluatorInvocationExit(InvocationObject, InvocationLocation, popFrame: false);
         }
 
         public override string ToString()

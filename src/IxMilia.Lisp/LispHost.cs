@@ -18,14 +18,16 @@ namespace IxMilia.Lisp
         private string _initialFilePath;
         public readonly LispRootStackFrame RootFrame;
 
+        public bool UseTailCalls { get; }
         public LispObject T { get; }
         public LispObject Nil { get; }
         public LispStream TerminalIO { get; }
 
-        public LispHost(string filePath = null, TextReader input = null, TextWriter output = null)
+        public LispHost(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false)
         {
             _initialFilePath = filePath;
             RootFrame = new LispRootStackFrame(input ?? TextReader.Null, output ?? TextWriter.Null);
+            UseTailCalls = useTailCalls;
             T = RootFrame.T;
             Nil = RootFrame.Nil;
             TerminalIO = RootFrame.TerminalIO;
@@ -170,7 +172,7 @@ namespace IxMilia.Lisp
 
         public LispExecutionState Eval(IEnumerable<LispObject> nodes)
         {
-            var executionState = LispExecutionState.CreateExecutionState(RootFrame, nodes, createDribbleInstructions: true);
+            var executionState = LispExecutionState.CreateExecutionState(RootFrame, nodes, UseTailCalls, createDribbleInstructions: true);
             executionState = LispEvaluator.Evaluate(executionState);
             return executionState;
         }
