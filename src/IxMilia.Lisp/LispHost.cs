@@ -172,9 +172,15 @@ namespace IxMilia.Lisp
 
         public LispExecutionState Eval(IEnumerable<LispObject> nodes)
         {
-            var executionState = LispExecutionState.CreateExecutionState(RootFrame, nodes, UseTailCalls, createDribbleInstructions: true);
+            var executionState = LispExecutionState.CreateExecutionState(RootFrame, nodes, UseTailCalls, allowHalting: true, createDribbleInstructions: true);
             executionState = LispEvaluator.Evaluate(executionState);
             return executionState;
+        }
+
+        public LispExecutionState Eval(LispExecutionState executionState)
+        {
+            var finalExecutionState = LispEvaluator.Evaluate(executionState);
+            return finalExecutionState;
         }
 
         public LispExecutionState Eval(LispObject obj)

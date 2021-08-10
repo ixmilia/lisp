@@ -1,8 +1,6 @@
-﻿using System;
-
-namespace IxMilia.Lisp
+﻿namespace IxMilia.Lisp
 {
-    public class LispFunctionEnteredEventArgs : EventArgs
+    public class LispFunctionEnteredEventArgs : LispExecutionEventArgs
     {
         public LispStackFrame Frame { get; }
         public LispObject[] FunctionArguments { get; }

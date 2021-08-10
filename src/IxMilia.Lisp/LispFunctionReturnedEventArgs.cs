@@ -1,8 +1,6 @@
-﻿using System;
-
-namespace IxMilia.Lisp
+﻿namespace IxMilia.Lisp
 {
-    public class LispFunctionReturnedEventArgs : EventArgs
+    public class LispFunctionReturnedEventArgs : LispExecutionEventArgs
     {
         public LispMacroOrFunction InvocationObject { get; }
         public LispStackFrame Frame { get; }

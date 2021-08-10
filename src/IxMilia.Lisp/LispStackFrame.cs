@@ -80,7 +80,7 @@ namespace IxMilia.Lisp
 
         public LispObject EvalMany(IEnumerable<LispObject> nodes)
         {
-            var executionState = LispExecutionState.CreateExecutionState(this, nodes, useTailCalls: false, createDribbleInstructions: false);
+            var executionState = LispExecutionState.CreateExecutionState(this, nodes, useTailCalls: false, allowHalting: false, createDribbleInstructions: false);
             var resultExecutionState = LispEvaluator.Evaluate(executionState);
             return resultExecutionState.LastResult;
         }
@@ -106,6 +106,7 @@ namespace IxMilia.Lisp
 
         public event EventHandler<LispFunctionEnteredEventArgs> FunctionEntered;
         public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
+        public event EventHandler<LispEvaluatingExpressionEventArgs> EvaluatingExpression;
 
         internal LispFileStream DribbleStream
         {
@@ -134,16 +135,25 @@ namespace IxMilia.Lisp
             SetValue(TerminalIOString, new LispStream(TerminalIOString, input, output));
         }
 
-        internal void OnFunctionEnter(LispStackFrame frame, LispObject[] functionArguments)
+        internal bool OnFunctionEnter(LispStackFrame frame, LispObject[] functionArguments)
         {
             var args = new LispFunctionEnteredEventArgs(frame, functionArguments);
             FunctionEntered?.Invoke(this, args);
+            return args.HaltExecution;
         }
 
-        internal void OnFunctionReturn(LispMacroOrFunction invocationObject, LispStackFrame frame, LispObject returnValue)
+        internal bool OnFunctionReturn(LispMacroOrFunction invocationObject, LispStackFrame frame, LispObject returnValue)
         {
             var args = new LispFunctionReturnedEventArgs(invocationObject, frame, returnValue);
             FunctionReturned?.Invoke(this, args);
+            return args.HaltExecution;
+        }
+
+        internal bool OnEvaluatingExpression(LispObject expression, LispStackFrame frame)
+        {
+            var args = new LispEvaluatingExpressionEventArgs(expression, frame);
+            EvaluatingExpression?.Invoke(this, args);
+            return args.HaltExecution;
         }
     }
 }
