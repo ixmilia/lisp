@@ -45,6 +45,7 @@ namespace IxMilia.Lisp
         public void SetValue(string name, LispObject value)
         {
             _values[name] = value;
+            Root.OnValueSet(name, value, this);
         }
 
         internal void SetValueInParentScope(string name, LispObject value)
@@ -107,6 +108,7 @@ namespace IxMilia.Lisp
         public event EventHandler<LispFunctionEnteredEventArgs> FunctionEntered;
         public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
         public event EventHandler<LispEvaluatingExpressionEventArgs> EvaluatingExpression;
+        public event EventHandler<LispValueSetEventArgs> ValueSet;
 
         internal LispFileStream DribbleStream
         {
@@ -154,6 +156,12 @@ namespace IxMilia.Lisp
             var args = new LispEvaluatingExpressionEventArgs(expression, frame);
             EvaluatingExpression?.Invoke(this, args);
             return args.HaltExecution;
+        }
+
+        internal void OnValueSet(string name, LispObject value, LispStackFrame frame)
+        {
+            var args = new LispValueSetEventArgs(name, value, frame);
+            ValueSet?.Invoke(this, args);
         }
     }
 }

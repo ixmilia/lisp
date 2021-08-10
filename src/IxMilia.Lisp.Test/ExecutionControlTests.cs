@@ -183,5 +183,30 @@ namespace IxMilia.Lisp.Test
             Assert.True(executionState.IsExecutionComplete);
             Assert.Equal(4, ((LispInteger)executionState.LastResult).Value);
         }
+
+        [Fact]
+        public void ExecutionCanBeHaltedAfterSettingAValue()
+        {
+            var host = new LispHost();
+            host.RootFrame.ValueSet += (s, e) =>
+            {
+                if (e.Name == "the-answer" &&
+                    e.Value is LispInteger i &&
+                    i.Value == 42)
+                {
+                    e.HaltExecution = true;
+                }
+            };
+            var executionState = host.Eval(@"
+(defun test-method ()
+    (let ((the-answer (+ 40 2)))
+        (+ the-answer 2)))
+(test-method)
+");
+            Assert.False(executionState.IsExecutionComplete);
+            var finalExecutionState = host.Eval(executionState);
+            Assert.True(finalExecutionState.IsExecutionComplete);
+            Assert.Equal(44, ((LispInteger)finalExecutionState.LastResult).Value);
+        }
     }
 }

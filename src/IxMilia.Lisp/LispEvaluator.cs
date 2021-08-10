@@ -12,6 +12,17 @@ namespace IxMilia.Lisp
             var shouldDribbleReturnValue = executionState.StackFrame.Root.DribbleStream != null;
             while (executionState.TryDequeueOperation(out var operation))
             {
+                // value setting can only occur when evaluating a native macro or native function; if any of the set operations wants to halt, we do that below
+                var captureValueSetHalt = false;
+                var haltDueToValueSet = false;
+                var valueSet = new EventHandler<LispValueSetEventArgs>((s, e) =>
+                {
+                    if (captureValueSetHalt)
+                    {
+                        haltDueToValueSet = haltDueToValueSet || e.HaltExecution;
+                    }
+                });
+                executionState.StackFrame.Root.ValueSet += valueSet;
                 switch (operation)
                 {
                     case LispEvaluatorPopForTailCall tailPop:
@@ -294,6 +305,7 @@ namespace IxMilia.Lisp
                                             macroExpansion = codeMacro.ExpandBody(arguments).ToList();
                                             break;
                                         case LispNativeMacro nativeMacro:
+                                            captureValueSetHalt = true;
                                             macroArguments = Array.Empty<string>();
                                             macroExpansion = nativeMacro.Macro.Invoke(executionState.StackFrame, arguments).ToList();
                                             break;
@@ -325,6 +337,7 @@ namespace IxMilia.Lisp
                                     }
                                     break;
                                 case LispNativeFunction nativeFunction:
+                                    captureValueSetHalt = true;
                                     var evaluationResult = nativeFunction.Function.Invoke(executionState.StackFrame, arguments);
                                     if (!evaluationResult.SourceLocation.HasValue)
                                     {
@@ -345,6 +358,12 @@ namespace IxMilia.Lisp
                         break;
                     default:
                         throw new NotImplementedException($"Unhandled RPN operation {operation.GetType().Name}");
+                }
+
+                executionState.StackFrame.Root.ValueSet -= valueSet;
+                if (executionState.AllowHalting && haltDueToValueSet)
+                {
+                    return executionState;
                 }
             }
 
