@@ -74,17 +74,17 @@ namespace IxMilia.Lisp
                         case "&optional":
                             i++;
 
-                            Action<string, LispObject> addArgument;
+                            Action<LispSymbol, LispObject> addArgument;
                             switch (lambdaListKeyword.Keyword)
                             {
                                 case "&aux":
-                                    addArgument = (name, initialValue) => auxiliaryArguments.Add(new LispAuxiliaryFunctionArgument(name, initialValue));
+                                    addArgument = (declaration, initialValue) => auxiliaryArguments.Add(new LispAuxiliaryFunctionArgument(declaration, initialValue));
                                     break;
                                 case "&key":
-                                    addArgument = (name, defaultValue) => keywordArguments.Add(new LispKeywordFunctionArgument(name, defaultValue));
+                                    addArgument = (declaration, defaultValue) => keywordArguments.Add(new LispKeywordFunctionArgument(declaration, defaultValue));
                                     break;
                                 case "&optional":
-                                    addArgument = (name, defaultValue) => optionalArguments.Add(new LispOptionalFunctionArgument(name, defaultValue));
+                                    addArgument = (declaration, defaultValue) => optionalArguments.Add(new LispOptionalFunctionArgument(declaration, defaultValue));
                                     break;
                                 default:
                                     throw new InvalidOperationException($"Unexpected argument specifier [{lambdaListKeyword.Keyword}]");
@@ -106,7 +106,7 @@ namespace IxMilia.Lisp
                                             return false;
                                         }
 
-                                        addArgument(argWithNilDefault.Value, LispNilList.Instance);
+                                        addArgument(argWithNilDefault, LispNilList.Instance);
                                         break;
                                     case LispList argWithCustomDefault:
                                         if (argWithCustomDefault.Length == 2 &&
@@ -119,7 +119,7 @@ namespace IxMilia.Lisp
                                                 return false;
                                             }
 
-                                            addArgument(defaultArgName.Value, defaultValue.Value);
+                                            addArgument(defaultArgName, defaultValue.Value);
                                         }
                                         else
                                         {
@@ -144,7 +144,7 @@ namespace IxMilia.Lisp
                                     return false;
                                 }
 
-                                rest = new LispRestFunctionArgument(restName.Value);
+                                rest = new LispRestFunctionArgument(restName);
                                 i++;
                             }
                             else
@@ -161,7 +161,7 @@ namespace IxMilia.Lisp
                 else if (argumentListValue is LispSymbol symbol)
                 {
                     // regular variable
-                    regularArguments.Add(new LispRegularFunctionArgument(symbol.Value));
+                    regularArguments.Add(new LispRegularFunctionArgument(symbol));
                 }
                 else
                 {

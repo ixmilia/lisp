@@ -13,6 +13,8 @@ namespace IxMilia.Lisp
         public static IEqualityComparer<LispObject> Comparer { get; } = new LispObjectEqualityComparer();
 
         public LispSourceLocation? SourceLocation { get; internal set; }
+        public LispObject Parent { get; internal set; }
+        public abstract IEnumerable<LispObject> GetChildren();
 
         internal abstract LispObject Clone();
 
@@ -76,6 +78,11 @@ namespace IxMilia.Lisp
         public LispQuotedObject(LispObject value)
         {
             Value = value;
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield return Value;
         }
 
         internal override LispObject Clone()
@@ -145,6 +152,11 @@ namespace IxMilia.Lisp
         //    }
         //}
 
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
         internal override LispObject Clone()
         {
             return new LispError(Message, StackFrame);
@@ -164,6 +176,11 @@ namespace IxMilia.Lisp
         public LispSymbol(string value)
         {
             Value = value;
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
         }
 
         internal override LispObject Clone()
@@ -206,6 +223,11 @@ namespace IxMilia.Lisp
             Keyword = keyword;
         }
 
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
         internal override LispObject Clone()
         {
             return new LispKeyword(Keyword);
@@ -224,6 +246,11 @@ namespace IxMilia.Lisp
         public LispLambdaListKeyword(string keyword)
         {
             Keyword = keyword;
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
         }
 
         internal override LispObject Clone()
@@ -490,6 +517,11 @@ namespace IxMilia.Lisp
         public bool IsEven => Value % 2 == 0;
         public bool IsOdd => Value % 2 != 0;
 
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
         internal override LispObject Clone()
         {
             return new LispInteger(Value);
@@ -562,6 +594,11 @@ namespace IxMilia.Lisp
         public static implicit operator LispFloat(LispInteger i)
         {
             return new LispFloat(i.Value);
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
         }
 
         internal override LispObject Clone()
@@ -675,6 +712,11 @@ namespace IxMilia.Lisp
             goto top;
         }
 
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
         internal override LispObject Clone()
         {
             return new LispRatio(Numerator, Denominator);
@@ -752,6 +794,11 @@ namespace IxMilia.Lisp
                 : Value;
         }
 
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
         internal override LispObject Clone()
         {
             return new LispString(Value);
@@ -792,6 +839,11 @@ namespace IxMilia.Lisp
         {
             ForwardReference = forwardReference;
             List = list;
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield return List;
         }
 
         internal override LispObject Clone()
@@ -848,6 +900,11 @@ namespace IxMilia.Lisp
             {
                 Length = 1; // `Value`; improper tail isn't counted
             }
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            return ToList();
         }
 
         internal override LispObject Clone()
@@ -1168,6 +1225,42 @@ namespace IxMilia.Lisp
             Commands = commands.ToArray();
         }
 
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            foreach (var argument in ArgumentCollection.RegularArguments)
+            {
+                yield return argument.Declaration;
+            }
+
+            foreach (var argument in ArgumentCollection.OptionalArguments)
+            {
+                yield return argument.Declaration;
+                yield return argument.DefaultValue;
+            }
+
+            foreach (var argument in ArgumentCollection.KeywordArguments.Values)
+            {
+                yield return argument.Declaration;
+                yield return argument.DefaultValue;
+            }
+
+            foreach (var argument in ArgumentCollection.AuxiliaryArguments)
+            {
+                yield return argument.Declaration;
+                yield return argument.InitialValue;
+            }
+
+            if (ArgumentCollection.RestArgument != null)
+            {
+                yield return ArgumentCollection.RestArgument.Declaration;
+            }
+
+            foreach (var command in Commands)
+            {
+                yield return command;
+            }
+        }
+
         internal override LispObject Clone()
         {
             return new LispCodeFunction(Name, Documentation, ArgumentCollection, Commands);
@@ -1367,6 +1460,11 @@ namespace IxMilia.Lisp
             Function = function;
         }
 
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
         internal override LispObject Clone()
         {
             return new LispNativeFunction(Name, Documentation, Function);
@@ -1391,6 +1489,11 @@ namespace IxMilia.Lisp
             Name = name;
         }
 
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
         internal override LispObject Clone()
         {
             return new LispQuotedNamedFunctionReference(Name);
@@ -1410,6 +1513,11 @@ namespace IxMilia.Lisp
         public LispQuotedLambdaFunctionReference(LispCodeFunction definition)
         {
             Definition = definition;
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield return Definition;
         }
 
         internal override LispObject Clone()
@@ -1442,6 +1550,15 @@ namespace IxMilia.Lisp
         {
             Arguments = arguments.ToArray();
             Body = body.ToArray();
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            // TODO: argument collections
+            foreach (var bodyItem in Body)
+            {
+                yield return bodyItem;
+            }
         }
 
         internal override LispObject Clone()
@@ -1488,6 +1605,11 @@ namespace IxMilia.Lisp
             : base(name)
         {
             Macro = macro;
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
         }
 
         internal override LispObject Clone()
@@ -1546,6 +1668,11 @@ namespace IxMilia.Lisp
             }
 
             return nodes[0];
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
         }
 
         internal override LispObject Clone()

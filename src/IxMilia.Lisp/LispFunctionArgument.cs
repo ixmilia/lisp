@@ -2,18 +2,19 @@
 {
     public abstract class LispFunctionArgument
     {
-        public string Name { get; }
+        public LispSymbol Declaration { get; }
+        public string Name => Declaration.Value;
 
-        protected LispFunctionArgument(string name)
+        protected LispFunctionArgument(LispSymbol declaration)
         {
-            Name = name;
+            Declaration = declaration;
         }
     }
 
     public class LispRegularFunctionArgument : LispFunctionArgument
     {
-        internal LispRegularFunctionArgument(string name)
-            : base(name)
+        internal LispRegularFunctionArgument(LispSymbol declaration)
+            : base(declaration)
         {
         }
 
@@ -27,8 +28,8 @@
     {
         public LispObject DefaultValue { get; }
 
-        internal LispOptionalFunctionArgument(string name, LispObject defaultValue)
-            : base(name)
+        internal LispOptionalFunctionArgument(LispSymbol declaration, LispObject defaultValue)
+            : base(declaration)
         {
             DefaultValue = defaultValue;
         }
@@ -43,8 +44,8 @@
     {
         public LispObject DefaultValue { get; }
 
-        internal LispKeywordFunctionArgument(string name, LispObject defaultValue)
-            : base(name)
+        internal LispKeywordFunctionArgument(LispSymbol declaration, LispObject defaultValue)
+            : base(declaration)
         {
             DefaultValue = defaultValue;
         }
@@ -59,8 +60,8 @@
     {
         public LispObject InitialValue { get; }
 
-        internal LispAuxiliaryFunctionArgument(string name, LispObject initialValue)
-            : base(name)
+        internal LispAuxiliaryFunctionArgument(LispSymbol declaration, LispObject initialValue)
+            : base(declaration)
         {
             InitialValue = initialValue;
         }
@@ -73,8 +74,8 @@
 
     public class LispRestFunctionArgument : LispFunctionArgument
     {
-        internal LispRestFunctionArgument(string name)
-            : base(name)
+        internal LispRestFunctionArgument(LispSymbol declaration)
+            : base(declaration)
         {
         }
 

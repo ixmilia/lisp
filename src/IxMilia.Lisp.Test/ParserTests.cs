@@ -102,5 +102,33 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(1, error.SourceLocation?.Line);
             Assert.Equal(8, error.SourceLocation?.Column);
         }
+
+        [Fact]
+        public void ParsedObjectsHaveParentsSet()
+        {
+            var rootNode = Parse(@"
+(defun test-function ()
+    (+ 1 2)
+    (* (- 3 4) (/ 5 6)))
+").Single();
+            Assert.Null(rootNode.Parent);
+
+            // check top level children
+            var children = rootNode.GetChildren().ToList();
+            Assert.Equal(5, children.Count);
+            foreach (var child in children)
+            {
+                Assert.True(ReferenceEquals(child.Parent, rootNode));
+            }
+
+            // spot-check one level more
+            var multiplyExpression = children.Last();
+            var nextLevelChildren = multiplyExpression.GetChildren().ToList();
+            Assert.Equal(3, nextLevelChildren.Count);
+            foreach (var child in nextLevelChildren)
+            {
+                Assert.True(ReferenceEquals(child.Parent, multiplyExpression));
+            }
+        }
     }
 }

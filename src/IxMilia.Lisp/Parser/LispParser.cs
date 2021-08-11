@@ -29,7 +29,7 @@ namespace IxMilia.Lisp.Parser
         private IEnumerable<LispObject> ParseNodes()
         {
             var startIndex = _index;
-            while (TryParseNullExpression(out var expression) && expression != null)
+            while (TryParseNullExpression(null, out var expression) && expression != null)
             {
                 startIndex = _index;
                 yield return expression;
@@ -50,7 +50,7 @@ namespace IxMilia.Lisp.Parser
             _tokens.AddRange(tokens);
         }
 
-        private bool TryParseNullExpression(out LispObject result)
+        private bool TryParseNullExpression(LispObject parent, out LispObject result)
         {
             result = null;
             while (TryPeek(out var token))
@@ -63,7 +63,7 @@ namespace IxMilia.Lisp.Parser
                         break;
                     case LispSingleQuoteToken _:
                         Advance();
-                        result = ParseQuotedObject();
+                        result = ParseQuotedObject(parent);
                         break;
                     case LispSymbolToken symbol:
                         Advance();
@@ -92,15 +92,15 @@ namespace IxMilia.Lisp.Parser
                     case LispLeftParenToken left:
                         Advance();
                         _leftParens.Push(left);
-                        result = ParseList();
+                        result = ParseList(parent);
                         break;
                     case LispForwardReferenceToken forwardRef:
                         Advance();
-                        result = ParseForwardReferenceList(forwardRef);
+                        result = ParseForwardReferenceList(parent, forwardRef);
                         break;
                     case LispQuotedFunctionToken functionQuote:
                         Advance();
-                        result = ParseQuotedFunction(functionQuote);
+                        result = ParseQuotedFunction(parent, functionQuote);
                         break;
                     case LispDotToken _:
                         // This should have been handled in `ParseList()`
@@ -116,6 +116,7 @@ namespace IxMilia.Lisp.Parser
 
                 if (result != null)
                 {
+                    result.Parent = parent;
                     if (!result.SourceLocation.HasValue)
                     {
                         result.SourceLocation = token.SourceLocation;
@@ -137,9 +138,9 @@ namespace IxMilia.Lisp.Parser
             return false;
         }
 
-        private LispObject ParseQuotedObject()
+        private LispObject ParseQuotedObject(LispObject parent)
         {
-            if (TryParseNullExpression(out var value) && value != null)
+            if (TryParseNullExpression(parent, out var value) && value != null)
             {
                 return new LispQuotedObject(value);
             }
@@ -153,13 +154,13 @@ namespace IxMilia.Lisp.Parser
             }
         }
 
-        private LispObject ParseForwardReferenceList(LispForwardReferenceToken forwardRef)
+        private LispObject ParseForwardReferenceList(LispObject parent, LispForwardReferenceToken forwardRef)
         {
             if (TryPeek(out var token) && token is LispLeftParenToken leftParen)
             {
                 Advance();
                 _leftParens.Push(leftParen);
-                var next = ParseList();
+                var next = ParseList(parent);
                 if (next is LispList innerList)
                 {
                     return new LispForwardListReference(forwardRef, innerList);
@@ -183,7 +184,7 @@ namespace IxMilia.Lisp.Parser
             }
         }
 
-        private LispObject ParseQuotedFunction(LispToken functionQuote)
+        private LispObject ParseQuotedFunction(LispObject parent, LispToken functionQuote)
         {
             if (TryPeek(out var token))
             {
@@ -199,7 +200,7 @@ namespace IxMilia.Lisp.Parser
                     // lambda function
                     _leftParens.Push(leftParen);
                     Advance();
-                    var lambdaCandidate = ParseList();
+                    var lambdaCandidate = ParseList(parent);
                     if (lambdaCandidate is LispError error)
                     {
                         return error;
@@ -229,7 +230,7 @@ namespace IxMilia.Lisp.Parser
             return new LispError("Expected function symbol or lambda expression");
         }
 
-        private LispObject ParseList()
+        private LispObject ParseList(LispObject parent)
         {
             var elements = new List<LispObject>();
             var tailElements = new List<LispObject>();
@@ -259,7 +260,7 @@ namespace IxMilia.Lisp.Parser
                         rightParen = (LispRightParenToken)token;
                         break;
                     default:
-                        if (TryParseNullExpression(out var element))
+                        if (TryParseNullExpression(parent, out var element))
                         {
                             if (element == null)
                             {
@@ -320,6 +321,17 @@ namespace IxMilia.Lisp.Parser
                         var allItems = elements.Concat(tailElements).ToList();
                         result = LispList.FromEnumerableImproper(allItems[0], allItems[1], allItems.Skip(2));
                     }
+                }
+
+                // set the newly created list as the parent
+                foreach (var element in elements)
+                {
+                    element.Parent = result;
+                }
+
+                foreach (var element in tailElements)
+                {
+                    element.Parent = result;
                 }
 
                 return result;
