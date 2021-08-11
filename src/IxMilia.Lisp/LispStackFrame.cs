@@ -109,6 +109,7 @@ namespace IxMilia.Lisp
         public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
         public event EventHandler<LispEvaluatingExpressionEventArgs> EvaluatingExpression;
         public event EventHandler<LispValueSetEventArgs> ValueSet;
+        public event EventHandler<LispErrorOccuredEventArgs> ErrorOccured;
 
         internal LispFileStream DribbleStream
         {
@@ -162,6 +163,12 @@ namespace IxMilia.Lisp
         {
             var args = new LispValueSetEventArgs(name, value, frame);
             ValueSet?.Invoke(this, args);
+        }
+
+        internal void OnErrorOccured(LispError error, LispStackFrame frame)
+        {
+            var args = new LispErrorOccuredEventArgs(error, frame);
+            ErrorOccured?.Invoke(this, args);
         }
     }
 }

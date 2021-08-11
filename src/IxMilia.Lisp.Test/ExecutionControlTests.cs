@@ -208,5 +208,55 @@ namespace IxMilia.Lisp.Test
             Assert.True(finalExecutionState.IsExecutionComplete);
             Assert.Equal(44, ((LispInteger)finalExecutionState.LastResult).Value);
         }
+
+        [Fact]
+        public void ExecutionCanBeHaltedWhenAnErrorIsExplicitlyRaised()
+        {
+            var host = new LispHost();
+            LispError capturedError = null;
+            host.RootFrame.ErrorOccured += (s, e) =>
+            {
+                capturedError = e.Error;
+            };
+            var executionState = host.Eval(@"
+(defun test-method ()
+    (error ""test error""))
+(test-method)
+");
+            // errors _always_ halt execution
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("test error", ((LispError)executionState.LastResult).Message);
+            Assert.Equal("test error", capturedError.Message);
+            Assert.True(ReferenceEquals(capturedError, executionState.LastResult));
+
+            // all future processing stops
+            var finalExecutionState = host.Eval(executionState);
+            Assert.False(finalExecutionState.IsExecutionComplete);
+        }
+
+        [Fact]
+        public void ExecutionCanBeHaltedWhenAnErrorIsNaturallyEncountered()
+        {
+            var host = new LispHost();
+            LispError capturedError = null;
+            host.RootFrame.ErrorOccured += (s, e) =>
+            {
+                capturedError = e.Error;
+            };
+            var executionState = host.Eval(@"
+(defun test-method ()
+    (not-a-method))
+(test-method)
+");
+            // errors _always_ halt execution
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("Undefined macro/function 'not-a-method', found '<null>'", ((LispError)executionState.LastResult).Message);
+            Assert.Equal("Undefined macro/function 'not-a-method', found '<null>'", capturedError.Message);
+            Assert.True(ReferenceEquals(capturedError, executionState.LastResult));
+
+            // all future processing stops
+            var finalExecutionState = host.Eval(executionState);
+            Assert.False(finalExecutionState.IsExecutionComplete);
+        }
     }
 }

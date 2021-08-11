@@ -58,7 +58,12 @@ namespace IxMilia.Lisp
                 error.SourceLocation = parent?.SourceLocation;
             }
 
-            InsertOperation(new LispEvaluatorObjectExpression(error));
+            if (error.StackFrame is null)
+            {
+                error.StackFrame = StackFrame;
+            }
+
+            PushArgument(error);
         }
 
         internal void PushArgument(LispObject argument)

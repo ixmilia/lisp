@@ -12,6 +12,14 @@ namespace IxMilia.Lisp
             var shouldDribbleReturnValue = executionState.StackFrame.Root.DribbleStream != null;
             while (executionState.TryDequeueOperation(out var operation))
             {
+                if (executionState.LastResult is LispError error)
+                {
+                    // re-queue, because we can never finish
+                    executionState.InsertOperation(operation);
+                    executionState.StackFrame.Root.OnErrorOccured(error, executionState.StackFrame);
+                    return executionState;
+                }
+
                 // value setting can only occur when evaluating a native macro or native function; if any of the set operations wants to halt, we do that below
                 var captureValueSetHalt = false;
                 var haltDueToValueSet = false;
@@ -75,14 +83,9 @@ namespace IxMilia.Lisp
 
                             switch (expression.Expression)
                             {
-                                case LispError error:
-                                    if (error.StackFrame == null)
-                                    {
-                                        error.StackFrame = executionState.StackFrame;
-                                    }
-
-                                    executionState.PushArgument(error);
-                                    return executionState;
+                                case LispError expressionError:
+                                    executionState.PushArgument(expressionError);
+                                    break;
                                 case LispInteger _:
                                 case LispFloat _:
                                 case LispRatio _:
@@ -345,10 +348,6 @@ namespace IxMilia.Lisp
                                     }
 
                                     executionState.PushArgument(evaluationResult);
-                                    if (evaluationResult is LispError)
-                                    {
-                                        return executionState;
-                                    }
                                     break;
                                 default:
                                     throw new NotImplementedException($"Unsupported macro/function object {invocation.InvocationObject.GetType().Name}");
