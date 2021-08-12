@@ -259,10 +259,12 @@ namespace IxMilia.Lisp.Test
             Assert.False(executionState.IsExecutionComplete);
         }
 
-        [Fact]
-        public void ExecutionCanStepOver()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ExecutionCanStepOver(bool useTailCalls)
         {
-            var host = new LispHost();
+            var host = new LispHost(useTailCalls: useTailCalls);
             var hasHalted = false;
             host.RootFrame.EvaluatingExpression += (s, e) =>
             {
@@ -296,10 +298,12 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(8, ((LispInteger)executionState.LastResult).Value);
         }
 
-        [Fact]
-        public void ExecutionCanStepIn()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ExecutionCanStepIn(bool useTailCalls)
         {
-            var host = new LispHost();
+            var host = new LispHost(useTailCalls: useTailCalls);
             host.AddFunction("native-function", (frame, args) =>
             {
                 return frame.T;
@@ -331,10 +335,12 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("s: (+ 1 1)", executionState.PeekOperation().ToString());
         }
 
-        [Fact]
-        public void ExecutionCanStepOut()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ExecutionCanStepOut(bool useTailCalls)
         {
-            var host = new LispHost();
+            var host = new LispHost(useTailCalls: useTailCalls);
             var hasHalted = false;
             host.RootFrame.EvaluatingExpression += (s, e) =>
             {

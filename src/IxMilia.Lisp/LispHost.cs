@@ -216,64 +216,106 @@ namespace IxMilia.Lisp
 
         public void StepOver(LispExecutionState executionState)
         {
-            var currentExpression = executionState.PeekCurrentExpression();
-            var initialStackDepth = executionState.StackFrame.Depth;
-            var halter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
+            // ref-count function exits...
+            var functionEnteredCounter = 0;
+            var exitedViaFunctionRefCount = false;
+            var functionEnterEventHandler = new EventHandler<LispFunctionEnteredEventArgs>((s, e) =>
             {
-                if (e.StackFrame.Depth > initialStackDepth)
+                functionEnteredCounter++;
+            });
+            var functionExitedEventHandler = new EventHandler<LispFunctionReturnedEventArgs>((s, e) =>
+            {
+                if (functionEnteredCounter == 0)
                 {
-                    // went deeper; continue
-                }
-                else if (e.StackFrame.Depth < initialStackDepth)
-                {
-                    // at the end of a function and actually stepped out
                     e.HaltExecution = true;
+                    exitedViaFunctionRefCount = true;
                 }
                 else
                 {
-                    // same stack depth; keep running until the next (i.e., not current) expression with the same parent
-                    if (!ReferenceEquals(currentExpression, e.Expression) &&
-                        ReferenceEquals(currentExpression?.Parent, e.Expression?.Parent))
-                    {
-                        e.HaltExecution = true;
-                    }
+                    functionEnteredCounter--;
                 }
             });
-            RootFrame.EvaluatingExpression += halter;
+
+            // ... or the next expression (i.e., not current) has the same parent
+            var currentExpression = executionState.PeekCurrentExpression();
+            var expressionHalter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
+            {
+                // run until the next (i.e., not current) expression with the same parent
+                if (!ReferenceEquals(currentExpression, e.Expression) &&
+                    ReferenceEquals(currentExpression?.Parent, e.Expression?.Parent))
+                {
+                    e.HaltExecution = true;
+                }
+            });
+
+            RootFrame.FunctionEntered += functionEnterEventHandler;
+            RootFrame.FunctionReturned += functionExitedEventHandler;
+            RootFrame.EvaluatingExpression += expressionHalter;
             Run(executionState);
-            RootFrame.EvaluatingExpression -= halter;
+            RootFrame.EvaluatingExpression -= expressionHalter;
+            RootFrame.FunctionReturned -= functionExitedEventHandler;
+            RootFrame.FunctionEntered -= functionEnterEventHandler;
+
+            if (exitedViaFunctionRefCount)
+            {
+                // if we were at the end of a function and actually stepped out, halt on the next expression
+                HaltOnNextExpression(executionState);
+            }
         }
 
         public void StepIn(LispExecutionState executionState)
         {
-            // halt on the second instruction (the first instruction is what was previously halted on)
-            var halterCheckCount = 0;
-            var halter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
-            {
-                halterCheckCount++;
-                if (halterCheckCount == 2)
-                {
-                    e.HaltExecution = true;
-                }
-            });
-            RootFrame.EvaluatingExpression += halter;
-            Run(executionState);
-            RootFrame.EvaluatingExpression -= halter;
+            // halting without skipping will halt where we're already halted
+            HaltOnNextExpression(executionState, skipExpressionCount: 1);
         }
 
         public void StepOut(LispExecutionState executionState)
         {
-            var initialStackDepth = executionState.StackFrame.Depth;
-            var halter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
+            // ref-count function exits...
+            var functionEnteredCounter = 0;
+            var functionEnterHandler = new EventHandler<LispFunctionEnteredEventArgs>((s, e) =>
             {
-                if (e.StackFrame.Depth < initialStackDepth)
+                functionEnteredCounter++;
+            });
+            var functionExitHalter = new EventHandler<LispFunctionReturnedEventArgs>((s, e) =>
+            {
+                if (functionEnteredCounter == 0)
                 {
                     e.HaltExecution = true;
                 }
+                else
+                {
+                    functionEnteredCounter--;
+                }
             });
-            RootFrame.EvaluatingExpression += halter;
+            RootFrame.FunctionEntered += functionEnterHandler;
+            RootFrame.FunctionReturned += functionExitHalter;
             Run(executionState);
-            RootFrame.EvaluatingExpression -= halter;
+            RootFrame.FunctionReturned -= functionExitHalter;
+            RootFrame.FunctionEntered -= functionEnterHandler;
+
+            // ...then halt on the very next expression
+            HaltOnNextExpression(executionState);
+        }
+
+        private void HaltOnNextExpression(LispExecutionState executionState, int skipExpressionCount = 0)
+        {
+            // allows various pop and exit operations to be processed
+            var skippedExpressions = 0;
+            var nextExpressionHalter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
+            {
+                if (skippedExpressions == skipExpressionCount)
+                {
+                    e.HaltExecution = true;
+                }
+                else
+                {
+                    skippedExpressions++;
+                }
+            });
+            RootFrame.EvaluatingExpression += nextExpressionHalter;
+            Run(executionState);
+            RootFrame.EvaluatingExpression -= nextExpressionHalter;
         }
     }
 }

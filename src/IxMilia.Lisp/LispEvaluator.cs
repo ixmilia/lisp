@@ -288,7 +288,7 @@ namespace IxMilia.Lisp
                                 foundArgumentCount++;
                             }
 
-                            executionState.StackFrame = new LispStackFrame(invocation.InvocationObject.Name, executionState.StackFrame);
+                            executionState.StackFrame = new LispStackFrame(invocation.InvocationObject, executionState.StackFrame);
                             var halt = executionState.StackFrame.Root.OnFunctionEnter(executionState.StackFrame, arguments);
                             if (executionState.AllowHalting && halt)
                             {

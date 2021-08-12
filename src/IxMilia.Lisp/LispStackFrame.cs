@@ -10,6 +10,7 @@ namespace IxMilia.Lisp
         protected const string NilString = "nil";
         protected const string TerminalIOString = "*terminal-io*";
 
+        public LispMacroOrFunction InvocationObject { get; }
         public string FunctionName { get; }
         public LispStackFrame Parent { get; }
         public LispSourceLocation? SourceLocation { get; private set; }
@@ -23,12 +24,24 @@ namespace IxMilia.Lisp
 
         private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
 
-        public LispStackFrame(string functionName, LispStackFrame parent)
+        private LispStackFrame(LispStackFrame parent)
         {
-            FunctionName = functionName;
             Parent = parent;
             Root = Parent?.Root;
             Depth = (Parent?.Depth ?? LispRootStackFrame.RootStackDepth) + 1;
+        }
+
+        internal LispStackFrame(LispMacroOrFunction invocationObject, LispStackFrame parent)
+            : this(parent)
+        {
+            InvocationObject = invocationObject;
+            FunctionName = invocationObject.Name;
+        }
+
+        protected LispStackFrame(string functionName, LispStackFrame parent)
+            : this(parent)
+        {
+            FunctionName = functionName;
         }
 
         internal void CopyLocalsToParentForTailCall(HashSet<string> invocationArgumentNames)
