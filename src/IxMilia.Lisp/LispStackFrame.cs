@@ -82,8 +82,8 @@ namespace IxMilia.Lisp
         public LispObject EvalMany(IEnumerable<LispObject> nodes)
         {
             var executionState = LispExecutionState.CreateExecutionState(this, nodes, useTailCalls: false, allowHalting: false, createDribbleInstructions: false);
-            var resultExecutionState = LispEvaluator.Evaluate(executionState);
-            return resultExecutionState.LastResult;
+            LispEvaluator.Evaluate(executionState);
+            return executionState.LastResult;
         }
 
         internal void UpdateCallStackLocation(LispSourceLocation? sourceLocation)

@@ -156,6 +156,36 @@ namespace IxMilia.Lisp
             return RootFrame.GetValue<TObject>(name);
         }
 
+        public IEnumerable<LispObject> Parse(string code)
+        {
+            return Parse(_initialFilePath, code);
+        }
+
+        public IEnumerable<LispObject> Parse(string filePath, string code)
+        {
+            var tokenizer = new LispTokenizer(filePath, code);
+            var tokens = tokenizer.GetTokens();
+            var parser = new LispParser(tokens);
+            var nodes = parser.Parse().Nodes;
+            return nodes;
+        }
+
+        public LispExecutionState CreateExecutionState(string code)
+        {
+            return CreateExecutionState(_initialFilePath, code);
+        }
+
+        public LispExecutionState CreateExecutionState(string filePath, string code)
+        {
+            var nodes = Parse(filePath, code);
+            return CreateExecutionState(nodes);
+        }
+
+        public LispExecutionState CreateExecutionState(IEnumerable<LispObject> nodes)
+        {
+            return LispExecutionState.CreateExecutionState(RootFrame, nodes, UseTailCalls, allowHalting: true, createDribbleInstructions: true);
+        }
+
         public LispExecutionState Eval(string code)
         {
             return Eval(_initialFilePath, code);
@@ -163,24 +193,8 @@ namespace IxMilia.Lisp
 
         public LispExecutionState Eval(string filePath, string code)
         {
-            var tokenizer = new LispTokenizer(filePath, code);
-            var tokens = tokenizer.GetTokens();
-            var parser = new LispParser(tokens);
-            var nodes = parser.Parse().Nodes;
+            var nodes = Parse(filePath, code);
             return Eval(nodes);
-        }
-
-        public LispExecutionState Eval(IEnumerable<LispObject> nodes)
-        {
-            var executionState = LispExecutionState.CreateExecutionState(RootFrame, nodes, UseTailCalls, allowHalting: true, createDribbleInstructions: true);
-            executionState = LispEvaluator.Evaluate(executionState);
-            return executionState;
-        }
-
-        public LispExecutionState Eval(LispExecutionState executionState)
-        {
-            var finalExecutionState = LispEvaluator.Evaluate(executionState);
-            return finalExecutionState;
         }
 
         public LispExecutionState Eval(LispObject obj)
@@ -188,12 +202,78 @@ namespace IxMilia.Lisp
             return Eval(new LispObject[] { obj });
         }
 
-        private void TryApplyStackFrame(LispError error)
+        public LispExecutionState Eval(IEnumerable<LispObject> nodes)
         {
-            if (error.StackFrame == null)
+            var executionState = CreateExecutionState(nodes);
+            Run(executionState);
+            return executionState;
+        }
+
+        public void Run(LispExecutionState executionState)
+        {
+            LispEvaluator.Evaluate(executionState);
+        }
+
+        public void StepOver(LispExecutionState executionState)
+        {
+            var currentExpression = executionState.PeekCurrentExpression();
+            var initialStackDepth = executionState.StackFrame.Depth;
+            var halter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
             {
-                error.StackFrame = RootFrame;
-            }
+                if (e.StackFrame.Depth > initialStackDepth)
+                {
+                    // went deeper; continue
+                }
+                else if (e.StackFrame.Depth < initialStackDepth)
+                {
+                    // at the end of a function and actually stepped out
+                    e.HaltExecution = true;
+                }
+                else
+                {
+                    // same stack depth; keep running until the next (i.e., not current) expression with the same parent
+                    if (!ReferenceEquals(currentExpression, e.Expression) &&
+                        ReferenceEquals(currentExpression?.Parent, e.Expression?.Parent))
+                    {
+                        e.HaltExecution = true;
+                    }
+                }
+            });
+            RootFrame.EvaluatingExpression += halter;
+            Run(executionState);
+            RootFrame.EvaluatingExpression -= halter;
+        }
+
+        public void StepIn(LispExecutionState executionState)
+        {
+            // halt on the second instruction (the first instruction is what was previously halted on)
+            var halterCheckCount = 0;
+            var halter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
+            {
+                halterCheckCount++;
+                if (halterCheckCount == 2)
+                {
+                    e.HaltExecution = true;
+                }
+            });
+            RootFrame.EvaluatingExpression += halter;
+            Run(executionState);
+            RootFrame.EvaluatingExpression -= halter;
+        }
+
+        public void StepOut(LispExecutionState executionState)
+        {
+            var initialStackDepth = executionState.StackFrame.Depth;
+            var halter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
+            {
+                if (e.StackFrame.Depth < initialStackDepth)
+                {
+                    e.HaltExecution = true;
+                }
+            });
+            RootFrame.EvaluatingExpression += halter;
+            Run(executionState);
+            RootFrame.EvaluatingExpression -= halter;
         }
     }
 }

@@ -33,6 +33,11 @@ namespace IxMilia.Lisp
             return null;
         }
 
+        internal LispObject PeekCurrentExpression()
+        {
+            return _operationQueue.OfType<LispEvaluatorObjectExpression>().FirstOrDefault()?.Expression;
+        }
+
         internal void InsertOperation(ILispEvaluatorOperation operation)
         {
             _operationQueue.Insert(0, operation);
