@@ -298,6 +298,36 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(8, ((LispInteger)executionState.LastResult).Value);
         }
 
+        [Fact]
+        public void ExecutionStepOverWhenNextOperationIsNotAnExpression()
+        {
+            var host = new LispHost();
+            host.RootFrame.FunctionReturned += (s, e) =>
+            {
+                if (e.Frame.FunctionName == "test-method")
+                {
+                    e.HaltExecution = true;
+                }
+            };
+            var executionState = host.Eval(@"
+(defun test-method ()
+    (+ 1 2))
+(test-method)
+(+ 4 5)
+");
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)executionState.LastResult).Value);
+            Assert.Null(executionState.PeekCurrentExpression());
+
+            host.StepOver(executionState); // nothing to step over; it's really a step out
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: (+ 4 5)", executionState.PeekOperation().ToString());
+
+            host.Run(executionState);
+            Assert.True(executionState.IsExecutionComplete);
+            Assert.Equal(9, ((LispInteger)executionState.LastResult).Value); ;
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -335,6 +365,36 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("s: (+ 1 1)", executionState.PeekOperation().ToString());
         }
 
+        [Fact]
+        public void ExecutionStepInWhenNextOperationIsNotAnExpression()
+        {
+            var host = new LispHost();
+            host.RootFrame.FunctionReturned += (s, e) =>
+            {
+                if (e.Frame.FunctionName == "test-method")
+                {
+                    e.HaltExecution = true;
+                }
+            };
+            var executionState = host.Eval(@"
+(defun test-method ()
+    (+ 1 2))
+(test-method)
+(+ 4 5)
+");
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)executionState.LastResult).Value);
+            Assert.Null(executionState.PeekCurrentExpression());
+
+            host.StepIn(executionState); // nothing to step in to, so it's really step out _then_ step in
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: 4", executionState.PeekOperation().ToString());
+
+            host.Run(executionState);
+            Assert.True(executionState.IsExecutionComplete);
+            Assert.Equal(9, ((LispInteger)executionState.LastResult).Value); ;
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -368,6 +428,32 @@ namespace IxMilia.Lisp.Test
             host.StepOut(executionState); // can't step out at the root level; this was really a run to end
             Assert.True(executionState.IsExecutionComplete);
             Assert.Equal(8, ((LispInteger)executionState.LastResult).Value);
+        }
+
+        [Fact]
+        public void ExecutionStepOutWhenNextOperationIsNotAnExpression()
+        {
+            var host = new LispHost();
+            host.RootFrame.FunctionReturned += (s, e) =>
+            {
+                if (e.Frame.FunctionName == "test-method")
+                {
+                    e.HaltExecution = true;
+                }
+            };
+            var executionState = host.Eval(@"
+(defun test-method ()
+    (+ 1 2))
+(test-method)
+(+ 4 5)
+");
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)executionState.LastResult).Value);
+            Assert.Null(executionState.PeekCurrentExpression());
+
+            host.StepOut(executionState); // stepping out here steps out of everything
+            Assert.True(executionState.IsExecutionComplete);
+            Assert.Equal(9, ((LispInteger)executionState.LastResult).Value); ;
         }
     }
 }

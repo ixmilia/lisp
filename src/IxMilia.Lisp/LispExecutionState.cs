@@ -35,7 +35,9 @@ namespace IxMilia.Lisp
 
         internal LispObject PeekCurrentExpression()
         {
-            return _operationQueue.OfType<LispEvaluatorObjectExpression>().FirstOrDefault()?.Expression;
+            return _operationQueue.FirstOrDefault() is LispEvaluatorObjectExpression objectExpression
+                ? objectExpression.Expression
+                : null;
         }
 
         internal void InsertOperation(ILispEvaluatorOperation operation)
