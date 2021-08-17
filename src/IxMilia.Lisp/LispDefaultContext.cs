@@ -55,6 +55,7 @@ namespace IxMilia.Lisp
                 return new LispObject[] { error };
             }
 
+            codeFunction.SourceLocation = frame.SourceLocation;
             frame.SetValueInParentScope(codeFunction.Name, codeFunction);
             return new LispObject[] { frame.Nil };
         }
@@ -99,6 +100,7 @@ namespace IxMilia.Lisp
         {
             // TODO: validate arguments
             var values = ((LispList)args[0]).ToList();
+            var replacements = new Dictionary<string, LispObject>();
             var body = args.Skip(1);
             foreach (var valuePair in values)
             {
@@ -106,17 +108,18 @@ namespace IxMilia.Lisp
                 var valuePairList = (LispList)valuePair;
                 var varName = ((LispSymbol)valuePairList.Value).Value;
                 var varRawValue = ((LispList)valuePairList.Next).Value;
-                var varValue = frame.Eval(varRawValue);
+                var replacedRawValue = varRawValue.PerformMacroReplacements(replacements);
+                var varValue = frame.Eval(replacedRawValue);
                 if (varValue is LispError error)
                 {
                     return new LispObject[] { error };
                 }
 
-                frame.SetValue(varName, varValue);
+                replacements[varName] = replacedRawValue;
             }
 
-            var result = frame.EvalMany(body);
-            return new LispObject[] { new LispQuotedObject(result) };
+            var result = body.PerformMacroReplacements(replacements);
+            return result;
         }
 
         [LispMacro("labels")]
@@ -124,6 +127,7 @@ namespace IxMilia.Lisp
         {
             // TODO: validate arguments
             var functionDefinitions = ((LispList)args[0]).ToList();
+            var replacements = new Dictionary<string, LispObject>();
             var body = args.Skip(1);
             foreach (var functionDefinitionSet in functionDefinitions)
             {
@@ -134,11 +138,13 @@ namespace IxMilia.Lisp
                     return new LispObject[] { error };
                 }
 
-                frame.SetValue(codeFunction.Name, codeFunction);
+                var replacedCodeFunction = codeFunction.PerformMacroReplacements(replacements);
+                replacedCodeFunction.SourceLocation = functionDefinitionSet.SourceLocation;
+                replacements[codeFunction.Name] = replacedCodeFunction;
             }
 
-            var result = frame.EvalMany(body);
-            return new LispObject[] { new LispQuotedObject(result) };
+            var result = body.PerformMacroReplacements(replacements).ToArray();
+            return result;
         }
 
         [LispFunction("eval")]
@@ -195,10 +201,16 @@ namespace IxMilia.Lisp
                 synthesizedFunctionItems.Add(synthesizedSymbol);
                 synthesizedFunctionItems.AddRange(functionArguments);
                 var synthesizedFunctionCall = LispList.FromEnumerable(synthesizedFunctionItems);
+                synthesizedFunctionCall.SourceLocation = functionReference.SourceLocation;
 
                 preExecute?.Invoke();
                 var result = evaluatingFrame.Eval(synthesizedFunctionCall);
                 postExecute?.Invoke();
+
+                if (!result.SourceLocation.HasValue)
+                {
+                    result.SourceLocation = functionReference.SourceLocation;
+                }
 
                 return result;
             }
@@ -312,14 +324,13 @@ namespace IxMilia.Lisp
                 var candidateFilePath = frame.Eval(filePathList.Value);
                 if (candidateFilePath is LispString filePath)
                 {
+                    var fileStream = new FileStream(filePath.Value, fileMode);
+                    var streamObject = new LispFileStream(filePath.Value, fileStream);
                     var body = args.Skip(1);
-                    using (var fileStream = new FileStream(filePath.Value, fileMode))
-                    {
-                        var streamObject = new LispFileStream(filePath.Value, fileStream);
-                        frame.SetValue(streamName.Value, streamObject);
-                        var result = frame.EvalMany(body);
-                        return new LispObject[] { result };
-                    }
+                    var result = body.PerformMacroReplacements(new Dictionary<string, LispObject>() { { streamName.Value, streamObject } });
+                    var closeExpression = LispList.FromEnumerable(new LispObject[] { new LispSymbol("close"), streamObject }); // (close fileStream)
+                    var finalResult = result.Concat(new[] { closeExpression });
+                    return finalResult;
                 }
                 else
                 {
@@ -328,6 +339,20 @@ namespace IxMilia.Lisp
             }
 
             return new LispObject[] { new LispError("Expected `<(streamName filePath)> <body>`") };
+        }
+
+        [LispFunction("close")]
+        public LispObject Close(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length == 1 &&
+                args[0] is LispFileStream fileStream)
+            {
+                fileStream.FileStream.Flush();
+                fileStream.FileStream.Dispose();
+                return frame.Nil;
+            }
+
+            return new LispError("Expected a file stream");
         }
 
         [LispFunction("dribble")]
@@ -997,13 +1022,31 @@ namespace IxMilia.Lisp
         [LispFunction("mapcar")]
         public LispObject MapCar(LispStackFrame frame, LispObject[] args)
         {
-            if (args.Length >= 2 &&
-                args[0] is LispFunctionReference functionRef)
+            if (args.Length >= 2)
             {
                 var candidateLists = args.Skip(1).Select(a => a as LispList).ToArray();
                 if (candidateLists.Any(a => a == null))
                 {
                     return new LispError("Expected function reference and only lists");
+                }
+
+                Func<IEnumerable<LispObject>, LispObject> evaluator;
+                switch (args[0])
+                {
+                    case LispMacroOrFunction directlyInvocable:
+                        evaluator = (functionArguments) =>
+                        {
+                            var manualInvokeItems = new List<LispObject>() { directlyInvocable };
+                            manualInvokeItems.AddRange(functionArguments);
+                            var manualInvokeList = LispList.FromEnumerable(manualInvokeItems);
+                            return frame.Eval(manualInvokeList);
+                        };
+                        break;
+                    case LispFunctionReference functionRef:
+                        evaluator = (functionArguments) => FunCall(frame, functionRef, functionArguments);
+                        break;
+                    default:
+                        return new LispError($"Unsupported `mapcar` execution target: {args[0].GetType().Name}");
                 }
 
                 var resultItems = new List<LispObject>();
@@ -1012,7 +1055,7 @@ namespace IxMilia.Lisp
                 for (int i = 0; i < maxLength; i++)
                 {
                     var functionArguments = lists.Select(l => l[i]);
-                    var result = FunCall(frame, functionRef, functionArguments);
+                    var result = evaluator(functionArguments);
                     if (result is LispError)
                     {
                         return result;

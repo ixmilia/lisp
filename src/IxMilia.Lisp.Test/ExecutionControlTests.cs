@@ -67,6 +67,33 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void HaltExecutionOnMacroExpansion()
+        {
+            var host = new LispHost();
+            host.AddMacro("fourty-two", (frame, args) =>
+            {
+                return new LispObject[] { new LispInteger(42) };
+            });
+            host.RootFrame.MacroExpanded += (s, e) =>
+            {
+                if (e.Macro.Name == "fourty-two")
+                {
+                    e.HaltExecution = true;
+                }
+            };
+            var executionState = host.Eval(@"
+(fourty-two)
+(+ 1 2)
+");
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: 42", executionState.PeekOperation().ToString());
+
+            host.Run(executionState);
+            Assert.True(executionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)executionState.LastResult).Value);
+        }
+
+        [Fact]
         public void HaltExecutionOnExpressionEvaluation()
         {
             var host = new LispHost();
@@ -198,10 +225,9 @@ namespace IxMilia.Lisp.Test
                 }
             };
             var executionState = host.Eval(@"
-(defun test-method ()
-    (let ((the-answer (+ 40 2)))
-        (+ the-answer 2)))
-(test-method)
+(+ 1 2)
+(setf the-answer (+ 40 2))
+(+ the-answer 2)
 ");
             Assert.False(executionState.IsExecutionComplete);
             host.Run(executionState);

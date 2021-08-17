@@ -26,38 +26,38 @@ namespace IxMilia.Lisp
         }
     }
 
-    internal class LispEvaluatorInvocationExit : ILispEvaluatorOperation
+    internal class LispEvaluatorFunctionExit : ILispEvaluatorOperation
     {
-        public LispMacroOrFunction InvocationObject { get; }
-        public LispSourceLocation? InvocationLocation { get; }
+        public LispFunction Function { get; }
+        public LispSourceLocation? SourceLocation { get; }
         public bool PopFrame { get; }
 
-        public LispEvaluatorInvocationExit(LispMacroOrFunction invocationObject, LispSourceLocation? invocationLocation, bool popFrame = true)
+        public LispEvaluatorFunctionExit(LispFunction function, LispSourceLocation? sourceLocation, bool popFrame = true)
         {
-            InvocationObject = invocationObject;
-            InvocationLocation = invocationLocation;
+            Function = function;
+            SourceLocation = sourceLocation;
             PopFrame = popFrame;
         }
 
-        public LispEvaluatorInvocationExit WithoutFramePop()
+        public LispEvaluatorFunctionExit WithoutFramePop()
         {
-            return new LispEvaluatorInvocationExit(InvocationObject, InvocationLocation, popFrame: false);
+            return new LispEvaluatorFunctionExit(Function, SourceLocation, popFrame: false);
         }
 
         public override string ToString()
         {
-            return $"r: {InvocationObject.Name} {(PopFrame ? "with" : "without")} pop";
+            return $"r: {Function.Name} {(PopFrame ? "with" : "without")} pop";
         }
     }
 
     internal class LispEvaluatorPopForTailCall : ILispEvaluatorOperation
     {
-        public LispMacroOrFunction InvocationObject { get; }
+        public LispMacroOrFunction Function { get; }
         public HashSet<string> InvocationArgumentNames { get; }
 
-        public LispEvaluatorPopForTailCall(LispMacroOrFunction invocationObject, IEnumerable<string> invocationArgumentNames)
+        public LispEvaluatorPopForTailCall(LispMacroOrFunction function, IEnumerable<string> invocationArgumentNames)
         {
-            InvocationObject = invocationObject;
+            Function = function;
             InvocationArgumentNames = new HashSet<string>(invocationArgumentNames);
         }
 

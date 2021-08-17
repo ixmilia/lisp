@@ -1,4 +1,7 @@
-﻿namespace IxMilia.Lisp
+﻿using System;
+using System.Collections.Generic;
+
+namespace IxMilia.Lisp
 {
     public static class LispObjectExtensions
     {
@@ -22,6 +25,19 @@
                     return false;
                 default:
                     return true;
+            }
+        }
+
+        public static IEnumerable<LispObject> PerformMacroReplacements(this IEnumerable<LispObject> body, IDictionary<string, LispObject> replacements)
+        {
+            if (replacements is null)
+            {
+                throw new ArgumentNullException(nameof(replacements));
+            }
+
+            foreach (var item in body)
+            {
+                yield return item.PerformMacroReplacements(replacements);
             }
         }
     }

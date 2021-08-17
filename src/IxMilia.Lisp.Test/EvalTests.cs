@@ -443,7 +443,7 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
     (+ (half x) (half y)))
 ");
             host.RootFrame.FunctionEntered += (sender, e) => sb.AppendLine($"entered {e.Frame.FunctionName}");
-            host.RootFrame.FunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.InvocationObject.Name} with {e.ReturnValue}");
+            host.RootFrame.FunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.Function.Name} with {e.ReturnValue}");
             host.Eval("(average 3 7)");
             var actual = NormalizeNewlines(sb.ToString().Trim());
             var expected = NormalizeNewlines(@"
@@ -807,6 +807,30 @@ returned from average with 5
             Assert.True(executionState.TryPopArgument(out var lastResult));
             Assert.Equal(4, ((LispInteger)lastResult).Value);
             Assert.False(executionState.TryPopArgument(out var shouldNotBeHere), $"Expected no more arguments, but found [{shouldNotBeHere}]");
+        }
+
+        [Fact]
+        public void MacroExpansionWithFunctionInvocation()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(labels ((square (x) (* x x)))
+    (square 2))
+");
+            Assert.Equal(4, ((LispInteger)executionState.LastResult).Value);
+            Assert.Null(executionState.StackFrame.GetValue("square")); // no leakage
+        }
+
+        [Fact]
+        public void MacroExpansionWithFunctionReferences()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(labels ((square (x) (* x x)))
+    (car (mapcar #'square '(2))))
+");
+            Assert.Equal(4, ((LispInteger)executionState.LastResult).Value);
+            Assert.Null(executionState.StackFrame.GetValue("square")); // no leakage
         }
     }
 }

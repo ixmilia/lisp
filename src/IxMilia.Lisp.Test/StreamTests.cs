@@ -92,6 +92,7 @@ namespace IxMilia.Lisp.Test
                 Assert.IsNotType<LispError>(result);
                 var actual = NormalizeNewlines(File.ReadAllText(outputFile.FilePath));
                 Assert.Equal("wrote: \"just-a-string\"\nwrote: (+ 2 3)\n", actual);
+                Assert.Null(host.GetValue("file-stream"));
             }
         }
     }

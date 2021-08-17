@@ -10,7 +10,7 @@ namespace IxMilia.Lisp
         protected const string NilString = "nil";
         protected const string TerminalIOString = "*terminal-io*";
 
-        public LispMacroOrFunction InvocationObject { get; }
+        public LispMacroOrFunction Function { get; }
         public string FunctionName { get; }
         public LispStackFrame Parent { get; }
         public LispSourceLocation? SourceLocation { get; private set; }
@@ -31,11 +31,11 @@ namespace IxMilia.Lisp
             Depth = (Parent?.Depth ?? LispRootStackFrame.RootStackDepth) + 1;
         }
 
-        internal LispStackFrame(LispMacroOrFunction invocationObject, LispStackFrame parent)
+        internal LispStackFrame(LispMacroOrFunction function, LispStackFrame parent)
             : this(parent)
         {
-            InvocationObject = invocationObject;
-            FunctionName = invocationObject.Name;
+            Function = function;
+            FunctionName = function.Name;
         }
 
         protected LispStackFrame(string functionName, LispStackFrame parent)
@@ -120,6 +120,7 @@ namespace IxMilia.Lisp
 
         public event EventHandler<LispFunctionEnteredEventArgs> FunctionEntered;
         public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
+        public event EventHandler<LispMacroExpandedEventArgs> MacroExpanded;
         public event EventHandler<LispEvaluatingExpressionEventArgs> EvaluatingExpression;
         public event EventHandler<LispValueSetEventArgs> ValueSet;
         public event EventHandler<LispErrorOccuredEventArgs> ErrorOccured;
@@ -158,10 +159,17 @@ namespace IxMilia.Lisp
             return args.HaltExecution;
         }
 
-        internal bool OnFunctionReturn(LispMacroOrFunction invocationObject, LispStackFrame frame, LispObject returnValue)
+        internal bool OnFunctionReturn(LispFunction function, LispStackFrame frame, LispObject returnValue)
         {
-            var args = new LispFunctionReturnedEventArgs(invocationObject, frame, returnValue);
+            var args = new LispFunctionReturnedEventArgs(function, frame, returnValue);
             FunctionReturned?.Invoke(this, args);
+            return args.HaltExecution;
+        }
+
+        internal bool OnMacroExpanded(LispMacro macro, LispStackFrame frame, LispObject[] expandedBody)
+        {
+            var args = new LispMacroExpandedEventArgs(macro, frame, expandedBody);
+            MacroExpanded?.Invoke(this, args);
             return args.HaltExecution;
         }
 

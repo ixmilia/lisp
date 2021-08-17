@@ -2,13 +2,13 @@
 {
     public class LispFunctionReturnedEventArgs : LispExecutionEventArgs
     {
-        public LispMacroOrFunction InvocationObject { get; }
+        public LispFunction Function { get; }
         public LispStackFrame Frame { get; }
         public LispObject ReturnValue { get; }
 
-        public LispFunctionReturnedEventArgs(LispMacroOrFunction invocationObject, LispStackFrame frame, LispObject returnValue)
+        public LispFunctionReturnedEventArgs(LispFunction function, LispStackFrame frame, LispObject returnValue)
         {
-            InvocationObject = invocationObject;
+            Function = function;
             Frame = frame;
             ReturnValue = returnValue;
         }
