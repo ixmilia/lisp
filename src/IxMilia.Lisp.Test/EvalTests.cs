@@ -937,10 +937,12 @@ total
         {
             var host = new LispHost();
             var executionState = host.Eval(@"
-(when t
+(defun evals-to-t () t)
+(when (evals-to-t)
     (+ 1 1)
     (+ 3 3))
 ");
+            EnsureNotError(executionState.LastResult);
             Assert.Equal(6, ((LispInteger)executionState.LastResult).Value);
         }
 
@@ -949,10 +951,12 @@ total
         {
             var host = new LispHost();
             var executionState = host.Eval(@"
-(when nil
+(defun evals-to-nil () ())
+(when (evals-to-nil)
     (+ 1 1)
     (+ 3 3))
 ");
+            EnsureNotError(executionState.LastResult);
             Assert.True(executionState.LastResult.IsNil(), $"Expected nil, but got: {executionState.LastResult}");
         }
 
@@ -961,10 +965,12 @@ total
         {
             var host = new LispHost();
             var executionState = host.Eval(@"
-(unless t
+(defun evals-to-t () t)
+(unless (evals-to-t)
     (+ 1 1)
     (+ 3 3))
 ");
+            EnsureNotError(executionState.LastResult);
             Assert.True(executionState.LastResult.IsNil(), $"Expected nil, but got: {executionState.LastResult}");
         }
 
@@ -973,10 +979,12 @@ total
         {
             var host = new LispHost();
             var executionState = host.Eval(@"
-(unless nil
+(defun evals-to-nil () ())
+(unless (evals-to-nil)
     (+ 1 1)
     (+ 3 3))
 ");
+            EnsureNotError(executionState.LastResult);
             Assert.Equal(6, ((LispInteger)executionState.LastResult).Value);
         }
     }

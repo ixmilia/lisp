@@ -172,65 +172,20 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        [LispMacro("when")]
-        public IEnumerable<LispObject> When(LispStackFrame frame, LispObject[] args)
+        [LispMacro("progn")]
+        public IEnumerable<LispObject> ProgN(LispStackFrame frame, LispObject[] args)
         {
-            if (args.Length >= 2)
+            LispObject result = new LispError("Expected at least one expression");
+            foreach (var item in args)
             {
-                var predicate = args[0];
-                var body = args.Skip(1);
-                var predicateResult = frame.Eval(predicate);
-                LispObject result;
-                if (predicateResult.IsTLike())
+                result = frame.Eval(item);
+                if (result is LispError)
                 {
-                    result = frame.EvalMany(body);
+                    break;
                 }
-                else
-                {
-                    result = frame.Nil;
-                }
-
-                return new LispObject[] { result };
             }
 
-            return new LispObject[] { new LispError("Expected predicate and body") };
-        }
-
-        [LispMacro("unless")]
-        public IEnumerable<LispObject> Unless(LispStackFrame frame, LispObject[] args)
-        {
-            if (args.Length >= 2)
-            {
-                var predicate = args[0];
-                var body = args.Skip(1);
-                var predicateResult = frame.Eval(predicate);
-                LispObject result;
-                if (predicateResult.IsTLike())
-                {
-                    result = frame.Nil;
-                }
-                else
-                {
-                    result = frame.EvalMany(body);
-                }
-
-                return new LispObject[] { result };
-            }
-
-            return new LispObject[] { new LispError("Expected predicate and body") };
-        }
-
-        [LispFunction("eval")]
-        public LispObject Eval(LispStackFrame frame, LispObject[] args)
-        {
-            if (args.Length == 1)
-            {
-                return frame.Eval(args[0]);
-            }
-            else
-            {
-                return new LispError("Expected single argument");
-            }
+            return new LispObject[] { result };
         }
 
         [LispFunction("apply")]

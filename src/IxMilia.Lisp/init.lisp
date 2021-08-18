@@ -1,3 +1,6 @@
+(defmacro eval (form)
+    (apply #'progn '(form)))
+
 (defun null (x) (equal () x))
 
 (defmacro if (pred tv fv)
@@ -22,6 +25,14 @@
     (let ((result (car stack)))
         (setf stack (cdr stack))
         result))
+
+(defmacro when (pred &rest body)
+    (cond (pred (apply #'progn 'body))
+          (t    nil)))
+
+(defmacro unless (pred &rest body)
+    (cond (pred nil)
+          (t    (apply #'progn 'body))))
 
 (defun atom (a)
     ; an atom is anything other than a cons cell
