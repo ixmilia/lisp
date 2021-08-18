@@ -36,10 +36,15 @@ namespace IxMilia.Lisp
             // TODO: validate arg types and count
             var macroNameSymbol = (LispSymbol)args[0];
             var macroName = macroNameSymbol.Value;
-            var macroArgs = ((LispList)args[1]).ToList().Cast<LispSymbol>().Select(s => s.Value);
+            var macroArgs = ((LispList)args[1]).ToList();
+            if (!LispArgumentCollection.TryBuildArgumentCollection(macroArgs.ToArray(), out var argumentCollection, out var error))
+            {
+                return new LispObject[] { error };
+            }
+
             // TODO: allow docstring
             var macroBody = args.Skip(2);
-            var macro = new LispCodeMacro(macroName, macroArgs, macroBody)
+            var macro = new LispCodeMacro(macroName, argumentCollection, macroBody)
             {
                 SourceLocation = macroNameSymbol.SourceLocation,
             };

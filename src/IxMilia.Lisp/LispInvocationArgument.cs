@@ -1,19 +1,19 @@
 ﻿namespace IxMilia.Lisp
 {
-    public abstract class LispFunctionArgument
+    public abstract class LispInvocationArgument
     {
         public LispSymbol Declaration { get; }
         public string Name => Declaration.Value;
 
-        protected LispFunctionArgument(LispSymbol declaration)
+        protected LispInvocationArgument(LispSymbol declaration)
         {
             Declaration = declaration;
         }
     }
 
-    public class LispRegularFunctionArgument : LispFunctionArgument
+    public class LispRegularInvocationArgument : LispInvocationArgument
     {
-        internal LispRegularFunctionArgument(LispSymbol declaration)
+        internal LispRegularInvocationArgument(LispSymbol declaration)
             : base(declaration)
         {
         }
@@ -24,11 +24,11 @@
         }
     }
 
-    public class LispOptionalFunctionArgument : LispFunctionArgument
+    public class LispOptionalInvocationArgument : LispInvocationArgument
     {
         public LispObject DefaultValue { get; }
 
-        internal LispOptionalFunctionArgument(LispSymbol declaration, LispObject defaultValue)
+        internal LispOptionalInvocationArgument(LispSymbol declaration, LispObject defaultValue)
             : base(declaration)
         {
             DefaultValue = defaultValue;
@@ -40,11 +40,11 @@
         }
     }
 
-    public class LispKeywordFunctionArgument : LispFunctionArgument
+    public class LispKeywordInvocationArgument : LispInvocationArgument
     {
         public LispObject DefaultValue { get; }
 
-        internal LispKeywordFunctionArgument(LispSymbol declaration, LispObject defaultValue)
+        internal LispKeywordInvocationArgument(LispSymbol declaration, LispObject defaultValue)
             : base(declaration)
         {
             DefaultValue = defaultValue;
@@ -56,11 +56,11 @@
         }
     }
 
-    public class LispAuxiliaryFunctionArgument : LispFunctionArgument
+    public class LispAuxiliaryInvocationArgument : LispInvocationArgument
     {
         public LispObject InitialValue { get; }
 
-        internal LispAuxiliaryFunctionArgument(LispSymbol declaration, LispObject initialValue)
+        internal LispAuxiliaryInvocationArgument(LispSymbol declaration, LispObject initialValue)
             : base(declaration)
         {
             InitialValue = initialValue;
@@ -72,9 +72,9 @@
         }
     }
 
-    public class LispRestFunctionArgument : LispFunctionArgument
+    public class LispRestInvocationArgument : LispInvocationArgument
     {
-        internal LispRestFunctionArgument(LispSymbol declaration)
+        internal LispRestInvocationArgument(LispSymbol declaration)
             : base(declaration)
         {
         }

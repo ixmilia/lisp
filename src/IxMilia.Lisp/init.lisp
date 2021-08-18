@@ -9,6 +9,12 @@
     (cond (pred nil)
           (t t)))
 
+(defmacro incf (var &optional (amt 1))
+    (setf var (+ var amt)))
+
+(defmacro decf (var &optional (amt 1))
+    (setf var (- var amt)))
+
 (defun atom (a)
     ; an atom is anything other than a cons cell
     (not (consp a)))

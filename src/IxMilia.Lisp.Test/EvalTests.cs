@@ -832,5 +832,31 @@ returned from average with 5
             Assert.Equal(4, ((LispInteger)executionState.LastResult).Value);
             Assert.Null(executionState.StackFrame.GetValue("square")); // no leakage
         }
+
+        [Fact]
+        public void IncFMacro()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(setf total 0)
+(incf total) ; = 1
+(incf total 10) ; = 11
+total
+");
+            Assert.Equal(11, ((LispInteger)executionState.LastResult).Value);
+        }
+
+        [Fact]
+        public void DecFMacro()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(setf total 20)
+(decf total) ; = 19
+(decf total 10) ; = 9
+total
+");
+            Assert.Equal(9, ((LispInteger)executionState.LastResult).Value);
+        }
     }
 }

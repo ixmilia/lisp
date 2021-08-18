@@ -58,11 +58,11 @@ namespace IxMilia.Lisp.Test
             Assert.False(new LispRatio(1, 2).IsNil());
             Assert.False(new LispString("a").IsNil());
             Assert.False(LispList.FromItems(new LispInteger(0)).IsNil());
-            Assert.False(new LispCodeFunction("function", null, new LispArgumentCollection(Array.Empty<LispRegularFunctionArgument>(), Array.Empty<LispOptionalFunctionArgument>(), Array.Empty<LispKeywordFunctionArgument>(), Array.Empty<LispAuxiliaryFunctionArgument>(), null), Enumerable.Empty<LispObject>()).IsNil());
+            Assert.False(new LispCodeFunction("function", null, LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsNil());
             Assert.False(new LispNativeFunction("function", null, null).IsNil());
             Assert.False(new LispQuotedNamedFunctionReference("function").IsNil());
-            Assert.False(new LispQuotedLambdaFunctionReference(new LispCodeFunction("function", null, new LispArgumentCollection(Array.Empty<LispRegularFunctionArgument>(), Array.Empty<LispOptionalFunctionArgument>(), Array.Empty<LispKeywordFunctionArgument>(), Array.Empty<LispAuxiliaryFunctionArgument>(), null), Enumerable.Empty<LispObject>())).IsNil());
-            Assert.False(new LispCodeMacro("function", Enumerable.Empty<string>(), Enumerable.Empty<LispObject>()).IsNil());
+            Assert.False(new LispQuotedLambdaFunctionReference(new LispCodeFunction("function", null, new LispArgumentCollection(Array.Empty<LispRegularInvocationArgument>(), Array.Empty<LispOptionalInvocationArgument>(), Array.Empty<LispKeywordInvocationArgument>(), Array.Empty<LispAuxiliaryInvocationArgument>(), null), Enumerable.Empty<LispObject>())).IsNil());
+            Assert.False(new LispCodeMacro("function", LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsNil());
             Assert.False(new LispNativeMacro("function", null).IsNil());
         }
 
@@ -80,11 +80,11 @@ namespace IxMilia.Lisp.Test
             Assert.True(new LispRatio(1, 2).IsTLike());
             Assert.True(new LispString("a").IsTLike());
             Assert.True(LispList.FromItems(new LispInteger(0)).IsTLike());
-            Assert.True(new LispCodeFunction("function", null, new LispArgumentCollection(Array.Empty<LispRegularFunctionArgument>(), Array.Empty<LispOptionalFunctionArgument>(), Array.Empty<LispKeywordFunctionArgument>(), Array.Empty<LispAuxiliaryFunctionArgument>(), null), Enumerable.Empty<LispObject>()).IsTLike());
+            Assert.True(new LispCodeFunction("function", null, LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsTLike());
             Assert.True(new LispNativeFunction("function", null, null).IsTLike());
             Assert.True(new LispQuotedNamedFunctionReference("function").IsTLike());
-            Assert.True(new LispQuotedLambdaFunctionReference(new LispCodeFunction("function", null, new LispArgumentCollection(Array.Empty<LispRegularFunctionArgument>(), Array.Empty<LispOptionalFunctionArgument>(), Array.Empty<LispKeywordFunctionArgument>(), Array.Empty<LispAuxiliaryFunctionArgument>(), null), Enumerable.Empty<LispObject>())).IsTLike());
-            Assert.True(new LispCodeMacro("function", Enumerable.Empty<string>(), Enumerable.Empty<LispObject>()).IsTLike());
+            Assert.True(new LispQuotedLambdaFunctionReference(new LispCodeFunction("function", null, new LispArgumentCollection(Array.Empty<LispRegularInvocationArgument>(), Array.Empty<LispOptionalInvocationArgument>(), Array.Empty<LispKeywordInvocationArgument>(), Array.Empty<LispAuxiliaryInvocationArgument>(), null), Enumerable.Empty<LispObject>())).IsTLike());
+            Assert.True(new LispCodeMacro("function", LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsTLike());
             Assert.True(new LispNativeMacro("function", null).IsTLike());
         }
     }

@@ -314,10 +314,16 @@ namespace IxMilia.Lisp
                                         switch (macro)
                                         {
                                             case LispCodeMacro codeMacro:
-                                                var replacements = new Dictionary<string, LispObject>();
-                                                for (int i = 0; i < codeMacro.Arguments.Length; i++)
+                                                if (!codeMacro.ArgumentCollection.TryMatchInvocationArguments(arguments, out var matchedArguments, out var argumentBindError))
                                                 {
-                                                    replacements[codeMacro.Arguments[i]] = arguments[i];
+                                                    executionState.ReportError(argumentBindError, macro);
+                                                    goto invocation_done;
+                                                }
+
+                                                var replacements = new Dictionary<string, LispObject>();
+                                                foreach (var matchedArgument in matchedArguments)
+                                                {
+                                                    replacements[matchedArgument.Item1.Name] = matchedArgument.Item2;
                                                 }
 
                                                 macroExpansion = codeMacro.Body.PerformMacroReplacements(replacements).ToArray();
