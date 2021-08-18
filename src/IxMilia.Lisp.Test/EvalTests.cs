@@ -888,5 +888,33 @@ total
 ");
             Assert.Equal(22, ((LispInteger)executionState.LastResult).Value);
         }
+
+        [Fact]
+        public void Push()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(setf my-stack ())
+(setf a (push 1 my-stack))
+(setf b (push 2 my-stack))
+");
+            Assert.Equal("(2 1)", executionState.StackFrame.GetValue("my-stack").ToString());
+            Assert.Equal("(1)", executionState.StackFrame.GetValue("a").ToString());
+            Assert.Equal("(2 1)", executionState.StackFrame.GetValue("b").ToString());
+        }
+
+        [Fact]
+        public void Pop()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(setf my-stack '(2 1))
+(setf a (pop my-stack))
+(setf b (pop my-stack))
+");
+            Assert.Equal("()", executionState.StackFrame.GetValue("my-stack").ToString());
+            Assert.Equal("2", executionState.StackFrame.GetValue("a").ToString());
+            Assert.Equal("1", executionState.StackFrame.GetValue("b").ToString());
+        }
     }
 }

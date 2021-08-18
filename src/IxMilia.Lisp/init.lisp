@@ -15,6 +15,14 @@
 (defmacro decf (var &optional (amt 1))
     (setf var (- var amt)))
 
+(defmacro push (value stack)
+    (setf stack (cons value stack)))
+
+(defmacro pop (stack)
+    (let ((result (car stack)))
+        (setf stack (cdr stack))
+        result))
+
 (defun atom (a)
     ; an atom is anything other than a cons cell
     (not (consp a)))

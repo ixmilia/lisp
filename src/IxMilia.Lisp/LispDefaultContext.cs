@@ -132,7 +132,8 @@ namespace IxMilia.Lisp
                     return new LispObject[] { error };
                 }
 
-                replacements[varName] = replacedRawValue;
+                // quoted because lists shouldn't get force-evaluated
+                replacements[varName] = new LispQuotedObject(varValue);
             }
 
             var result = body.PerformMacroReplacements(replacements);
