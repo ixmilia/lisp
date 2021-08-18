@@ -156,13 +156,68 @@ namespace IxMilia.Lisp
                     return new LispObject[] { error };
                 }
 
-                var replacedCodeFunction = codeFunction.PerformMacroReplacements(replacements);
+                var replacedCodeFunction = (LispCodeFunction)codeFunction.PerformMacroReplacements(replacements);
                 replacedCodeFunction.SourceLocation = functionDefinitionSet.SourceLocation;
                 replacements[codeFunction.Name] = replacedCodeFunction;
+
+                // ensure recursive function calls get updated
+                var selfReplacement = new Dictionary<string, LispObject>()
+                {
+                    { replacedCodeFunction.Name, replacedCodeFunction }
+                };
+                replacedCodeFunction.Commands = replacedCodeFunction.Commands.PerformMacroReplacements(selfReplacement).ToArray();
             }
 
             var result = body.PerformMacroReplacements(replacements).ToArray();
             return result;
+        }
+
+        [LispMacro("when")]
+        public IEnumerable<LispObject> When(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length >= 2)
+            {
+                var predicate = args[0];
+                var body = args.Skip(1);
+                var predicateResult = frame.Eval(predicate);
+                LispObject result;
+                if (predicateResult.IsTLike())
+                {
+                    result = frame.EvalMany(body);
+                }
+                else
+                {
+                    result = frame.Nil;
+                }
+
+                return new LispObject[] { result };
+            }
+
+            return new LispObject[] { new LispError("Expected predicate and body") };
+        }
+
+        [LispMacro("unless")]
+        public IEnumerable<LispObject> Unless(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length >= 2)
+            {
+                var predicate = args[0];
+                var body = args.Skip(1);
+                var predicateResult = frame.Eval(predicate);
+                LispObject result;
+                if (predicateResult.IsTLike())
+                {
+                    result = frame.Nil;
+                }
+                else
+                {
+                    result = frame.EvalMany(body);
+                }
+
+                return new LispObject[] { result };
+            }
+
+            return new LispObject[] { new LispError("Expected predicate and body") };
         }
 
         [LispFunction("eval")]

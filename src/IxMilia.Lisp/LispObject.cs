@@ -1251,7 +1251,7 @@ namespace IxMilia.Lisp
     {
         // TODO: make these read only collections
         public LispArgumentCollection ArgumentCollection { get; }
-        public LispObject[] Commands { get; }
+        public LispObject[] Commands { get; internal set; }
 
         public LispCodeFunction(string name, string documentation, LispArgumentCollection argumentCollection, IEnumerable<LispObject> commands)
             : base(name, documentation)

@@ -539,6 +539,21 @@ returned from average with 5
         }
 
         [Fact]
+        public void LabelsRecursivelyCalled()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(labels ((fact (n acc)
+            (if (<= n 0)
+                acc
+                (fact (- n 1) (* n acc)))))
+        (fact 5 1))
+");
+            EnsureNotError(executionState.LastResult);
+            Assert.Equal(120, ((LispInteger)executionState.LastResult).Value);
+        }
+
+        [Fact]
         public void FormatOutput()
         {
             var output = new StringWriter();
@@ -915,6 +930,54 @@ total
             Assert.Equal("()", executionState.StackFrame.GetValue("my-stack").ToString());
             Assert.Equal("2", executionState.StackFrame.GetValue("a").ToString());
             Assert.Equal("1", executionState.StackFrame.GetValue("b").ToString());
+        }
+
+        [Fact]
+        public void WhenT()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(when t
+    (+ 1 1)
+    (+ 3 3))
+");
+            Assert.Equal(6, ((LispInteger)executionState.LastResult).Value);
+        }
+
+        [Fact]
+        public void WhenNil()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(when nil
+    (+ 1 1)
+    (+ 3 3))
+");
+            Assert.True(executionState.LastResult.IsNil(), $"Expected nil, but got: {executionState.LastResult}");
+        }
+
+        [Fact]
+        public void UnlessT()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(unless t
+    (+ 1 1)
+    (+ 3 3))
+");
+            Assert.True(executionState.LastResult.IsNil(), $"Expected nil, but got: {executionState.LastResult}");
+        }
+
+        [Fact]
+        public void UnlessNil()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(unless nil
+    (+ 1 1)
+    (+ 3 3))
+");
+            Assert.Equal(6, ((LispInteger)executionState.LastResult).Value);
         }
     }
 }

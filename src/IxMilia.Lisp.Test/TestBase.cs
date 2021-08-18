@@ -1,10 +1,19 @@
 ﻿using System;
 using System.Text;
+using Xunit;
 
 namespace IxMilia.Lisp.Test
 {
     public abstract class TestBase
     {
+        protected static void EnsureNotError(LispObject obj)
+        {
+            if (obj is LispError error)
+            {
+                Assert.True(false, error.Message);
+            }
+        }
+
         protected static string NormalizeNewlines(string value)
         {
             return value.Replace("\r", "");
