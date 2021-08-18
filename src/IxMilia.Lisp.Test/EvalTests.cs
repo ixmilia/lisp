@@ -858,5 +858,35 @@ total
 ");
             Assert.Equal(9, ((LispInteger)executionState.LastResult).Value);
         }
+
+        [Fact]
+        public void LetParallelBinding()
+        {
+            var rawCode = @"
+(let ((a 10)
+      (b (+ 2 $$a)))
+    ;         ^ ---- error occurs here
+    (+ a b))
+";
+            GetCodeAndPosition(rawCode, out var code, out var line, out var column);
+            var host = new LispHost();
+            var executionState = host.Eval(code);
+            var error = (LispError)executionState.LastResult;
+            Assert.Equal("Symbol 'a' not found", error.Message);
+            Assert.Equal(line, error.SourceLocation.Value.Line);
+            Assert.Equal(column, error.SourceLocation.Value.Column);
+        }
+
+        [Fact]
+        public void LetSequentialBinding()
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(@"
+(let* ((a 10)
+       (b (+ 2 a)))
+    (+ a b))
+");
+            Assert.Equal(22, ((LispInteger)executionState.LastResult).Value);
+        }
     }
 }

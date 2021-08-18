@@ -100,8 +100,18 @@ namespace IxMilia.Lisp
         }
 
         [LispMacro("let")]
-        [LispMacro("let*")]
         public IEnumerable<LispObject> Let(LispStackFrame frame, LispObject[] args)
+        {
+            return Let(frame, args, bindSequentially: false);
+        }
+
+        [LispMacro("let*")]
+        public IEnumerable<LispObject> LetStar(LispStackFrame frame, LispObject[] args)
+        {
+            return Let(frame, args, bindSequentially: true);
+        }
+
+        private IEnumerable<LispObject> Let(LispStackFrame frame, LispObject[] args, bool bindSequentially)
         {
             // TODO: validate arguments
             var values = ((LispList)args[0]).ToList();
@@ -113,7 +123,9 @@ namespace IxMilia.Lisp
                 var valuePairList = (LispList)valuePair;
                 var varName = ((LispSymbol)valuePairList.Value).Value;
                 var varRawValue = ((LispList)valuePairList.Next).Value;
-                var replacedRawValue = varRawValue.PerformMacroReplacements(replacements);
+                var replacedRawValue = bindSequentially
+                    ? varRawValue.PerformMacroReplacements(replacements)
+                    : varRawValue;
                 var varValue = frame.Eval(replacedRawValue);
                 if (varValue is LispError error)
                 {
