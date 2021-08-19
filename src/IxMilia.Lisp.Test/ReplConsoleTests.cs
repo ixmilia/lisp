@@ -41,5 +41,28 @@ _>
             Assert.Empty(error.ToString());
             Assert.Equal(expectedOutput, actualOutput);
         }
+
+        [Fact(Timeout = 3000)]
+        public void NoBreakOnFatalError()
+        {
+            var input = new StringReader(@"
+; evaluate code with an error
+(+ 1 asdf)
+#quit
+");
+            var output = new StringWriter();
+            var error = new StringWriter();
+            var replConsole = new ReplConsole("*test*", input, output, error);
+            replConsole.Run();
+            var expectedOutput = NormalizeNewlines(@"
+_> _> _> Symbol 'asdf' not found:
+  at (root) in '*test*': (1, 6)
+
+_> 
+".Trim('\r', '\n'));
+            var actualOutput = NormalizeNewlines(output.ToString());
+            Assert.Empty(error.ToString());
+            Assert.Equal(expectedOutput, actualOutput);
+        }
     }
 }

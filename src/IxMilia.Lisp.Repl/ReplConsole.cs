@@ -26,8 +26,11 @@ namespace IxMilia.Lisp.Repl
             _repl = new LispRepl(location: Location, input: Input, output: Output, traceWriter: Output);
             _repl.Host.RootFrame.EvaluationHalted += (s, e) =>
             {
-                Output.WriteLine($"Non-fatal break.  Type '{DebugContinueCommand}' to resume evaluation.");
-                RunInHaltedState();
+                if (e.EvaluationState != LispEvaluationState.FatalHalt)
+                {
+                    Output.WriteLine($"Non-fatal break.  Type '{DebugContinueCommand}' to resume evaluation.");
+                    RunInHaltedState();
+                }
             };
 
             PrintPrompt(0);
@@ -35,7 +38,7 @@ namespace IxMilia.Lisp.Repl
             while ((line = Input.ReadLine()) != "#quit")
             {
                 var result = EvalAndPrint(line);
-                while (!result.ExecutionState.IsExecutionComplete)
+                while (!result.ExecutionState.IsExecutionComplete && !(result.ExecutionState.LastResult is LispError))
                 {
                     _repl.Eval(result.ExecutionState);
                 }
