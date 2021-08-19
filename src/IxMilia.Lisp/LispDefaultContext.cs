@@ -46,26 +46,14 @@ namespace IxMilia.Lisp
 
                 var displayString = candidateErrorString as LispString;
                 frame.Root.TerminalIO.Output.WriteLine(displayString?.Value);
-                var alreadyBroken = false;
-                var halter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
+                EventHandler<LispEvaluatingExpressionEventArgs> halter = null;
+                halter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
                 {
-                    // don't halt when we're already halted but haven't continued yet
-                    if (!alreadyBroken)
-                    {
-                        // halt on very next expresion
-                        e.HaltExecution = true;
-                    }
-
-                    alreadyBroken = true;
-                });
-                EventHandler<LispEvaluationHaltedEventArgs> haltedHandler = null;
-                haltedHandler = new EventHandler<LispEvaluationHaltedEventArgs>((s, e) =>
-                {
+                    // halt on very next expresion and never again
+                    e.HaltExecution = true;
                     frame.Root.EvaluatingExpression -= halter;
-                    frame.Root.EvaluationHalted -= haltedHandler;
                 });
                 frame.Root.EvaluatingExpression += halter;
-                frame.Root.EvaluationHalted += haltedHandler;
                 return frame.Nil;
             }
 
