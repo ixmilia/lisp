@@ -1,6 +1,3 @@
-(defmacro eval (form)
-    (apply #'progn '(form)))
-
 (defun null (x) (equal () x))
 
 (defmacro if (pred tv fv)

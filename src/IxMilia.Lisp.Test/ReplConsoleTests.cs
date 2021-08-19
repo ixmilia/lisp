@@ -11,13 +11,12 @@ namespace IxMilia.Lisp.Test
         public void ReplConsoleBreakEvaluateAndContinue()
         {
             var input = new StringReader(@"
-; submit a function with a `break`
-(defun f ()
+; evaluate code with a `break`
+(progn
     (setf one 1)
     (format t ""~&about to break"")
     (break ""~&one = ~S"" one)
     (format t ""~&let's go~%""))
-(f)
 
 ; we're in the debugger here; evaluate something
 (+ one 3)
@@ -29,8 +28,7 @@ continue
             var replConsole = new ReplConsole("*test*", input, output, error);
             replConsole.Run();
             var expectedOutput = NormalizeNewlines(@"
-_> _> _> (_> (_> (_> (_> ()
-_> 
+_> _> _> (_> (_> (_> (_> 
 about to break
 one = 1
 Non-fatal break.  Type 'continue' to resume evaluation.

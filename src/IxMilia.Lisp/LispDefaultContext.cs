@@ -214,20 +214,31 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        [LispMacro("progn")]
-        public IEnumerable<LispObject> ProgN(LispStackFrame frame, LispObject[] args)
+        [LispMacro("eval")]
+        public IEnumerable<LispObject> Eval(LispStackFrame frame, LispObject[] args)
         {
-            LispObject result = new LispError("Expected at least one expression");
-            foreach (var item in args)
+            LispObject result;
+            if (args.Length == 1)
             {
-                result = frame.Eval(item);
-                if (result is LispError)
-                {
-                    break;
-                }
+                result = frame.Eval(args[0]);
+            }
+            else
+            {
+                result = new LispError("Expected exactly one argument");
             }
 
             return new LispObject[] { result };
+        }
+
+        [LispMacro("progn")]
+        public IEnumerable<LispObject> ProgN(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length == 0)
+            {
+                return new LispObject[] { new LispError("Expected at least one expression") };
+            }
+
+            return args;
         }
 
         [LispFunction("apply")]
