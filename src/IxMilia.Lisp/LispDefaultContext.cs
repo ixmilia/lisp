@@ -442,9 +442,28 @@ namespace IxMilia.Lisp
             LispObject last = frame.Nil;
             for (int i = 0; i < args.Length - 1; i += 2)
             {
-                var name = ((LispSymbol)args[i]).Value;
-                var value = frame.Eval(args[i + 1]);
-                frame.SetValueInParentScope(name, value);
+                var destination = args[i];
+                var rawValue = args[i + 1];
+                var value = frame.Eval(rawValue);
+                if (destination is LispSymbol symbol)
+                {
+                    var name = symbol.Value;
+                    frame.SetValueInParentScope(name, value);
+                }
+                else
+                {
+                    destination = frame.Eval(destination);
+                    if (destination.SetPointerValue != null)
+                    {
+                        destination.SetPointerValue(value);
+                    }
+                    else
+                    {
+                        return new LispObject[] { new LispError("Expected symbol or pointer location") };
+                    }
+                }
+
+                destination.SetPointerValue = null;
                 last = value;
             }
 
@@ -655,7 +674,9 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                return list.Value;
+                var result = list.Value;
+                result.SetPointerValue = (value) => list.Value = value;
+                return result;
             }
             else
             {
@@ -670,7 +691,9 @@ namespace IxMilia.Lisp
             // TODO: validate single argument
             if (args[0] is LispList list)
             {
-                return list.Next;
+                var result = list.Next;
+                result.SetPointerValue = (value) => list.Next = value;
+                return result;
             }
             else
             {

@@ -8,9 +8,13 @@ using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
 {
+    internal delegate void ObjectPointerValueSetter(LispObject value);
+
     public abstract class LispObject
     {
         public static IEqualityComparer<LispObject> Comparer { get; } = new LispObjectEqualityComparer();
+
+        internal ObjectPointerValueSetter SetPointerValue { get; set; } = null;
 
         public LispSourceLocation? SourceLocation { get; internal set; }
         public LispObject Parent { get; internal set; }
@@ -889,8 +893,8 @@ namespace IxMilia.Lisp
 
     public class LispList : LispObject
     {
-        public virtual LispObject Value { get; }
-        public virtual LispObject Next { get; }
+        public virtual LispObject Value { get; internal set; }
+        public virtual LispObject Next { get; internal set; }
         public virtual int Length { get; }
 
         public virtual bool IsProperList

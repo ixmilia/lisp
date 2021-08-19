@@ -6,6 +6,17 @@ namespace IxMilia.Lisp.Test
 {
     public abstract class TestBase
     {
+        protected static LispObject Eval(string code)
+        {
+            var host = new LispHost();
+            var executionState = host.Eval(code);
+            var result = executionState.LastResult;
+            Assert.NotNull(result);
+            EnsureNotError(result);
+            Assert.True(executionState.IsExecutionComplete);
+            return result;
+        }
+
         protected static void EnsureNotError(LispObject obj)
         {
             if (obj is LispError error)

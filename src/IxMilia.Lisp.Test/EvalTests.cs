@@ -987,5 +987,131 @@ total
             EnsureNotError(executionState.LastResult);
             Assert.Equal(6, ((LispInteger)executionState.LastResult).Value);
         }
+
+        [Fact]
+        public void GeneralizedVariablesWithSetF()
+        {
+            var result = Eval(@"
+(setf the-list '(1 2 3))
+(setf (car the-list) 11)
+the-list
+");
+            Assert.Equal("(11 2 3)", result.ToString());
+        }
+
+        [Fact]
+        public void DeepGeneralizedVariablesWithSetF()
+        {
+            var result = Eval(@"
+(setf the-list '(1 2 3))
+(setf (car (cdr the-list)) 22)
+the-list
+");
+            Assert.Equal("(1 22 3)", result.ToString());
+        }
+
+        [Fact]
+        public void GeneralizedVariableSetterDoesNotLivePastSetF()
+        {
+            var result = Eval(@"
+(setf the-list '(1 2 3))
+(setf head-value (car the-list))
+(setf head-value 11)
+(cons head-value the-list)
+");
+            Assert.Equal("(11 1 2 3)", result.ToString());
+        }
+
+        [Fact]
+        public void GeneralizedVariablesWithIncF()
+        {
+            var result = Eval(@"
+(setf the-list '(1 2 3))
+(incf (car the-list) 11)
+the-list
+");
+            Assert.Equal("(12 2 3)", result.ToString());
+        }
+
+        [Fact]
+        public void GeneralizedVariableSetterDoesNotLivePastIncF()
+        {
+            var result = Eval(@"
+(setf the-list '(1 2 3))
+(setf head-value (car the-list))
+(incf head-value 11)
+(cons head-value the-list)
+");
+            Assert.Equal("(12 1 2 3)", result.ToString());
+        }
+
+        [Fact]
+        public void GeneralizedVariablesWithDecF()
+        {
+            var result = Eval(@"
+(setf the-list '(1 2 3))
+(decf (car the-list) 11)
+the-list
+");
+            Assert.Equal("(-10 2 3)", result.ToString());
+        }
+
+        [Fact]
+        public void GeneralizedVariableSetterDoesNotLivePastDecF()
+        {
+            var result = Eval(@"
+(setf the-list '(1 2 3))
+(setf head-value (car the-list))
+(decf head-value 11)
+(cons head-value the-list)
+");
+            Assert.Equal("(-10 1 2 3)", result.ToString());
+        }
+
+        [Fact]
+        public void GeneralizedVariablesWithPush()
+        {
+            var result = Eval(@"
+(setf the-list '((a b c) 2 3))
+(push 11 (car the-list))
+the-list
+");
+            Assert.Equal("((11 a b c) 2 3)", result.ToString());
+        }
+
+        [Fact]
+        public void GeneralizedVariableSetterDoesNotLivePastPush()
+        {
+            var result = Eval(@"
+(setf the-list '((a b c) 2 3))
+(setf head-value (car the-list))
+(push 11 head-value)
+(cons head-value the-list)
+");
+            Assert.Equal("((11 a b c) (a b c) 2 3)", result.ToString());
+        }
+
+        [Fact]
+        public void GeneralizedVariablesWithPop()
+        {
+            var result = Eval(@"
+(setf the-list '((a b c) 1 2 3))
+(pop (car the-list))
+the-list
+");
+            Assert.Equal("((b c) 1 2 3)", result.ToString());
+        }
+
+        [Fact]
+        public void GeneralizedVariableSetterDoesNotLivePastPop()
+        {
+            var result = Eval(@"
+(setf the-list '((a b c) 1 2 3))
+(setf head-value (car the-list))
+(pop head-value)
+(cons head-value the-list)
+");
+            Assert.Equal("((b c) (a b c) 1 2 3)", result.ToString());
+        }
     }
 }
