@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\IxMilia.Lisp\IxMilia.Lisp.csproj" />
+    <ProjectReference Include="..\IxMilia.Lisp.Repl\IxMilia.Lisp.Repl.csproj" />
   </ItemGroup>
 
   <ItemGroup>

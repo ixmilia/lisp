@@ -211,7 +211,8 @@ namespace IxMilia.Lisp
 
         public void Run(LispExecutionState executionState)
         {
-            LispEvaluator.Evaluate(executionState);
+            var evaluationState = LispEvaluator.Evaluate(executionState);
+            RootFrame.OnHalted(evaluationState);
         }
 
         public void StepOver(LispExecutionState executionState)

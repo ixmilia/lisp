@@ -2,12 +2,12 @@
 {
     public class LispReplResult
     {
-        public LispObject LastValue { get; }
+        public LispExecutionState ExecutionState { get; }
         public int ExpressionDepth { get; }
 
-        public LispReplResult(LispObject lastValue, int expressionDepth)
+        public LispReplResult(LispExecutionState executionState, int expressionDepth)
         {
-            LastValue = lastValue;
+            ExecutionState = executionState;
             ExpressionDepth = expressionDepth;
         }
     }

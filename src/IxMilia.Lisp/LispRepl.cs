@@ -10,11 +10,12 @@ namespace IxMilia.Lisp
     public class LispRepl
     {
         private string _location;
-        private LispHost _host;
         private LispParser _parser;
         private TextReader _input;
         private TextWriter _output;
         private TextWriter _traceWriter;
+
+        internal LispHost Host { get; }
 
         public HashSet<string> TracedFunctions { get; } = new HashSet<string>();
 
@@ -24,13 +25,13 @@ namespace IxMilia.Lisp
             _input = input ?? TextReader.Null;
             _output = output ?? TextWriter.Null;
             _traceWriter = traceWriter ?? TextWriter.Null;
-            _host = new LispHost(_location, _input, _output, useTailCalls);
-            _host.RootFrame.FunctionEntered += FunctionEntered;
-            _host.RootFrame.FunctionReturned += FunctionReturned;
+            Host = new LispHost(_location, _input, _output, useTailCalls);
+            Host.RootFrame.FunctionEntered += FunctionEntered;
+            Host.RootFrame.FunctionReturned += FunctionReturned;
             _parser = new LispParser(errorOnIncompleteExpressions: false);
 
             var replContext = new LispReplDefaultContext(this);
-            _host.AddContextObject(replContext);
+            Host.AddContextObject(replContext);
         }
 
         private void FunctionEntered(object sender, LispFunctionEnteredEventArgs e)
@@ -68,9 +69,13 @@ namespace IxMilia.Lisp
             var tokens = tokenizer.GetTokens();
             _parser.AddTokens(tokens);
             var result = _parser.Parse();
-            var executionState = _host.Eval(result.Nodes);
-            var lastValue = executionState.LastResult;
-            return new LispReplResult(lastValue, result.ParseDepth);
+            var executionState = Host.Eval(result.Nodes);
+            return new LispReplResult(executionState, result.ParseDepth);
+        }
+
+        internal void Eval(LispExecutionState executionState)
+        {
+            Host.Run(executionState);
         }
 
         internal LispObject Trace(LispObject[] args)

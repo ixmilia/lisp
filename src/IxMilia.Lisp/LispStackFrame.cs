@@ -124,6 +124,7 @@ namespace IxMilia.Lisp
         public event EventHandler<LispEvaluatingExpressionEventArgs> EvaluatingExpression;
         public event EventHandler<LispValueSetEventArgs> ValueSet;
         public event EventHandler<LispErrorOccuredEventArgs> ErrorOccured;
+        public event EventHandler<LispEvaluationHaltedEventArgs> EvaluationHalted;
 
         internal LispFileStream DribbleStream
         {
@@ -190,6 +191,15 @@ namespace IxMilia.Lisp
         {
             var args = new LispErrorOccuredEventArgs(error, frame);
             ErrorOccured?.Invoke(this, args);
+        }
+
+        internal void OnHalted(LispEvaluationState evaluationState)
+        {
+            if (evaluationState != LispEvaluationState.Complete)
+            {
+                var args = new LispEvaluationHaltedEventArgs(evaluationState);
+                EvaluationHalted?.Invoke(this, args);
+            }
         }
     }
 }

@@ -7,7 +7,7 @@ namespace IxMilia.Lisp
 {
     internal class LispEvaluator
     {
-        public static void Evaluate(LispExecutionState executionState)
+        public static LispEvaluationState Evaluate(LispExecutionState executionState)
         {
             var shouldDribbleReturnValue = executionState.StackFrame.Root.DribbleStream != null;
             while (executionState.TryDequeueOperation(out var operation))
@@ -17,7 +17,7 @@ namespace IxMilia.Lisp
                     // re-queue, because we can never finish
                     executionState.InsertOperation(operation);
                     executionState.StackFrame.Root.OnErrorOccured(error, executionState.StackFrame);
-                    return;
+                    return LispEvaluationState.FatalHalt;
                 }
 
                 // value setting can only occur when evaluating a native macro or native function; if any of the set operations wants to halt, we do that below
@@ -78,7 +78,7 @@ namespace IxMilia.Lisp
                             if (executionState.AllowHalting && halt)
                             {
                                 executionState.InsertOperation(expression);
-                                return;
+                                return LispEvaluationState.NonFatalHalt;
                             }
 
                             switch (expression.Expression)
@@ -280,7 +280,7 @@ namespace IxMilia.Lisp
 
                             if (executionState.AllowHalting && halt)
                             {
-                                return;
+                                return LispEvaluationState.NonFatalHalt;
                             }
                         }
                         break;
@@ -288,7 +288,7 @@ namespace IxMilia.Lisp
                         if (!executionState.TryPopArgument(out var _))
                         {
                             executionState.ReportError(new LispError($"Expected argument to pop off the stack but found nothing"), null);
-                            return;
+                            return LispEvaluationState.FatalHalt;
                         }
                         break;
                     case LispEvaluatorInvocation invocation:
@@ -348,7 +348,7 @@ namespace IxMilia.Lisp
 
                                         if (executionState.AllowHalting && halt)
                                         {
-                                            return;
+                                            return LispEvaluationState.NonFatalHalt;
                                         }
                                     }
                                     break;
@@ -358,7 +358,7 @@ namespace IxMilia.Lisp
                                         var halt = executionState.StackFrame.Root.OnFunctionEnter(executionState.StackFrame, arguments);
                                         if (executionState.AllowHalting && halt)
                                         {
-                                            return;
+                                            return LispEvaluationState.NonFatalHalt;
                                         }
 
                                         switch (function)
@@ -398,9 +398,11 @@ namespace IxMilia.Lisp
                 executionState.StackFrame.Root.ValueSet -= valueSet;
                 if (executionState.AllowHalting && haltDueToValueSet)
                 {
-                    return;
+                    return LispEvaluationState.NonFatalHalt;
                 }
             }
+
+            return LispEvaluationState.Complete;
         }
 
         private static void TryApplySourceLocation(LispObject obj, LispObject parent)

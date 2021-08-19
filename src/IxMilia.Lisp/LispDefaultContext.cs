@@ -20,11 +20,53 @@ namespace IxMilia.Lisp
                 {
                     case LispString errorString:
                         return new LispError(errorString.Value);
-                    case LispError _:
-                        return candidateErrorString;
+                    case LispError error:
+                        return error;
                     default:
                         return new LispError($"Unable to format error string, got: {candidateErrorString}");
                 }
+            }
+
+            return new LispError("Expected format string");
+        }
+
+        [LispFunction("break")]
+        public LispObject Break(LispStackFrame frame, LispObject[] args)
+        {
+            if (args.Length >= 1)
+            {
+                var formatArgs = new List<LispObject>();
+                formatArgs.Add(frame.Nil); // force raw string generation
+                formatArgs.AddRange(args);
+                var candidateErrorString = Format(frame, formatArgs.ToArray());
+                if (candidateErrorString is LispError error)
+                {
+                    return error;
+                }
+
+                var displayString = candidateErrorString as LispString;
+                frame.Root.TerminalIO.Output.WriteLine(displayString?.Value);
+                var alreadyBroken = false;
+                var halter = new EventHandler<LispEvaluatingExpressionEventArgs>((s, e) =>
+                {
+                    // don't halt when we're already halted but haven't continued yet
+                    if (!alreadyBroken)
+                    {
+                        // halt on very next expresion
+                        e.HaltExecution = true;
+                    }
+
+                    alreadyBroken = true;
+                });
+                EventHandler<LispEvaluationHaltedEventArgs> haltedHandler = null;
+                haltedHandler = new EventHandler<LispEvaluationHaltedEventArgs>((s, e) =>
+                {
+                    frame.Root.EvaluatingExpression -= halter;
+                    frame.Root.EvaluationHalted -= haltedHandler;
+                });
+                frame.Root.EvaluatingExpression += halter;
+                frame.Root.EvaluationHalted += haltedHandler;
+                return frame.Nil;
             }
 
             return new LispError("Expected format string");

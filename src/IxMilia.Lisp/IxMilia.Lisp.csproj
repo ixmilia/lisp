@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="IxMilia.Lisp.Repl" />
     <InternalsVisibleTo Include="IxMilia.Lisp.Test" />
   </ItemGroup>
 

@@ -4,10 +4,14 @@ namespace IxMilia.Lisp.Repl
 {
     public class ReplConsole
     {
+        private const string DebugContinueCommand = "continue";
+
         public string Location { get; }
         public TextReader Input { get; }
         public TextWriter Output { get; }
         public TextWriter Error { get; }
+
+        private LispRepl _repl;
 
         public ReplConsole(string location, TextReader input, TextWriter output, TextWriter error)
         {
@@ -19,20 +23,36 @@ namespace IxMilia.Lisp.Repl
 
         public void Run()
         {
-            var repl = new LispRepl(location: Location, input: Input, output: Output, traceWriter: Output);
+            _repl = new LispRepl(location: Location, input: Input, output: Output, traceWriter: Output);
+            _repl.Host.RootFrame.EvaluationHalted += (s, e) =>
+            {
+                Output.WriteLine($"Non-fatal break.  Type '{DebugContinueCommand}' to resume evaluation.");
+                RunInHaltedState();
+            };
 
             PrintPrompt(0);
             string line;
             while ((line = Input.ReadLine()) != "#quit")
             {
-                var result = repl.Eval(line);
-                if (result.LastValue != null)
+                var result = EvalAndPrint(line);
+                while (!result.ExecutionState.IsExecutionComplete)
                 {
-                    Output.WriteLine(result.LastValue.ToString());
+                    _repl.Eval(result.ExecutionState);
                 }
 
                 PrintPrompt(result.ExpressionDepth);
             }
+        }
+
+        private LispReplResult EvalAndPrint(string line)
+        {
+            var result = _repl.Eval(line);
+            if (result.ExecutionState.LastResult!= null)
+            {
+                Output.WriteLine(result.ExecutionState.LastResult.ToString());
+            }
+
+            return result;
         }
 
         private void PrintPrompt(int depth)
@@ -43,6 +63,30 @@ namespace IxMilia.Lisp.Repl
             }
 
             Output.Write("_> ");
+        }
+
+        private void RunInHaltedState()
+        {
+            var inDebug = true;
+            while (inDebug)
+            {
+                PrintDebugPrompt();
+                var line = Input.ReadLine();
+                switch (line)
+                {
+                    case DebugContinueCommand:
+                        inDebug = false;
+                        break;
+                    default:
+                        EvalAndPrint(line);
+                        break;
+                }
+            }
+        }
+
+        private void PrintDebugPrompt()
+        {
+            Output.Write("DEBUG:> ");
         }
     }
 }
