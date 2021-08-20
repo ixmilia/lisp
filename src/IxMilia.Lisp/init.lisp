@@ -90,7 +90,7 @@
     (sublis (list (cons s r)) items))
 
 (defun append (&rest lists)
-    (reduce #'kernel:two-arg-append lists))
+    (reduce #'kernel:append/2 lists))
 
 (defun terpri (&optional (output-stream *terminal-io*))
     (format output-stream "~%"))
@@ -129,20 +129,20 @@
 
 ; math
 (defun + (&rest values)
-    (reduce #'kernel:two-arg-+ (cons 0 values)))
+    (reduce #'kernel:+/2 (cons 0 values)))
 
 (defun - (&rest values)
     (cond ((equal () values)            (error "At least one argument required"))
-          ((equal 1 (length values))    (kernel:one-arg-- (car values)))
-          (t                            (reduce #'kernel:two-arg-- values))))
+          ((equal 1 (length values))    (kernel:-/1 (car values)))
+          (t                            (reduce #'kernel:-/2 values))))
 
 (defun * (&rest values)
-    (reduce #'kernel:two-arg-* (cons 1 values)))
+    (reduce #'kernel:*/2 (cons 1 values)))
 
 (defun / (&rest values)
     (cond ((equal () values)            (error "At least one argument required"))
           ((equal 1 (length values))    (/ 1 (car values)))
-          (t                            (reduce #'kernel:two-arg-/ values))))
+          (t                            (reduce #'kernel://2 values))))
 
 ; just to ensure the script was properly loaded
 t

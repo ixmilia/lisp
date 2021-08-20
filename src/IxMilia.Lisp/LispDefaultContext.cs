@@ -742,7 +742,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("kernel:two-arg-append")]
+        [LispFunction("kernel:append/2")]
         public LispObject TwoArgumentAppend(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -1370,7 +1370,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("kernel:two-arg-+")]
+        [LispFunction("kernel:+/2")]
         public LispObject TwoAgumentPlus(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -1384,7 +1384,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("kernel:one-arg--")]
+        [LispFunction("kernel:-/1")]
         public LispObject OneArgumentMinus(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 1)
@@ -1407,7 +1407,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("kernel:two-arg--")]
+        [LispFunction("kernel:-/2")]
         public LispObject TwoArgumentMinus(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -1421,7 +1421,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("kernel:two-arg-*")]
+        [LispFunction("kernel:*/2")]
         public LispObject TwoArgumentAsterisk(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -1435,7 +1435,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("kernel:two-arg-/")]
+        [LispFunction("kernel://2")]
         public LispObject TwoArgumentSlash(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
