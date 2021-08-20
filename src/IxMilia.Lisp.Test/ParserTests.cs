@@ -118,7 +118,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(5, children.Count);
             foreach (var child in children)
             {
-                Assert.True(ReferenceEquals(child.Parent, rootNode), $"child.Parent [{child.Parent}] != rootNode [{rootNode}]");
+                Assert.True(ReferenceEquals(child.Parent, rootNode), $"child = [{child}]; child.Parent [{child.Parent}] != rootNode [{rootNode}]");
             }
 
             // spot-check one level more
