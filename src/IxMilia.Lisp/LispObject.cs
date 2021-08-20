@@ -56,6 +56,9 @@ namespace IxMilia.Lisp
                     result = new LispCodeFunction(codeFunction.Name, codeFunction.Documentation, codeFunction.ArgumentCollection, codeFunction.Commands.PerformMacroReplacements(replacements));
                     break;
 
+                case LispQuotedLambdaFunctionReference lambdaFunction:
+                    result = new LispQuotedLambdaFunctionReference((LispCodeFunction)lambdaFunction.Definition.PerformMacroReplacements(replacements));
+                    break;
                 case LispQuotedNamedFunctionReference quotedFunction:
                     if (!replacements.TryGetValue(quotedFunction.Name, out result))
                     {

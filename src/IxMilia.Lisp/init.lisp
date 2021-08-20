@@ -89,6 +89,9 @@
 (defun subst (r s items)
     (sublis (list (cons s r)) items))
 
+(defun append (&rest lists)
+    (reduce #'kernel:two-arg-append lists))
+
 (defun terpri (&optional (output-stream *terminal-io*))
     (format output-stream "~%"))
 

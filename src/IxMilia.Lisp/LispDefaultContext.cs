@@ -742,30 +742,56 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("append")]
-        public LispObject Append(LispStackFrame frame, LispObject[] args)
+        [LispFunction("kernel:two-arg-append")]
+        public LispObject TwoArgumentAppend(LispStackFrame frame, LispObject[] args)
         {
-            if (args.Length != 2)
+            if (args.Length == 2 &&
+                args[0] is LispList l1)
             {
-                return new LispError("Expected exactly 2 arguments");
-            }
-
-            if (args[0] is LispList list)
-            {
-                var items = list.ToList();
-                var last = args[1];
-                foreach (var item in items.Reverse())
+                var result = args[1];
+                var headItems = l1.ToList();
+                for (int i = headItems.Count - 1; i >= 0; i--)
                 {
-                    var next = new LispList(item, last);
-                    last = next;
+                    var newResult = new LispList(headItems[i], result);
+                    result = newResult;
                 }
 
-                return last;
+                return result;
             }
-            else
+
+            return new LispError("Expected a list and a tail");
+        }
+
+        [LispMacro("nconc")]
+        public IEnumerable<LispObject> Nconc(LispStackFrame frame, LispObject[] args)
+        {
+            LispObject lastResult = frame.Nil;
+            for (int i = args.Length - 2; i >= 0; i--)
             {
-                return new LispError("First argument must be a list");
+                var a1Raw = args[i];
+                var a2 = args[i + 1];
+
+                var a1 = frame.Eval(a1Raw);
+
+                // lastResult = (append a1 a2)
+                var simulatedFunctionCall1 = LispList.FromItems(new LispSymbol("append"), new LispQuotedObject(a1), a2);
+                lastResult = frame.Eval(simulatedFunctionCall1);
+                if (lastResult is LispError error)
+                {
+                    return new LispObject[] { error };
+                }
+
+                lastResult = new LispQuotedObject(lastResult);
+
+                // a1 = lastResult
+                if (!a1.IsNil())
+                {
+                    var simulatedFunctionCall2 = LispList.FromItems(new LispSymbol("setf"), a1Raw, lastResult);
+                    frame.Eval(simulatedFunctionCall2);
+                }
             }
+
+            return new LispObject[] { lastResult };
         }
 
         [LispFunction("reverse")]

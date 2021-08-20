@@ -155,14 +155,21 @@ namespace IxMilia.Lisp
                                         LispMacroOrFunction invocationObject;
                                         if (sList.Value is LispSymbol invocationSymbol)
                                         {
-                                            var candidateInvocationObject = executionState.StackFrame.GetValue<LispMacroOrFunction>(invocationSymbol.Value);
-                                            if (candidateInvocationObject is null)
+                                            var candidateInvocationObject = executionState.StackFrame.GetValue(invocationSymbol.Value);
+                                            if (candidateInvocationObject is LispMacroOrFunction macroOrFunction)
+                                            {
+                                                invocationObject = macroOrFunction;
+                                            }
+                                            else if (candidateInvocationObject is null)
                                             {
                                                 executionState.ReportError(new LispError($"Undefined macro/function '{invocationSymbol.Value}', found '<null>'"), sList.Value);
                                                 break;
                                             }
-
-                                            invocationObject = candidateInvocationObject;
+                                            else
+                                            {
+                                                executionState.ReportError(new LispError($"Expected macro or function, but found {candidateInvocationObject}"), sList.Value);
+                                                break;
+                                            }
                                         }
                                         else if (sList.Value is LispMacroOrFunction directInvocationObject)
                                         {

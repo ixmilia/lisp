@@ -1113,5 +1113,31 @@ the-list
 ");
             Assert.Equal("((b c) (a b c) 1 2 3)", result.ToString());
         }
+
+        [Fact]
+        public void NconcWithFirstParameterAsAList()
+        {
+            // also testing more than 2 parameters
+            var result = Eval(@"
+(setf x '(a b c))
+(setf y '(d e f))
+(setf z '(g h i))
+(nconc x y z)
+(list x y z)
+");
+            Assert.Equal("((a b c d e f g h i) (d e f g h i) (g h i))", result.ToString());
+        }
+
+        [Fact]
+        public void NconcWithFirstParameterNil()
+        {
+            var result = Eval(@"
+(setf x nil)
+(setf y '(d e f))
+(nconc x y)
+(list x y)
+");
+            Assert.Equal("(() (d e f))", result.ToString());
+        }
     }
 }
