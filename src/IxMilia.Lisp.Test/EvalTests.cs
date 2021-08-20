@@ -1139,5 +1139,16 @@ the-list
 ");
             Assert.Equal("(() (d e f))", result.ToString());
         }
+
+        [Fact]
+        public void Nsubst()
+        {
+            var result = Eval(@"
+(setf l '(a b c d a b c d))
+(nsubst 'bee 'b l)
+l
+");
+            Assert.Equal("(a bee c d a bee c d)", result.ToString());
+        }
     }
 }

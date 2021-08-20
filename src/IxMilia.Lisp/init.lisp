@@ -89,6 +89,15 @@
 (defun subst (r s items)
     (sublis (list (cons s r)) items))
 
+(defun nsublis (table items)
+    (let ((keypair (assoc (car items) table)))
+        (cond ((eql nil items)  ())                                                                     ; empty/end of list
+              (keypair          (cons (setf (car items) (cdr keypair)) (nsublis table (cdr items))))    ; perform replacement on head
+              (t                (cons (car items) (nsublis table (cdr items)))))))                      ; no key/value pair found; continue
+
+(defun nsubst (r s items)
+    (nsublis (list (cons s r)) items))
+
 (defun append (&rest lists)
     (reduce #'kernel:append/2 lists))
 
