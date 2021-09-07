@@ -1279,6 +1279,11 @@ namespace IxMilia.Lisp
                     return true;
                 }
 
+                if (a is LispNilList && b is LispNilList)
+                {
+                    return true;
+                }
+
                 return ReferenceEquals(a, b);
             });
         }

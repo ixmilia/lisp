@@ -338,7 +338,7 @@ namespace IxMilia.Lisp.Parser
             }
             else
             {
-                return LispNilList.Instance;
+                return LispNilList.CreateForParser();
             }
         }
 

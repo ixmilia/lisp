@@ -1231,6 +1231,11 @@ namespace IxMilia.Lisp
         {
             return ")";
         }
+
+        internal static LispNilList CreateForParser()
+        {
+            return new LispNilList();
+        }
     }
 
     public abstract class LispMacroOrFunction : LispObject
