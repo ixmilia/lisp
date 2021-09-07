@@ -190,7 +190,7 @@ namespace IxMilia.Lisp
                                                 // nothing
                                                 break;
                                             case LispFunction function:
-                                                executionState.InsertOperation(new LispEvaluatorFunctionExit(function, sList.SourceLocation));
+                                                executionState.InsertOperation(new LispEvaluatorFunctionExit(function, expression.Expression, sList.SourceLocation));
                                                 switch (function)
                                                 {
                                                     case LispNativeFunction _:
@@ -246,6 +246,12 @@ namespace IxMilia.Lisp
                                 default:
                                     throw new NotSupportedException($"Unexpected object type {expression.Expression.GetType().Name} with value {expression.Expression}");
                             }
+
+                            halt = executionState.StackFrame.Root.OnEvaluatedExpression(expression.Expression, executionState.LastResult, executionState.StackFrame);
+                            if (executionState.AllowHalting && halt)
+                            {
+                                return LispEvaluationState.NonFatalHalt;
+                            }
                         }
                         break;
                     case LispEvaluatorDribbleEnter dribbleEnter:
@@ -284,6 +290,8 @@ namespace IxMilia.Lisp
                             {
                                 executionState.StackFrame = executionState.StackFrame.Parent;
                             }
+
+                            halt = executionState.StackFrame.Root.OnEvaluatedExpression(exit.InvocationExpression, executionState.LastResult, executionState.StackFrame) || halt;
 
                             if (executionState.AllowHalting && halt)
                             {

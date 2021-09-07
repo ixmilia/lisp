@@ -122,6 +122,7 @@ namespace IxMilia.Lisp
         public event EventHandler<LispFunctionReturnedEventArgs> FunctionReturned;
         public event EventHandler<LispMacroExpandedEventArgs> MacroExpanded;
         public event EventHandler<LispEvaluatingExpressionEventArgs> EvaluatingExpression;
+        public event EventHandler<LispEvaluatedExpressionEventArgs> EvaluatedExpression;
         public event EventHandler<LispValueSetEventArgs> ValueSet;
         public event EventHandler<LispErrorOccuredEventArgs> ErrorOccured;
         public event EventHandler<LispEvaluationHaltedEventArgs> EvaluationHalted;
@@ -178,6 +179,13 @@ namespace IxMilia.Lisp
         {
             var args = new LispEvaluatingExpressionEventArgs(expression, frame);
             EvaluatingExpression?.Invoke(this, args);
+            return args.HaltExecution;
+        }
+
+        internal bool OnEvaluatedExpression(LispObject expression, LispObject result, LispStackFrame frame)
+        {
+            var args = new LispEvaluatedExpressionEventArgs(expression, result, frame);
+            EvaluatedExpression?.Invoke(this, args);
             return args.HaltExecution;
         }
 

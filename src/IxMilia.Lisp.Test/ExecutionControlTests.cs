@@ -134,6 +134,52 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void HaltExecutionAfterSimpleExpressionEvaluation()
+        {
+            var host = new LispHost();
+            host.RootFrame.EvaluatedExpression += (s, e) =>
+            {
+                if (e.Expression.ToString() == "2" &&
+                    e.Result is LispInteger i &&
+                    i.Value == 2)
+                {
+                    e.HaltExecution = true;
+                }
+            };
+            var executionState = host.Eval(@"
+(+ (* 2 3) (/ 12 4))
+");
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal(2, ((LispInteger)executionState.LastResult).Value);
+            host.Run(executionState);
+            Assert.True(executionState.IsExecutionComplete);
+            Assert.Equal(9, ((LispInteger)executionState.LastResult).Value);
+        }
+
+        [Fact]
+        public void HaltExecutionAfterInvokeExpressionEvaluation()
+        {
+            var host = new LispHost();
+            host.RootFrame.EvaluatedExpression += (s, e) =>
+            {
+                if (e.Expression.ToString() == "(* 2 3)" &&
+                    e.Result is LispInteger i &&
+                    i.Value == 6)
+                {
+                    e.HaltExecution = true;
+                }
+            };
+            var executionState = host.Eval(@"
+(+ (* 2 3) (/ 10 2))
+");
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal(6, ((LispInteger)executionState.LastResult).Value);
+            host.Run(executionState);
+            Assert.True(executionState.IsExecutionComplete);
+            Assert.Equal(11, ((LispInteger)executionState.LastResult).Value);
+        }
+
+        [Fact]
         public void HaltExecutionOnEvaluatingFunctionArgument()
         {
             var host = new LispHost();

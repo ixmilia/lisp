@@ -29,19 +29,21 @@ namespace IxMilia.Lisp
     internal class LispEvaluatorFunctionExit : ILispEvaluatorOperation
     {
         public LispFunction Function { get; }
+        public LispObject InvocationExpression { get; }
         public LispSourceLocation? SourceLocation { get; }
         public bool PopFrame { get; }
 
-        public LispEvaluatorFunctionExit(LispFunction function, LispSourceLocation? sourceLocation, bool popFrame = true)
+        public LispEvaluatorFunctionExit(LispFunction function, LispObject invocationExpression, LispSourceLocation? sourceLocation, bool popFrame = true)
         {
             Function = function;
+            InvocationExpression = invocationExpression;
             SourceLocation = sourceLocation;
             PopFrame = popFrame;
         }
 
         public LispEvaluatorFunctionExit WithoutFramePop()
         {
-            return new LispEvaluatorFunctionExit(Function, SourceLocation, popFrame: false);
+            return new LispEvaluatorFunctionExit(Function, InvocationExpression, SourceLocation, popFrame: false);
         }
 
         public override string ToString()
