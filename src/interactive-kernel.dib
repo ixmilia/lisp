@@ -1,0 +1,44 @@
+#!csharp
+
+#r "../artifacts/bin/IxMilia.Lisp/Debug/netstandard1.3/IxMilia.Lisp.dll"
+
+#!csharp
+
+using System.Threading.Tasks;
+using IxMilia.Lisp;
+using Microsoft.DotNet.Interactive;
+using Microsoft.DotNet.Interactive.Commands;
+using Microsoft.DotNet.Interactive.Events;
+
+class LispKernel : Kernel, IKernelCommandHandler<SubmitCode>
+{
+    private LispRepl _repl;
+
+    public LispKernel()
+        : base("lisp")
+    {
+        _repl = new LispRepl();
+    }
+
+    public Task HandleAsync(SubmitCode command, KernelInvocationContext context)
+    {
+        var result = _repl.Eval(command.Code);
+        if (result.ExecutionState.LastResult is { } lastResult)
+        {
+            var formatted = new FormattedValue("text/plain", lastResult.ToString());
+            context.Publish(new ReturnValueProduced(lastResult, command, new[] { formatted }));
+        }
+
+        return Task.CompletedTask;
+    }
+}
+
+((CompositeKernel)Kernel.Root.RootKernel).Add(new LispKernel());
+
+#!csharp
+
+#!lisp
+(defun add (a b)
+  (+ a b))
+
+(add 1 2)
