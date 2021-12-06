@@ -50,10 +50,10 @@ namespace IxMilia.Lisp
                 // these go into the definitions
                 // TODO: replace in arguments?
                 case LispCodeMacro codeMacro:
-                    result = new LispCodeMacro(codeMacro.Name, codeMacro.ArgumentCollection, codeMacro.Body.PerformMacroReplacements(replacements));
+                    result = new LispCodeMacro(codeMacro.Name, codeMacro.ArgumentCollection, codeMacro.Body.PerformMacroReplacements(replacements).ToList());
                     break;
                 case LispCodeFunction codeFunction:
-                    result = new LispCodeFunction(codeFunction.Name, codeFunction.Documentation, codeFunction.ArgumentCollection, codeFunction.Commands.PerformMacroReplacements(replacements));
+                    result = new LispCodeFunction(codeFunction.Name, codeFunction.Documentation, codeFunction.ArgumentCollection, codeFunction.Commands.PerformMacroReplacements(replacements).ToList());
                     break;
 
                 case LispQuotedLambdaFunctionReference lambdaFunction:
@@ -80,9 +80,6 @@ namespace IxMilia.Lisp
                     break;
 
                 // recurse into these
-                case LispQuotedObject quoted:
-                    result = new LispQuotedObject(quoted.Value.PerformMacroReplacements(replacements));
-                    break;
                 case LispForwardListReference forwardList:
                     result = new LispForwardListReference(forwardList.ForwardReference, (LispList)forwardList.List.PerformMacroReplacements(replacements));
                     break;
@@ -110,62 +107,6 @@ namespace IxMilia.Lisp
             {
                 return obj.GetHashCode();
             }
-        }
-    }
-
-    public class LispQuotedObject : LispObject
-    {
-        public LispObject Value { get; }
-
-        public LispQuotedObject(LispObject value)
-        {
-            Value = value;
-        }
-
-        public override IEnumerable<LispObject> GetChildren()
-        {
-            yield return Value;
-        }
-
-        protected override LispObject CloneProtected()
-        {
-            return new LispQuotedObject(Value.Clone());
-        }
-
-        public override string ToString()
-        {
-            return string.Concat("'", Value.ToString());
-        }
-
-        public static bool operator ==(LispQuotedObject a, LispQuotedObject b)
-        {
-            if (a is null && b is null)
-            {
-                return true;
-            }
-            else if (a is null || b is null)
-            {
-                return false;
-            }
-            else
-            {
-                return a.Value.Equals(b.Value);
-            }
-        }
-
-        public static bool operator !=(LispQuotedObject a, LispQuotedObject b)
-        {
-            return !(a == b);
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is LispQuotedObject && this == (LispQuotedObject)obj;
-        }
-
-        public override int GetHashCode()
-        {
-            return Value.GetHashCode();
         }
     }
 
@@ -1238,17 +1179,17 @@ namespace IxMilia.Lisp
         }
     }
 
-    public abstract class LispMacroOrFunction : LispObject
+    public abstract class LispInvocableObject : LispObject
     {
         public string Name { get; }
 
-        protected LispMacroOrFunction(string name)
+        protected LispInvocableObject(string name)
         {
             Name = name;
         }
     }
 
-    public abstract class LispFunction : LispMacroOrFunction
+    public abstract class LispFunction : LispInvocableObject
     {
         public string Documentation { get; }
 
@@ -1402,7 +1343,33 @@ namespace IxMilia.Lisp
         }
     }
 
-    public abstract class LispMacro : LispMacroOrFunction
+    public class LispSpecialOperator : LispInvocableObject
+    {
+        public LispSpecialOperatorDelegate Delegate { get; }
+
+        public LispSpecialOperator(string name, LispSpecialOperatorDelegate del)
+            : base(name)
+        {
+            Delegate = del;
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
+        protected override LispObject CloneProtected()
+        {
+            return new LispSpecialOperator(Name, Delegate);
+        }
+
+        public override string ToString()
+        {
+            return $"{Name} <native-special-op>";
+        }
+    }
+
+    public abstract class LispMacro : LispInvocableObject
     {
         public LispMacro(string name)
             : base(name)

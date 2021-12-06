@@ -72,7 +72,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.AddMacro("FOURTY-TWO", (frame, args) =>
             {
-                return new LispObject[] { new LispInteger(42) };
+                return new LispInteger(42);
             });
             host.RootFrame.MacroExpanded += (s, e) =>
             {
@@ -238,7 +238,7 @@ namespace IxMilia.Lisp.Test
             host.AddMacro("NATIVE-FUNCTION", (frame, args) =>
             {
                 var result = frame.Eval(LispList.FromEnumerable(new LispObject[] { new LispSymbol("*"), new LispInteger(2), new LispInteger(2) }));
-                return new LispObject[] { result };
+                return result;
             });
             var hitBreakpoint = false;
             host.RootFrame.EvaluatingExpression += (s, e) =>

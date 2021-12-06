@@ -48,8 +48,8 @@ namespace IxMilia.Lisp.Test
         public void IsNil()
         {
             Assert.True(LispNilList.Instance.IsNil());
-            Assert.False(new LispQuotedObject(new LispSymbol("a")).IsNil());
-            Assert.False(new LispQuotedObject(LispNilList.Instance).IsNil());
+            Assert.False(LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A")).IsNil());
+            Assert.False(LispList.FromItems(new LispSymbol("QUOTE"), LispNilList.Instance).IsNil());
             Assert.False(new LispError("e").IsNil());
             Assert.False(new LispSymbol("a").IsNil());
             Assert.False(new LispKeyword("a").IsNil());
@@ -70,8 +70,8 @@ namespace IxMilia.Lisp.Test
         public void IsTLike()
         {
             Assert.False(LispNilList.Instance.IsTLike());
-            Assert.True(new LispQuotedObject(new LispSymbol("a")).IsTLike());
-            Assert.True(new LispQuotedObject(LispNilList.Instance).IsTLike());
+            Assert.True(LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A")).IsTLike());
+            Assert.True(LispList.FromItems(new LispSymbol("QUOTE"), LispNilList.Instance).IsTLike());
             Assert.True(new LispError("e").IsTLike());
             Assert.True(new LispSymbol("a").IsTLike());
             Assert.True(new LispKeyword("a").IsTLike());

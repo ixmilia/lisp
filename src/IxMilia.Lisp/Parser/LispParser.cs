@@ -142,7 +142,7 @@ namespace IxMilia.Lisp.Parser
         {
             if (TryParseNullExpression(parent, out var value) && value != null)
             {
-                return new LispQuotedObject(value);
+                return LispList.FromItems(new LispSymbol("QUOTE"), value);
             }
             else if (_errorOnIncompleteExpressions)
             {

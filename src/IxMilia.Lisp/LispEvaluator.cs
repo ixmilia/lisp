@@ -99,9 +99,6 @@ namespace IxMilia.Lisp
                                     lambda.StackFrame = executionState.StackFrame;
                                     executionState.PushArgument(expression.Expression);
                                     break;
-                                case LispQuotedObject quote:
-                                    executionState.PushArgument(quote.Value);
-                                    break;
                                 case LispForwardListReference forwardRef:
                                     {
                                         LispObject result;
@@ -152,13 +149,13 @@ namespace IxMilia.Lisp
                                     break;
                                 case LispList sList:
                                     {
-                                        LispMacroOrFunction invocationObject;
+                                        LispInvocableObject invocationObject;
                                         if (sList.Value is LispSymbol invocationSymbol)
                                         {
                                             var candidateInvocationObject = executionState.StackFrame.GetValue(invocationSymbol.Value);
-                                            if (candidateInvocationObject is LispMacroOrFunction macroOrFunction)
+                                            if (candidateInvocationObject is LispInvocableObject invokable)
                                             {
-                                                invocationObject = macroOrFunction;
+                                                invocationObject = invokable;
                                             }
                                             else if (candidateInvocationObject is null)
                                             {
@@ -171,7 +168,7 @@ namespace IxMilia.Lisp
                                                 break;
                                             }
                                         }
-                                        else if (sList.Value is LispMacroOrFunction directInvocationObject)
+                                        else if (sList.Value is LispInvocableObject directInvocationObject)
                                         {
                                             invocationObject = directInvocationObject;
                                         }
@@ -186,6 +183,7 @@ namespace IxMilia.Lisp
                                         // insert function body back to front
                                         switch (invocationObject)
                                         {
+                                            case LispSpecialOperator _:
                                             case LispMacro _:
                                                 // nothing
                                                 break;
@@ -226,12 +224,15 @@ namespace IxMilia.Lisp
                                         // evaluate/add arguments
                                         switch (invocationObject)
                                         {
+                                            // unevaluated arguments
+                                            case LispSpecialOperator _:
                                             case LispMacro _:
                                                 for (int i = 0; i < arguments.Count; i++)
                                                 {
                                                     executionState.PushArgument(arguments[i]);
                                                 }
                                                 break;
+                                            // evaluated arguments
                                             case LispFunction _:
                                                 for (int i = arguments.Count - 1; i >= 0; i--)
                                                 {
@@ -323,9 +324,12 @@ namespace IxMilia.Lisp
                             // bind arguments
                             switch (invocation.InvocationObject)
                             {
+                                case LispSpecialOperator specialOperator:
+                                    specialOperator.Delegate.Invoke(executionState, arguments);
+                                    break;
                                 case LispMacro macro:
                                     {
-                                        LispObject[] macroExpansion;
+                                        LispObject result;
                                         switch (macro)
                                         {
                                             case LispCodeMacro codeMacro:
@@ -341,25 +345,18 @@ namespace IxMilia.Lisp
                                                     replacements[matchedArgument.Item1.Name] = matchedArgument.Item2;
                                                 }
 
-                                                macroExpansion = codeMacro.Body.PerformMacroReplacements(replacements).ToArray();
+                                                result = codeMacro.Body.PerformMacroReplacements(replacements);
                                                 break;
                                             case LispNativeMacro nativeMacro:
                                                 captureValueSetHalt = true;
-                                                macroExpansion = nativeMacro.Macro.Invoke(executionState.StackFrame, arguments).ToArray();
+                                                result = nativeMacro.Macro.Invoke(executionState.StackFrame, arguments);
                                                 break;
                                             default:
                                                 throw new NotImplementedException($"Unsupported macro object {invocation.InvocationObject.GetType().Name}");
                                         }
 
-                                        var halt = executionState.StackFrame.Root.OnMacroExpanded(macro, executionState.StackFrame, macroExpansion);
-                                        for (int i = macroExpansion.Length - 1; i >= 0; i--)
-                                        {
-                                            executionState.InsertOperation(new LispEvaluatorObjectExpression(macroExpansion[i]));
-                                            if (i != 0)
-                                            {
-                                                executionState.InsertOperation(new LispEvaluatorPopArgument());
-                                            }
-                                        }
+                                        var halt = executionState.StackFrame.Root.OnMacroExpanded(macro, executionState.StackFrame, result);
+                                        executionState.InsertOperation(new LispEvaluatorObjectExpression(result));
 
                                         if (executionState.AllowHalting && halt)
                                         {

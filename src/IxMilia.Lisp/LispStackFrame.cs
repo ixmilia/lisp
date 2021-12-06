@@ -10,7 +10,7 @@ namespace IxMilia.Lisp
         protected const string NilString = "NIL";
         protected const string TerminalIOString = "*TERMINAL-IO*";
 
-        public LispMacroOrFunction Function { get; }
+        public LispInvocableObject Function { get; }
         public string FunctionName { get; }
         public LispStackFrame Parent { get; }
         public LispSourceLocation? SourceLocation { get; private set; }
@@ -31,7 +31,7 @@ namespace IxMilia.Lisp
             Depth = (Parent?.Depth ?? LispRootStackFrame.RootStackDepth) + 1;
         }
 
-        internal LispStackFrame(LispMacroOrFunction function, LispStackFrame parent)
+        internal LispStackFrame(LispInvocableObject function, LispStackFrame parent)
             : this(parent)
         {
             Function = function;
@@ -168,7 +168,7 @@ namespace IxMilia.Lisp
             return args.HaltExecution;
         }
 
-        internal bool OnMacroExpanded(LispMacro macro, LispStackFrame frame, LispObject[] expandedBody)
+        internal bool OnMacroExpanded(LispMacro macro, LispStackFrame frame, LispObject expandedBody)
         {
             var args = new LispMacroExpandedEventArgs(macro, frame, expandedBody);
             MacroExpanded?.Invoke(this, args);

@@ -4,9 +4,9 @@
     {
         public LispMacro Macro { get; }
         public LispStackFrame Frame { get; }
-        public LispObject[] ExpandedBody { get; }
+        public LispObject ExpandedBody { get; }
 
-        public LispMacroExpandedEventArgs(LispMacro macro, LispStackFrame frame, LispObject[] expandedBody)
+        public LispMacroExpandedEventArgs(LispMacro macro, LispStackFrame frame, LispObject expandedBody)
         {
             Macro = macro;
             Frame = frame;

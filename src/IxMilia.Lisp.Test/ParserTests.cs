@@ -77,9 +77,9 @@ namespace IxMilia.Lisp.Test
         public void Quoted()
         {
             Assert.Equal(new LispSymbol("A"), SingleSyntaxNode("a"));
-            Assert.Equal(new LispQuotedObject(new LispSymbol("A")), SingleSyntaxNode("'a"));
-            Assert.Equal(new LispQuotedObject(new LispQuotedObject(new LispSymbol("A"))), SingleSyntaxNode("''a"));
-            Assert.Equal(new LispQuotedObject(new LispList(new LispInteger(1))), SingleSyntaxNode("'(1)"));
+            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A")), SingleSyntaxNode("'a"));
+            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A"))), SingleSyntaxNode("''a"));
+            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), new LispList(new LispInteger(1))), SingleSyntaxNode("'(1)"));
         }
 
         [Fact]

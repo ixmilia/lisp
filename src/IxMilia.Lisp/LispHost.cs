@@ -8,8 +8,9 @@ using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
 {
-    public delegate IEnumerable<LispObject> LispMacroDelegate(LispStackFrame frame, LispObject[] args);
-    public delegate LispObject LispFunctionDelegate(LispStackFrame frame, LispObject[] args);
+    public delegate void LispSpecialOperatorDelegate(LispExecutionState executionState, LispObject[] args); // args unevaluated, no result
+    public delegate LispObject LispMacroDelegate(LispStackFrame frame, LispObject[] args); // args unevaluated, result evaluated
+    public delegate LispObject LispFunctionDelegate(LispStackFrame frame, LispObject[] args); // args evaluated, result unevaluated
 
     public class LispHost
     {
@@ -31,8 +32,15 @@ namespace IxMilia.Lisp
             T = RootFrame.T;
             Nil = RootFrame.Nil;
             TerminalIO = RootFrame.TerminalIO;
+            AddContextObject(new LispSpecialOperatorsContext());
             AddContextObject(new LispDefaultContext());
             ApplyInitScript();
+        }
+
+        public void AddSpecialOperator(string name, LispSpecialOperatorDelegate del)
+        {
+            var op = new LispSpecialOperator(name, del);
+            SetValue(name, op);
         }
 
         public void AddMacro(string name, LispMacroDelegate del)
@@ -64,14 +72,36 @@ namespace IxMilia.Lisp
             {
                 var parameterInfo = methodInfo.GetParameters();
                 if (parameterInfo.Length == 2 &&
+                    parameterInfo[0].ParameterType == typeof(LispExecutionState) &&
+                    parameterInfo[1].ParameterType == typeof(LispObject[]))
+                {
+                    // native special operators (unevaluated arguments, no result)
+                    var operatorNames = methodInfo.GetCustomAttributes<LispSpecialOperatorAttribute>(inherit: true).Select(a => a.Name).ToList();
+                    if (operatorNames.Any())
+                    {
+                        if (methodInfo.ReturnType == typeof(void))
+                        {
+                            var del = (LispSpecialOperatorDelegate)methodInfo.CreateDelegate(typeof(LispSpecialOperatorDelegate), context);
+                            foreach (var name in operatorNames)
+                            {
+                                AddSpecialOperator(name, del);
+                            }
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException($"Native special operator expected to have return type of 'void' but found '{methodInfo.ReturnType.Name}'.");
+                        }
+                    }
+                }
+                else if (parameterInfo.Length == 2 &&
                     parameterInfo[0].ParameterType == typeof(LispStackFrame) &&
                     parameterInfo[1].ParameterType == typeof(LispObject[]))
                 {
-                    // native macros (unevaluated arguments)
+                    // native macros (unevaluated arguments, evaluated result)
                     var macroNames = methodInfo.GetCustomAttributes<LispMacroAttribute>(inherit: true).Select(a => a.Name).ToList();
                     if (macroNames.Any())
                     {
-                        if (methodInfo.ReturnType == typeof(IEnumerable<LispObject>))
+                        if (methodInfo.ReturnType == typeof(LispObject))
                         {
                             var del = (LispMacroDelegate)methodInfo.CreateDelegate(typeof(LispMacroDelegate), context);
                             foreach (var name in macroNames)
@@ -81,11 +111,11 @@ namespace IxMilia.Lisp
                         }
                         else
                         {
-                            throw new InvalidOperationException($"Native macro expected to have return type of '{nameof(IEnumerable<LispObject>)}' but found '{methodInfo.ReturnType.Name}'.");
+                            throw new InvalidOperationException($"Native macro expected to have return type of '{nameof(LispObject)}' but found '{methodInfo.ReturnType.Name}'.");
                         }
                     }
 
-                    // native functions (evaluated arguments)
+                    // native functions (evaluated arguments, unevaluated result)
                     var functionNames = methodInfo.GetCustomAttributes<LispFunctionAttribute>(inherit: true).Select(a => a.Name).ToList();
                     if (functionNames.Any())
                     {

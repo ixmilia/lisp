@@ -9,11 +9,11 @@ namespace IxMilia.Lisp
 
     internal class LispEvaluatorInvocation : ILispEvaluatorOperation
     {
-        public LispMacroOrFunction InvocationObject { get; }
+        public LispInvocableObject InvocationObject { get; }
         public LispSourceLocation? SourceLocation { get; }
         public int ArgumentCount { get; }
 
-        public LispEvaluatorInvocation(LispMacroOrFunction invocationObject, LispSourceLocation? sourceLocation, int argumentCount)
+        public LispEvaluatorInvocation(LispInvocableObject invocationObject, LispSourceLocation? sourceLocation, int argumentCount)
         {
             InvocationObject = invocationObject;
             SourceLocation = sourceLocation;
@@ -54,10 +54,10 @@ namespace IxMilia.Lisp
 
     internal class LispEvaluatorPopForTailCall : ILispEvaluatorOperation
     {
-        public LispMacroOrFunction Function { get; }
+        public LispInvocableObject Function { get; }
         public HashSet<string> InvocationArgumentNames { get; }
 
-        public LispEvaluatorPopForTailCall(LispMacroOrFunction function, IEnumerable<string> invocationArgumentNames)
+        public LispEvaluatorPopForTailCall(LispInvocableObject function, IEnumerable<string> invocationArgumentNames)
         {
             Function = function;
             InvocationArgumentNames = new HashSet<string>(invocationArgumentNames);

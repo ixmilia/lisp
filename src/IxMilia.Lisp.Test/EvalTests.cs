@@ -30,9 +30,9 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             Assert.Equal(new LispSymbol("A"), host.Eval("'a").LastResult);
-            Assert.Equal(new LispQuotedObject(new LispSymbol("A")), host.Eval("''a").LastResult);
+            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A")), host.Eval("''a").LastResult);
             Assert.Equal(LispList.FromItems(new LispInteger(1)), host.Eval("'(1)").LastResult);
-            Assert.Equal("'A", host.Eval("(eval '''a)").LastResult.ToString());
+            Assert.Equal("(QUOTE A)", host.Eval("(eval '''a)").LastResult.ToString());
         }
 
         [Fact]
