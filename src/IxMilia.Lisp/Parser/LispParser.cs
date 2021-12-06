@@ -85,6 +85,10 @@ namespace IxMilia.Lisp.Parser
                         Advance();
                         result = new LispFloat(num.Value);
                         break;
+                    case LispCharacterToken c:
+                        Advance();
+                        result = new LispCharacter(c.Value);
+                        break;
                     case LispStringToken str:
                         Advance();
                         result = new LispString(str.Value);

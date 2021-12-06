@@ -76,7 +76,7 @@ namespace IxMilia.Lisp.Tokens
                 else if (IsHash(c))
                 {
                     MarkTokenStart();
-                    yield return ApplyProperties(ParseForwardReferenceOrQuotedFunction());
+                    yield return ApplyProperties(ParseHashTokens());
                 }
                 else if (IsMinus(c))
                 {
@@ -273,7 +273,7 @@ namespace IxMilia.Lisp.Tokens
             return token;
         }
 
-        private LispToken ParseForwardReferenceOrQuotedFunction()
+        private LispToken ParseHashTokens()
         {
             if (!TryPeek(out var c) || !IsHash(c))
             {
@@ -286,7 +286,12 @@ namespace IxMilia.Lisp.Tokens
 
             if (TryPeek(out c))
             {
-                if (IsDigit(c))
+                if (IsBackslash(c))
+                {
+                    Advance();
+                    return ParseCharacter();
+                }
+                else if (IsDigit(c))
                 {
                     return ParseForwardReference();
                 }
@@ -297,6 +302,18 @@ namespace IxMilia.Lisp.Tokens
             }
 
             return new LispErrorToken(builder.ToString(), "Expected digit or single quote");
+        }
+
+        private LispToken ParseCharacter()
+        {
+            if (TryPeek(out var c) && !IsWhitespace(c))
+            {
+                // TODO: handle special characters like SPACE, etc.
+                Advance();
+                return new LispCharacterToken(c);
+            }
+
+            return new LispErrorToken($"#\\{c}", "Expected character");
         }
 
         private LispToken ParseForwardReference()
@@ -545,6 +562,11 @@ namespace IxMilia.Lisp.Tokens
         private static bool IsAmpersand(char c)
         {
             return c == '&';
+        }
+
+        private static bool IsBackslash(char c)
+        {
+            return c == '\\';
         }
 
         private static bool IsMinus(char c)

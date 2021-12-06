@@ -93,6 +93,16 @@ namespace IxMilia.Lisp.Test
         }
 
         [Theory]
+        [InlineData(@"#\a", 'a')]
+        [InlineData(@"#\/", '/')]
+        [InlineData(@"#\'", '\'')]
+        public void Characters(string code, char expected)
+        {
+            var c = (LispCharacterToken)SingleToken(code);
+            Assert.Equal(expected, c.Value);
+        }
+
+        [Theory]
         [InlineData("\"\"", "")]
         [InlineData("\"\\n\"", "\n")]
         [InlineData("\"\\t\"", "\t")]

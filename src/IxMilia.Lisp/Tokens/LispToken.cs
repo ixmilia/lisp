@@ -182,6 +182,22 @@ namespace IxMilia.Lisp.Tokens
         }
     }
 
+    public class LispCharacterToken : LispToken
+    {
+        public override LispTokenType Type => LispTokenType.Character;
+        public char Value { get; }
+
+        public LispCharacterToken(char value)
+        {
+            Value = value;
+        }
+
+        public override string ToString()
+        {
+            return Value.ToString();
+        }
+    }
+
     public class LispStringToken : LispToken
     {
         public override LispTokenType Type => LispTokenType.String;

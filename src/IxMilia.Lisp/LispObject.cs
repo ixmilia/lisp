@@ -761,6 +761,57 @@ namespace IxMilia.Lisp
         }
     }
 
+    public class LispCharacter : LispObject
+    {
+        public char Value { get; set; }
+
+        public LispCharacter(char value)
+        {
+            Value = value;
+        }
+
+        public override string ToString(bool useEscapeCharacters)
+        {
+            // TODO: handle stuff like SPACE, etc.
+            return $"#\\{Value}";
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
+        protected override LispObject CloneProtected()
+        {
+            return new LispCharacter(Value);
+        }
+
+        public override string ToString()
+        {
+            return ToString(true);
+        }
+
+        public static bool operator ==(LispCharacter a, LispCharacter b)
+        {
+            return a?.Value == b?.Value;
+        }
+
+        public static bool operator !=(LispCharacter a, LispCharacter b)
+        {
+            return !(a == b);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is LispCharacter && this == (LispCharacter)obj;
+        }
+
+        public override int GetHashCode()
+        {
+            return Value.GetHashCode();
+        }
+    }
+
     public class LispString : LispObject
     {
         public string Value { get; set; }

@@ -12,6 +12,7 @@ namespace IxMilia.Lisp.Tokens
         Symbol,
         Integer,
         Float,
+        Character,
         String,
     }
 }
