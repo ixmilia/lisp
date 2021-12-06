@@ -320,7 +320,7 @@ namespace IxMilia.Lisp.Tokens
             {
                 builder.Append(c);
                 Advance();
-                return new LispSymbolToken(builder.ToString());
+                return new LispSymbolToken(builder.ToString().ToUpperInvariant());
             }
             else
             {
@@ -348,7 +348,7 @@ namespace IxMilia.Lisp.Tokens
                 Advance();
             }
 
-            var text = builder.ToString();
+            var text = builder.ToString().ToUpperInvariant();
             return text;
         }
 

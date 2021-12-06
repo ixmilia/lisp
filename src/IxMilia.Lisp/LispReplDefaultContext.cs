@@ -11,14 +11,14 @@ namespace IxMilia.Lisp
             _repl = repl;
         }
 
-        [LispMacro("trace")]
+        [LispMacro("TRACE")]
         public IEnumerable<LispObject> Trace(LispStackFrame frame, LispObject[] args)
         {
             var tracedList = _repl.Trace(args);
             return new LispObject[] { new LispQuotedObject(tracedList) };
         }
 
-        [LispMacro("untrace")]
+        [LispMacro("UNTRACE")]
         public IEnumerable<LispObject> Untrace(LispStackFrame frame, LispObject[] args)
         {
             var untracedList = _repl.Untrace(args);

@@ -36,7 +36,7 @@
 
         public override string ToString()
         {
-            return $"&optional ({Name} {DefaultValue})";
+            return $"&OPTIONAL ({Name} {DefaultValue})";
         }
     }
 
@@ -52,7 +52,7 @@
 
         public override string ToString()
         {
-            return $"&key ({Name} {DefaultValue})";
+            return $"&KEY ({Name} {DefaultValue})";
         }
     }
 
@@ -68,7 +68,7 @@
 
         public override string ToString()
         {
-            return $"&aux ({Name} {InitialValue})";
+            return $"&AUX ({Name} {InitialValue})";
         }
     }
 
@@ -81,7 +81,7 @@
 
         public override string ToString()
         {
-            return $"&rest {Name}";
+            return $"&REST {Name}";
         }
     }
 }

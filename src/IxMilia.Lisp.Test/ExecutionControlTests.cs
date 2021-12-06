@@ -10,7 +10,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.RootFrame.FunctionEntered += (s, e) =>
             {
-                if (e.Frame.FunctionName == "inner-function")
+                if (e.Frame.FunctionName == "INNER-FUNCTION")
                 {
                     e.HaltExecution = true;
                 }
@@ -34,7 +34,7 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             bool sentinelHit = false;
-            host.AddFunction("sentinel", (frame, args) =>
+            host.AddFunction("SENTINEL", (frame, args) =>
             {
                 sentinelHit = true;
                 return new LispInteger(54);
@@ -42,7 +42,7 @@ namespace IxMilia.Lisp.Test
             LispObject capturedReturnValue = null;
             host.RootFrame.FunctionReturned += (s, e) =>
             {
-                if (e.Frame.FunctionName == "inner-function")
+                if (e.Frame.FunctionName == "INNER-FUNCTION")
                 {
                     e.HaltExecution = true;
                     capturedReturnValue = e.ReturnValue;
@@ -70,13 +70,13 @@ namespace IxMilia.Lisp.Test
         public void HaltExecutionOnMacroExpansion()
         {
             var host = new LispHost();
-            host.AddMacro("fourty-two", (frame, args) =>
+            host.AddMacro("FOURTY-TWO", (frame, args) =>
             {
                 return new LispObject[] { new LispInteger(42) };
             });
             host.RootFrame.MacroExpanded += (s, e) =>
             {
-                if (e.Macro.Name == "fourty-two")
+                if (e.Macro.Name == "FOURTY-TWO")
                 {
                     e.HaltExecution = true;
                 }
@@ -99,7 +99,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             bool hitBreakpoint = false;
             bool sentinelHit = false;
-            host.AddFunction("sentinel", (frame, args) =>
+            host.AddFunction("SENTINEL", (frame, args) =>
             {
                 sentinelHit = true;
                 return new LispInteger(54);
@@ -209,7 +209,7 @@ namespace IxMilia.Lisp.Test
         public void ExecutionCannotBeHaltedWhenEvaluatingFromWithinANativeFunction()
         {
             var host = new LispHost();
-            host.AddFunction("native-function", (frame, args) =>
+            host.AddFunction("NATIVE-FUNCTION", (frame, args) =>
             {
                 var result = frame.Eval(LispList.FromEnumerable(new LispObject[] { new LispSymbol("*"), new LispInteger(2), new LispInteger(2) }));
                 return result;
@@ -235,7 +235,7 @@ namespace IxMilia.Lisp.Test
         public void ExecutionCannotBeHaltedWhenEvaluatingFromWithinANativeMacro()
         {
             var host = new LispHost();
-            host.AddMacro("native-function", (frame, args) =>
+            host.AddMacro("NATIVE-FUNCTION", (frame, args) =>
             {
                 var result = frame.Eval(LispList.FromEnumerable(new LispObject[] { new LispSymbol("*"), new LispInteger(2), new LispInteger(2) }));
                 return new LispObject[] { result };
@@ -263,7 +263,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.RootFrame.ValueSet += (s, e) =>
             {
-                if (e.Name == "the-answer" &&
+                if (e.Name == "THE-ANSWER" &&
                     e.Value is LispInteger i &&
                     i.Value == 42)
                 {
@@ -322,8 +322,8 @@ namespace IxMilia.Lisp.Test
 ");
             // errors _always_ halt execution
             Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("Undefined macro/function 'not-a-method', found '<null>'", ((LispError)executionState.LastResult).Message);
-            Assert.Equal("Undefined macro/function 'not-a-method', found '<null>'", capturedError.Message);
+            Assert.Equal("Undefined macro/function 'NOT-A-METHOD', found '<null>'", ((LispError)executionState.LastResult).Message);
+            Assert.Equal("Undefined macro/function 'NOT-A-METHOD', found '<null>'", capturedError.Message);
             Assert.True(ReferenceEquals(capturedError, executionState.LastResult));
 
             // all future processing stops
@@ -376,7 +376,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.RootFrame.FunctionReturned += (s, e) =>
             {
-                if (e.Frame.FunctionName == "test-method")
+                if (e.Frame.FunctionName == "TEST-METHOD")
                 {
                     e.HaltExecution = true;
                 }
@@ -406,14 +406,14 @@ namespace IxMilia.Lisp.Test
         public void ExecutionCanStepIn(bool useTailCalls)
         {
             var host = new LispHost(useTailCalls: useTailCalls);
-            host.AddFunction("native-function", (frame, args) =>
+            host.AddFunction("NATIVE-FUNCTION", (frame, args) =>
             {
                 return frame.T;
             });
             var hasHalted = false;
             host.RootFrame.EvaluatingExpression += (s, e) =>
             {
-                if (!hasHalted && e.Expression.ToString() == "(test-method)")
+                if (!hasHalted && e.Expression.ToString() == "(TEST-METHOD)")
                 {
                     e.HaltExecution = true;
                     hasHalted = true;
@@ -426,11 +426,11 @@ namespace IxMilia.Lisp.Test
 (test-method) ; initial halt here
 ");
             Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (test-method)", executionState.PeekOperation().ToString());
+            Assert.Equal("s: (TEST-METHOD)", executionState.PeekOperation().ToString());
 
             host.StepIn(executionState);
             Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (native-function)", executionState.PeekOperation().ToString());
+            Assert.Equal("s: (NATIVE-FUNCTION)", executionState.PeekOperation().ToString());
 
             host.StepIn(executionState); // can't step in to a native function; this is really a step over
             Assert.False(executionState.IsExecutionComplete);
@@ -443,7 +443,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.RootFrame.FunctionReturned += (s, e) =>
             {
-                if (e.Frame.FunctionName == "test-method")
+                if (e.Frame.FunctionName == "TEST-METHOD")
                 {
                     e.HaltExecution = true;
                 }
@@ -508,7 +508,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.RootFrame.FunctionReturned += (s, e) =>
             {
-                if (e.Frame.FunctionName == "test-method")
+                if (e.Frame.FunctionName == "TEST-METHOD")
                 {
                     e.HaltExecution = true;
                 }

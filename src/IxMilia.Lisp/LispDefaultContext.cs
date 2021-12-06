@@ -7,7 +7,7 @@ namespace IxMilia.Lisp
 {
     public class LispDefaultContext
     {
-        [LispFunction("error")]
+        [LispFunction("ERROR")]
         public LispObject Error(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length >= 1)
@@ -30,7 +30,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected format string");
         }
 
-        [LispFunction("break")]
+        [LispFunction("BREAK")]
         public LispObject Break(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length >= 1)
@@ -60,7 +60,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected format string");
         }
 
-        [LispMacro("defmacro")]
+        [LispMacro("DEFMACRO")]
         public IEnumerable<LispObject> DefineMacro(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate arg types and count
@@ -82,7 +82,7 @@ namespace IxMilia.Lisp
             return new LispObject[] { frame.Nil };
         }
 
-        [LispMacro("defun")]
+        [LispMacro("DEFUN")]
         public IEnumerable<LispObject> DefineFunction(LispStackFrame frame, LispObject[] args)
         {
             if (!TryGetCodeFunctionFromItems(args, out var codeFunction, out var error))
@@ -119,7 +119,7 @@ namespace IxMilia.Lisp
             return true;
         }
 
-        [LispMacro("defvar")]
+        [LispMacro("DEFVAR")]
         public IEnumerable<LispObject> DefineVariable(LispStackFrame frame, LispObject[] args)
         {
             // TODO: properly validage single symbol argument
@@ -129,13 +129,13 @@ namespace IxMilia.Lisp
             return new LispObject[] { symbol };
         }
 
-        [LispMacro("let")]
+        [LispMacro("LET")]
         public IEnumerable<LispObject> Let(LispStackFrame frame, LispObject[] args)
         {
             return Let(frame, args, bindSequentially: false);
         }
 
-        [LispMacro("let*")]
+        [LispMacro("LET*")]
         public IEnumerable<LispObject> LetStar(LispStackFrame frame, LispObject[] args)
         {
             return Let(frame, args, bindSequentially: true);
@@ -170,7 +170,7 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        [LispMacro("labels")]
+        [LispMacro("LABELS")]
         public IEnumerable<LispObject> Labels(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate arguments
@@ -202,7 +202,7 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        [LispMacro("eval")]
+        [LispMacro("EVAL")]
         public IEnumerable<LispObject> Eval(LispStackFrame frame, LispObject[] args)
         {
             LispObject result;
@@ -218,7 +218,7 @@ namespace IxMilia.Lisp
             return new LispObject[] { result };
         }
 
-        [LispMacro("progn")]
+        [LispMacro("PROGN")]
         public IEnumerable<LispObject> ProgN(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 0)
@@ -229,7 +229,7 @@ namespace IxMilia.Lisp
             return args;
         }
 
-        [LispFunction("apply")]
+        [LispFunction("APPLY")]
         public LispObject Apply(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -287,7 +287,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected function reference");
         }
 
-        [LispMacro("funcall")]
+        [LispMacro("FUNCALL")]
         public IEnumerable<LispObject> FunCall(LispStackFrame frame, LispObject[] args)
         {
             LispObject result = new LispError("Expected function reference");
@@ -305,7 +305,7 @@ namespace IxMilia.Lisp
             return new LispObject[] { quotedResult };
         }
 
-        [LispFunction("format")]
+        [LispFunction("FORMAT")]
         public LispObject Format(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length >= 2 &&
@@ -347,7 +347,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected output type and string");
         }
 
-        [LispFunction("read")]
+        [LispFunction("READ")]
         public LispObject Read(LispStackFrame frame, LispObject[] args)
         {
             LispStream readStream;
@@ -374,7 +374,7 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        [LispMacro("with-open-file")]
+        [LispMacro("WITH-OPEN-FILE")]
         public IEnumerable<LispObject> WithOpenFile(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length >= 2 &&
@@ -385,8 +385,8 @@ namespace IxMilia.Lisp
                 filePathList.Length >= 1)
             {
                 var openArgumentsList = openArguments.ToList();
-                var directionArgument = GetKeywordArgument(openArgumentsList.Skip(2), ":direction");
-                var fileMode = directionArgument is LispKeyword directionKeyword && directionKeyword.Keyword == ":output"
+                var directionArgument = GetKeywordArgument(openArgumentsList.Skip(2), ":DIRECTION");
+                var fileMode = directionArgument is LispKeyword directionKeyword && directionKeyword.Keyword == ":OUTPUT"
                     ? FileMode.OpenOrCreate
                     : FileMode.Open;
 
@@ -397,7 +397,7 @@ namespace IxMilia.Lisp
                     var streamObject = new LispFileStream(filePath.Value, fileStream);
                     var body = args.Skip(1);
                     var result = body.PerformMacroReplacements(new Dictionary<string, LispObject>() { { streamName.Value, streamObject } });
-                    var closeExpression = LispList.FromEnumerable(new LispObject[] { new LispSymbol("close"), streamObject }); // (close fileStream)
+                    var closeExpression = LispList.FromEnumerable(new LispObject[] { new LispSymbol("CLOSE"), streamObject }); // (close fileStream)
                     var finalResult = result.Concat(new[] { closeExpression });
                     return finalResult;
                 }
@@ -410,7 +410,7 @@ namespace IxMilia.Lisp
             return new LispObject[] { new LispError("Expected `<(streamName filePath)> <body>`") };
         }
 
-        [LispFunction("close")]
+        [LispFunction("CLOSE")]
         public LispObject Close(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 1 &&
@@ -424,7 +424,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected a file stream");
         }
 
-        [LispFunction("dribble")]
+        [LispFunction("DRIBBLE")]
         public LispObject Dribble(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 0)
@@ -475,8 +475,8 @@ namespace IxMilia.Lisp
             return new LispError("Expected single file path arugment to start recording, or no arguments to stop");
         }
 
-        [LispMacro("setf")]
-        [LispMacro("setq")]
+        [LispMacro("SETF")]
+        [LispMacro("SETQ")]
         public IEnumerable<LispObject> SetValue(LispStackFrame frame, LispObject[] args)
         {
             // TODO: properly validate types
@@ -511,7 +511,7 @@ namespace IxMilia.Lisp
             return new LispObject[] { new LispQuotedObject(last) };
         }
 
-        [LispFunction("numberp")]
+        [LispFunction("NUMBERP")]
         public LispObject NumberP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
@@ -526,7 +526,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("stringp")]
+        [LispFunction("STRINGP")]
         public LispObject StringP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
@@ -539,7 +539,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("keywordp")]
+        [LispFunction("KEYWORDP")]
         public LispObject KeywordP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
@@ -552,7 +552,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("symbolp")]
+        [LispFunction("SYMBOLP")]
         public LispObject SymbolP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
@@ -566,7 +566,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("zerop")]
+        [LispFunction("ZEROP")]
         public LispObject ZeroP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
@@ -583,7 +583,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("plusp")]
+        [LispFunction("PLUSP")]
         public LispObject PlusP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
@@ -605,7 +605,7 @@ namespace IxMilia.Lisp
             return new LispError("wrong type input");
         }
 
-        [LispFunction("evenp")]
+        [LispFunction("EVENP")]
         public LispObject EvenP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
@@ -620,7 +620,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("oddp")]
+        [LispFunction("ODDP")]
         public LispObject OddP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
@@ -635,7 +635,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("listp")]
+        [LispFunction("LISTP")]
         public LispObject ListP(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate single argument
@@ -644,7 +644,7 @@ namespace IxMilia.Lisp
                 : frame.Nil;
         }
 
-        [LispFunction("consp")]
+        [LispFunction("CONSP")]
         public LispObject ConsP(LispStackFrame frame, LispObject[] args)
         {
             return args[0] is LispList list && !list.IsNil()
@@ -652,7 +652,7 @@ namespace IxMilia.Lisp
                 : frame.Nil;
         }
 
-        [LispFunction("streamp")]
+        [LispFunction("STREAMP")]
         public LispObject StreamP(LispStackFrame frame, LispObject[] args)
         {
             return args.Length == 1 && args[0] is LispStream
@@ -660,14 +660,14 @@ namespace IxMilia.Lisp
                 : frame.Nil;
         }
 
-        [LispMacro("quote")]
+        [LispMacro("QUOTE")]
         public IEnumerable<LispObject> Quote(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
             return new LispObject[] { new LispQuotedObject(args[0]) };
         }
 
-        [LispMacro("function")]
+        [LispMacro("FUNCTION")]
         public IEnumerable<LispObject> Function(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument count
@@ -681,20 +681,20 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("cons")]
+        [LispFunction("CONS")]
         public LispObject Cons(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate arguments
             return new LispList(args[0], args[1]);
         }
 
-        [LispFunction("list")]
+        [LispFunction("LIST")]
         public LispObject List(LispStackFrame frame, LispObject[] args)
         {
             return LispList.FromEnumerable(args);
         }
 
-        [LispFunction("length")]
+        [LispFunction("LENGTH")]
         public LispObject Length(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate single argument
@@ -708,8 +708,8 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("car")]
-        [LispFunction("first")]
+        [LispFunction("CAR")]
+        [LispFunction("FIRST")]
         public LispObject First(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate single argument
@@ -725,8 +725,8 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("cdr")]
-        [LispFunction("rest")]
+        [LispFunction("CDR")]
+        [LispFunction("REST")]
         public LispObject Rest(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate single argument
@@ -742,7 +742,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("kernel:append/2")]
+        [LispFunction("KERNEL:APPEND/2")]
         public LispObject TwoArgumentAppend(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -762,7 +762,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected a list and a tail");
         }
 
-        [LispMacro("nconc")]
+        [LispMacro("NCONC")]
         public IEnumerable<LispObject> Nconc(LispStackFrame frame, LispObject[] args)
         {
             LispObject lastResult = frame.Nil;
@@ -774,7 +774,7 @@ namespace IxMilia.Lisp
                 var a1 = frame.Eval(a1Raw);
 
                 // lastResult = (append a1 a2)
-                var simulatedFunctionCall1 = LispList.FromItems(new LispSymbol("append"), new LispQuotedObject(a1), a2);
+                var simulatedFunctionCall1 = LispList.FromItems(new LispSymbol("APPEND"), new LispQuotedObject(a1), a2);
                 lastResult = frame.Eval(simulatedFunctionCall1);
                 if (lastResult is LispError error)
                 {
@@ -786,7 +786,7 @@ namespace IxMilia.Lisp
                 // a1 = lastResult
                 if (!a1.IsNil())
                 {
-                    var simulatedFunctionCall2 = LispList.FromItems(new LispSymbol("setf"), a1Raw, lastResult);
+                    var simulatedFunctionCall2 = LispList.FromItems(new LispSymbol("SETF"), a1Raw, lastResult);
                     frame.Eval(simulatedFunctionCall2);
                 }
             }
@@ -794,7 +794,7 @@ namespace IxMilia.Lisp
             return new LispObject[] { lastResult };
         }
 
-        [LispFunction("reverse")]
+        [LispFunction("REVERSE")]
         public LispObject Reverse(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 1 && args[0] is LispList list)
@@ -809,7 +809,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("intersection")]
+        [LispFunction("INTERSECTION")]
         public LispObject Intersection(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -826,7 +826,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("union")]
+        [LispFunction("UNION")]
         public LispObject Union(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -847,7 +847,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("set-difference")]
+        [LispFunction("SET-DIFFERENCE")]
         public LispObject SetDifference(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -868,7 +868,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("set-exclusive-or")]
+        [LispFunction("SET-EXCLUSIVE-OR")]
         public LispObject SetExclusiveOr(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -887,18 +887,18 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("remove")]
+        [LispFunction("REMOVE")]
         public LispObject Remove(LispStackFrame frame, LispObject[] args)
         {
             // TOOD: validate arguments
             var key = args[0];
             var list = ((LispList)args[1]).ToList();
             var result = new List<LispObject>();
-            var count = GetKeywordArgument(args.Skip(2), ":count");
+            var count = GetKeywordArgument(args.Skip(2), ":COUNT");
             var limit = count is LispInteger number
                 ? number.Value
                 : list.Count;
-            var fromEndArg = GetKeywordArgument(args.Skip(2), ":from-end");
+            var fromEndArg = GetKeywordArgument(args.Skip(2), ":FROM-END");
             var fromEnd = fromEndArg.IsTLike();
             if (fromEnd)
             {
@@ -926,7 +926,7 @@ namespace IxMilia.Lisp
             return LispList.FromEnumerable(result);
         }
 
-        [LispFunction("remove-duplicates")]
+        [LispFunction("REMOVE-DUPLICATES")]
         public LispObject RemoveDuplicates(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 1 && args[0] is LispList list)
@@ -949,7 +949,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("find-if")]
+        [LispFunction("FIND-IF")]
         public LispObject FindIf(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument counts
@@ -957,7 +957,7 @@ namespace IxMilia.Lisp
                 args[0] is LispFunctionReference functionReference &&
                 args[1] is LispList inputList)
             {
-                var fromEndKeyword = GetKeywordArgument(args.Skip(2), ":from-end");
+                var fromEndKeyword = GetKeywordArgument(args.Skip(2), ":FROM-END");
                 var fromEnd = fromEndKeyword.IsTLike();
                 var items = inputList.ToList();
                 if (fromEnd)
@@ -992,7 +992,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("remove-if")]
+        [LispFunction("REMOVE-IF")]
         public LispObject RemoveIf(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument counts
@@ -1000,7 +1000,7 @@ namespace IxMilia.Lisp
                 args[0] is LispFunctionReference functionReference &&
                 args[1] is LispList inputList)
             {
-                var countArgument = GetKeywordArgument(args.Skip(2), ":count");
+                var countArgument = GetKeywordArgument(args.Skip(2), ":COUNT");
                 var count = countArgument is LispInteger i
                     ? i.Value
                     : int.MaxValue;
@@ -1035,7 +1035,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("remove-if-not")]
+        [LispFunction("REMOVE-IF-NOT")]
         public LispObject RemoveIfNot(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument counts
@@ -1043,7 +1043,7 @@ namespace IxMilia.Lisp
                 args[0] is LispFunctionReference functionReference &&
                 args[1] is LispList inputList)
             {
-                var countArgument = GetKeywordArgument(args.Skip(2), ":count");
+                var countArgument = GetKeywordArgument(args.Skip(2), ":COUNT");
                 var count = countArgument is LispInteger i
                     ? i.Value
                     : int.MaxValue;
@@ -1078,7 +1078,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("reduce")]
+        [LispFunction("REDUCE")]
         public LispObject Reduce(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate argument counts
@@ -1086,7 +1086,7 @@ namespace IxMilia.Lisp
                 args[0] is LispFunctionReference functionReference &&
                 args[1] is LispList inputList)
             {
-                var fromEndKeyword = GetKeywordArgument(args.Skip(2), ":from-end");
+                var fromEndKeyword = GetKeywordArgument(args.Skip(2), ":FROM-END");
                 var fromEnd = fromEndKeyword.IsTLike();
                 var items = inputList.ToList();
                 if (fromEnd)
@@ -1124,7 +1124,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("every")]
+        [LispFunction("EVERY")]
         public LispObject Every(LispStackFrame frame, LispObject[] args)
         {
             var result = MapCar(frame, args);
@@ -1137,7 +1137,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("mapcar")]
+        [LispFunction("MAPCAR")]
         public LispObject MapCar(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length >= 2)
@@ -1218,13 +1218,13 @@ namespace IxMilia.Lisp
             return FoldComparison(frame, args, (a, b) => LispNumber.Equal(a, b));
         }
 
-        [LispFunction("equal")]
+        [LispFunction("EQUAL")]
         public LispObject Equal(LispStackFrame frame, LispObject[] args)
         {
             return FoldObj(frame, args, (a, b) => a.Equals(b));
         }
 
-        [LispFunction("equalp")]
+        [LispFunction("EQUALP")]
         public LispObject EqualP(LispStackFrame frame, LispObject[] args)
         {
             return FoldObj(frame, args, (a, b) =>
@@ -1238,13 +1238,13 @@ namespace IxMilia.Lisp
             });
         }
 
-        [LispFunction("eq")]
+        [LispFunction("EQ")]
         public LispObject Eq(LispStackFrame frame, LispObject[] args)
         {
             return FoldObj(frame, args, (a, b) => ReferenceEquals(a, b));
         }
 
-        [LispFunction("eql")]
+        [LispFunction("EQL")]
         public LispObject Eql(LispStackFrame frame, LispObject[] args)
         {
             return FoldObj(frame, args, (a, b) =>
@@ -1295,19 +1295,19 @@ namespace IxMilia.Lisp
             return FoldObj(frame, args, (a, b) => !a.Equals(b));
         }
 
-        [LispMacro("and")]
+        [LispMacro("AND")]
         public IEnumerable<LispObject> And(LispStackFrame frame, LispObject[] args)
         {
             return FoldBoolean(frame, args, true, false, (a, b) => a && b);
         }
 
-        [LispMacro("or")]
+        [LispMacro("OR")]
         public IEnumerable<LispObject> Or(LispStackFrame frame, LispObject[] args)
         {
             return FoldBoolean(frame, args, true, true, (a, b) => a || b);
         }
 
-        [LispMacro("cond")]
+        [LispMacro("COND")]
         public IEnumerable<LispObject> Cond(LispStackFrame frame, LispObject[] args)
         {
             foreach (var arg in args)
@@ -1341,7 +1341,7 @@ namespace IxMilia.Lisp
             return new LispObject[] { frame.Nil };
         }
 
-        [LispFunction("abs")]
+        [LispFunction("ABS")]
         public LispObject Abs(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate arguments
@@ -1358,7 +1358,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("sqrt")]
+        [LispFunction("SQRT")]
         public LispObject Sqrt(LispStackFrame frame, LispObject[] args)
         {
             // TODO: validate arguments
@@ -1375,7 +1375,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        [LispFunction("kernel:+/2")]
+        [LispFunction("KERNEL:+/2")]
         public LispObject TwoAgumentPlus(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -1389,7 +1389,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("kernel:-/1")]
+        [LispFunction("KERNEL:-/1")]
         public LispObject OneArgumentMinus(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 1)
@@ -1412,7 +1412,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("kernel:-/2")]
+        [LispFunction("KERNEL:-/2")]
         public LispObject TwoArgumentMinus(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -1426,7 +1426,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("kernel:*/2")]
+        [LispFunction("KERNEL:*/2")]
         public LispObject TwoArgumentAsterisk(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -1440,7 +1440,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected exactly two numbers");
         }
 
-        [LispFunction("kernel://2")]
+        [LispFunction("KERNEL://2")]
         public LispObject TwoArgumentSlash(LispStackFrame frame, LispObject[] args)
         {
             if (args.Length == 2 &&

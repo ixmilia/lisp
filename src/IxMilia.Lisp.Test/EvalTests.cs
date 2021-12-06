@@ -21,7 +21,7 @@ namespace IxMilia.Lisp.Test
         public void ExternalFunction()
         {
             var host = new LispHost();
-            host.AddFunction("add", (h, args) => (LispInteger)args[0] + (LispInteger)args[1]);
+            host.AddFunction("ADD", (h, args) => (LispInteger)args[0] + (LispInteger)args[1]);
             Assert.Equal(new LispInteger(3), host.Eval("(add 1 2)").LastResult);
         }
 
@@ -29,10 +29,10 @@ namespace IxMilia.Lisp.Test
         public void Quoted()
         {
             var host = new LispHost();
-            Assert.Equal(new LispSymbol("a"), host.Eval("'a").LastResult);
-            Assert.Equal(new LispQuotedObject(new LispSymbol("a")), host.Eval("''a").LastResult);
+            Assert.Equal(new LispSymbol("A"), host.Eval("'a").LastResult);
+            Assert.Equal(new LispQuotedObject(new LispSymbol("A")), host.Eval("''a").LastResult);
             Assert.Equal(LispList.FromItems(new LispInteger(1)), host.Eval("'(1)").LastResult);
-            Assert.Equal("'a", host.Eval("(eval '''a)").LastResult.ToString());
+            Assert.Equal("'A", host.Eval("(eval '''a)").LastResult.ToString());
         }
 
         [Fact]
@@ -135,9 +135,9 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
             Assert.Equal(3, error.SourceLocation.Value.Line);
             Assert.Equal(6, error.SourceLocation.Value.Column);
-            Assert.Equal("inc", error.StackFrame.FunctionName);
-            Assert.Equal("(root)", error.StackFrame.Parent.FunctionName);
-            Assert.Equal("Undefined macro/function 'add', found '<null>'", error.Message);
+            Assert.Equal("INC", error.StackFrame.FunctionName);
+            Assert.Equal("(ROOT)", error.StackFrame.Parent.FunctionName);
+            Assert.Equal("Undefined macro/function 'ADD', found '<null>'", error.Message);
         }
 
         [Fact]
@@ -153,9 +153,9 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
             Assert.Equal(4, error.SourceLocation.Value.Line);
             Assert.Equal(6, error.SourceLocation.Value.Column);
-            Assert.Equal("(root)", error.StackFrame.FunctionName);
+            Assert.Equal("(ROOT)", error.StackFrame.FunctionName);
             Assert.Null(error.StackFrame.Parent);
-            Assert.Equal("Symbol 'two' not found", error.Message);
+            Assert.Equal("Symbol 'TWO' not found", error.Message);
         }
 
         [Fact]
@@ -172,9 +172,9 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
             Assert.Equal(4, error.SourceLocation.Value.Line);
             Assert.Equal(4, error.SourceLocation.Value.Column);
-            Assert.Equal("(root)", error.StackFrame.FunctionName);
+            Assert.Equal("(ROOT)", error.StackFrame.FunctionName);
             Assert.Null(error.StackFrame.Parent);
-            Assert.Equal("Symbol 'one' not found", error.Message);
+            Assert.Equal("Symbol 'ONE' not found", error.Message);
         }
 
         [Fact]
@@ -221,7 +221,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             var result = host.Eval("'(a . (b . (c)))").LastResult;
             var actual = result.ToString();
-            Assert.Equal("(a b c)", actual);
+            Assert.Equal("(A B C)", actual);
         }
 
         [Fact]
@@ -288,7 +288,7 @@ namespace IxMilia.Lisp.Test
             var lastDotNetStackDepth = 0;
             var invocationCount = 0;
             var maxInvocationCount = 10;
-            host.AddFunction("record-stack-depth", (frame, args) =>
+            host.AddFunction("RECORD-STACK-DEPTH", (frame, args) =>
             {
                 var currentInterpreterStackDepth = frame.Depth;
                 var currentDotNetStackDepth = new StackTrace().FrameCount;
@@ -332,7 +332,7 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
             var lastDotNetStackDepth = 0;
             var invocationCount = 0;
             var maxInvocationCount = 10;
-            host.AddFunction("record-stack-depth", (frame, args) =>
+            host.AddFunction("RECORD-STACK-DEPTH", (frame, args) =>
             {
                 var currentInterpreterStackDepth = frame.Depth;
                 var currentDotNetStackDepth = new StackTrace().FrameCount;
@@ -374,7 +374,7 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
         {
             var host = new LispHost();
             var result = host.Eval(@"(funcall #'cons 'a 'b)").LastResult;
-            var expected = LispList.FromItemsImproper(new LispSymbol("a"), new LispSymbol("b"));
+            var expected = LispList.FromItemsImproper(new LispSymbol("A"), new LispSymbol("B"));
             Assert.Equal(expected, result);
         }
 
@@ -447,42 +447,42 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
             host.Eval("(average 3 7)");
             var actual = NormalizeNewlines(sb.ToString().Trim());
             var expected = NormalizeNewlines(@"
-entered average
-entered half
+entered AVERAGE
+entered HALF
 entered *
-entered cons
-returned from cons with (1 3 0.5)
-entered reduce
-entered kernel:*/2
-returned from kernel:*/2 with 3
-entered kernel:*/2
-returned from kernel:*/2 with 1.5
-returned from reduce with 1.5
+entered CONS
+returned from CONS with (1 3 0.5)
+entered REDUCE
+entered KERNEL:*/2
+returned from KERNEL:*/2 with 3
+entered KERNEL:*/2
+returned from KERNEL:*/2 with 1.5
+returned from REDUCE with 1.5
 returned from * with 1.5
-returned from half with 1.5
-entered half
+returned from HALF with 1.5
+entered HALF
 entered *
-entered cons
-returned from cons with (1 7 0.5)
-entered reduce
-entered kernel:*/2
-returned from kernel:*/2 with 7
-entered kernel:*/2
-returned from kernel:*/2 with 3.5
-returned from reduce with 3.5
+entered CONS
+returned from CONS with (1 7 0.5)
+entered REDUCE
+entered KERNEL:*/2
+returned from KERNEL:*/2 with 7
+entered KERNEL:*/2
+returned from KERNEL:*/2 with 3.5
+returned from REDUCE with 3.5
 returned from * with 3.5
-returned from half with 3.5
+returned from HALF with 3.5
 entered +
-entered cons
-returned from cons with (0 1.5 3.5)
-entered reduce
-entered kernel:+/2
-returned from kernel:+/2 with 1.5
-entered kernel:+/2
-returned from kernel:+/2 with 5
-returned from reduce with 5
+entered CONS
+returned from CONS with (0 1.5 3.5)
+entered REDUCE
+entered KERNEL:+/2
+returned from KERNEL:+/2 with 1.5
+entered KERNEL:+/2
+returned from KERNEL:+/2 with 5
+returned from REDUCE with 5
 returned from + with 5
-returned from average with 5
+returned from AVERAGE with 5
 ".Trim());
             Assert.Equal(expected, actual);
         }
@@ -499,7 +499,7 @@ returned from average with 5
   table))
 (my-assoc 'two words)
 ").LastResult;
-            var expected = LispList.FromItems(new LispSymbol("two"), new LispSymbol("dos"));
+            var expected = LispList.FromItems(new LispSymbol("TWO"), new LispSymbol("DOS"));
             Assert.Equal(expected, result);
         }
 
@@ -591,9 +591,9 @@ returned from average with 5
         public void FormatToStream()
         {
             var output = new StringWriter();
-            var testStream = new LispStream("test-stream", TextReader.Null, output);
+            var testStream = new LispStream("TEST-STREAM", TextReader.Null, output);
             var host = new LispHost();
-            host.SetValue("test-stream", testStream);
+            host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval(@"
 (format test-stream ""~S~%"" ""just a string"")
 (format test-stream ""~S~%"" '(+ 2 3))
@@ -619,9 +619,9 @@ returned from average with 5
         public void TerPriFunctionWithStream()
         {
             var output = new StringWriter();
-            var testStream = new LispStream("test-stream", TextReader.Null, output);
+            var testStream = new LispStream("TEST-STREAM", TextReader.Null, output);
             var host = new LispHost();
-            host.SetValue("test-stream", testStream);
+            host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval(@"
 (terpri test-stream)
 ").LastResult;
@@ -645,9 +645,9 @@ returned from average with 5
         public void Prin1FunctionWithStream()
         {
             var output = new StringWriter();
-            var testStream = new LispStream("test-stream", TextReader.Null, output);
+            var testStream = new LispStream("TEST-STREAM", TextReader.Null, output);
             var host = new LispHost();
-            host.SetValue("test-stream", testStream);
+            host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval(@"
 (prin1 ""abc"" test-stream)
 ").LastResult;
@@ -671,9 +671,9 @@ returned from average with 5
         public void PrinCFunctionWithStream()
         {
             var output = new StringWriter();
-            var testStream = new LispStream("test-stream", TextReader.Null, output);
+            var testStream = new LispStream("TEST-STREAM", TextReader.Null, output);
             var host = new LispHost();
-            host.SetValue("test-stream", testStream);
+            host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval(@"
 (princ ""abc"" test-stream)
 ").LastResult;
@@ -697,9 +697,9 @@ returned from average with 5
         public void PrintFunctionWithStream()
         {
             var output = new StringWriter();
-            var testStream = new LispStream("test-stream", TextReader.Null, output);
+            var testStream = new LispStream("TEST-STREAM", TextReader.Null, output);
             var host = new LispHost();
-            host.SetValue("test-stream", testStream);
+            host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval(@"
 (print ""abc"" test-stream)
 ").LastResult;
@@ -729,8 +729,8 @@ returned from average with 5
 (setf result-a (test 1 2)
       result-b (test 1 2 3))
 ");
-            var resultA = host.GetValue<LispList>("result-a");
-            var resultB = host.GetValue<LispList>("result-b");
+            var resultA = host.GetValue<LispList>("RESULT-A");
+            var resultB = host.GetValue<LispList>("RESULT-B");
             Assert.True(resultA.IsNil());
             Assert.Equal(1, resultB.Length);
             Assert.Equal(3, ((LispInteger)resultB.Value).Value);
@@ -747,9 +747,9 @@ returned from average with 5
       result-b (test 22 33)
       result-c (test 44 55 66))
 ");
-            var resultA = host.GetValue<LispString>("result-a");
-            var resultB = host.GetValue<LispString>("result-b");
-            var resultC = host.GetValue<LispString>("result-c");
+            var resultA = host.GetValue<LispString>("RESULT-A");
+            var resultB = host.GetValue<LispString>("RESULT-B");
+            var resultC = host.GetValue<LispString>("RESULT-C");
             Assert.Equal("11:():14", resultA.Value);
             Assert.Equal("22:33:14", resultB.Value);
             Assert.Equal("44:55:66", resultC.Value);
@@ -766,9 +766,9 @@ returned from average with 5
       result-b (test 22 33)
       result-c (test 44 55 66))
 ");
-            var resultA = host.GetValue<LispString>("result-a");
-            var resultB = host.GetValue<LispString>("result-b");
-            var resultC = host.GetValue<LispString>("result-c");
+            var resultA = host.GetValue<LispString>("RESULT-A");
+            var resultB = host.GetValue<LispString>("RESULT-B");
+            var resultC = host.GetValue<LispString>("RESULT-C");
             Assert.Equal("11:():()", resultA.Value);
             Assert.Equal("22:33:()", resultB.Value);
             Assert.Equal("44:55:(66)", resultC.Value);
@@ -887,7 +887,7 @@ total
             var host = new LispHost();
             var executionState = host.Eval(code);
             var error = (LispError)executionState.LastResult;
-            Assert.Equal("Symbol 'a' not found", error.Message);
+            Assert.Equal("Symbol 'A' not found", error.Message);
             Assert.Equal(line, error.SourceLocation.Value.Line);
             Assert.Equal(column, error.SourceLocation.Value.Column);
         }
@@ -913,9 +913,9 @@ total
 (setf a (push 1 my-stack))
 (setf b (push 2 my-stack))
 ");
-            Assert.Equal("(2 1)", executionState.StackFrame.GetValue("my-stack").ToString());
-            Assert.Equal("(1)", executionState.StackFrame.GetValue("a").ToString());
-            Assert.Equal("(2 1)", executionState.StackFrame.GetValue("b").ToString());
+            Assert.Equal("(2 1)", executionState.StackFrame.GetValue("MY-STACK").ToString());
+            Assert.Equal("(1)", executionState.StackFrame.GetValue("A").ToString());
+            Assert.Equal("(2 1)", executionState.StackFrame.GetValue("B").ToString());
         }
 
         [Fact]
@@ -927,9 +927,9 @@ total
 (setf a (pop my-stack))
 (setf b (pop my-stack))
 ");
-            Assert.Equal("()", executionState.StackFrame.GetValue("my-stack").ToString());
-            Assert.Equal("2", executionState.StackFrame.GetValue("a").ToString());
-            Assert.Equal("1", executionState.StackFrame.GetValue("b").ToString());
+            Assert.Equal("()", executionState.StackFrame.GetValue("MY-STACK").ToString());
+            Assert.Equal("2", executionState.StackFrame.GetValue("A").ToString());
+            Assert.Equal("1", executionState.StackFrame.GetValue("B").ToString());
         }
 
         [Fact]
@@ -1076,7 +1076,7 @@ the-list
 (push 11 (car the-list))
 the-list
 ");
-            Assert.Equal("((11 a b c) 2 3)", result.ToString());
+            Assert.Equal("((11 A B C) 2 3)", result.ToString());
         }
 
         [Fact]
@@ -1088,7 +1088,7 @@ the-list
 (push 11 head-value)
 (cons head-value the-list)
 ");
-            Assert.Equal("((11 a b c) (a b c) 2 3)", result.ToString());
+            Assert.Equal("((11 A B C) (A B C) 2 3)", result.ToString());
         }
 
         [Fact]
@@ -1099,7 +1099,7 @@ the-list
 (pop (car the-list))
 the-list
 ");
-            Assert.Equal("((b c) 1 2 3)", result.ToString());
+            Assert.Equal("((B C) 1 2 3)", result.ToString());
         }
 
         [Fact]
@@ -1111,7 +1111,7 @@ the-list
 (pop head-value)
 (cons head-value the-list)
 ");
-            Assert.Equal("((b c) (a b c) 1 2 3)", result.ToString());
+            Assert.Equal("((B C) (A B C) 1 2 3)", result.ToString());
         }
 
         [Fact]
@@ -1125,7 +1125,7 @@ the-list
 (nconc x y z)
 (list x y z)
 ");
-            Assert.Equal("((a b c d e f g h i) (d e f g h i) (g h i))", result.ToString());
+            Assert.Equal("((A B C D E F G H I) (D E F G H I) (G H I))", result.ToString());
         }
 
         [Fact]
@@ -1137,7 +1137,7 @@ the-list
 (nconc x y)
 (list x y)
 ");
-            Assert.Equal("(() (d e f))", result.ToString());
+            Assert.Equal("(() (D E F))", result.ToString());
         }
 
         [Fact]
@@ -1148,7 +1148,7 @@ the-list
 (nsubst 'bee 'b l)
 l
 ");
-            Assert.Equal("(a bee c d a bee c d)", result.ToString());
+            Assert.Equal("(A BEE C D A BEE C D)", result.ToString());
         }
     }
 }

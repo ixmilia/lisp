@@ -208,9 +208,9 @@ namespace IxMilia.Lisp.Parser
 
                     if (lambdaCandidate is LispList lambdaList &&
                         lambdaList.Value is LispSymbol lambdaSymbol &&
-                        lambdaSymbol.Value == "lambda")
+                        lambdaSymbol.Value == "LAMBDA")
                     {
-                        var name = $"(lambda-{functionQuote.SourceLocation?.Line}-{functionQuote.SourceLocation?.Column})"; // surrounded by parens to make it un-utterable
+                        var name = $"(LAMBDA-{functionQuote.SourceLocation?.Line}-{functionQuote.SourceLocation?.Column})"; // surrounded by parens to make it un-utterable
                         var lambdaItems = new List<LispObject>();
                         lambdaItems.Add(new LispSymbol(name));
                         lambdaItems.AddRange(lambdaList.ToList().Skip(1));

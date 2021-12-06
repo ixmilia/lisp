@@ -42,7 +42,7 @@ namespace IxMilia.Lisp.Test
             var repl = new LispRepl();
             var result = repl.Eval("(+ 1 abcd)(+ 2 3)");
             var error = (LispError)result.ExecutionState.LastResult;
-            Assert.Equal("Symbol 'abcd' not found", error.Message);
+            Assert.Equal("Symbol 'ABCD' not found", error.Message);
             Assert.Equal(1, error.SourceLocation?.Line);
             Assert.Equal(6, error.SourceLocation?.Column);
         }
@@ -61,10 +61,10 @@ namespace IxMilia.Lisp.Test
             repl.Eval("(average 3 7)");
             var actual = NormalizeNewlines(traceWriter.ToString().Trim('\r', '\n'));
             var expected = NormalizeNewlines(@"
-0: (average 3 7)
- 1: (half 3)
+0: (AVERAGE 3 7)
+ 1: (HALF 3)
  1: returned 1.5
- 1: (half 7)
+ 1: (HALF 7)
  1: returned 3.5
 0: returned 5
 ".Trim('\r', '\n'));
@@ -102,7 +102,7 @@ Finished recording in file {tempFile.FilePath}
 > (+ 3 3)
 6
 
-> (dribble)
+> (DRIBBLE)
 ".Trim());
                 Assert.Equal(expectedLogContents, logContents);
             }

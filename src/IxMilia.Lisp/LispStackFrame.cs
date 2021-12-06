@@ -6,9 +6,9 @@ namespace IxMilia.Lisp
 {
     public class LispStackFrame
     {
-        protected const string TString = "t";
-        protected const string NilString = "nil";
-        protected const string TerminalIOString = "*terminal-io*";
+        protected const string TString = "T";
+        protected const string NilString = "NIL";
+        protected const string TerminalIOString = "*TERMINAL-IO*";
 
         public LispMacroOrFunction Function { get; }
         public string FunctionName { get; }
@@ -115,7 +115,7 @@ namespace IxMilia.Lisp
 
     public class LispRootStackFrame : LispStackFrame
     {
-        private const string DribbleStreamString = "(dribble-stream)"; // should be un-utterable
+        private const string DribbleStreamString = "(DRIBBLE-STREAM)"; // should be un-utterable
         internal const int RootStackDepth = 0;
 
         public event EventHandler<LispFunctionEnteredEventArgs> FunctionEntered;
@@ -147,7 +147,7 @@ namespace IxMilia.Lisp
         public override int Depth => RootStackDepth;
 
         internal LispRootStackFrame(TextReader input, TextWriter output)
-            : base("(root)", null)
+            : base("(ROOT)", null)
         {
             SetValue(TString, new LispSymbol(TString));
             SetValue(NilString, LispNilList.Instance);

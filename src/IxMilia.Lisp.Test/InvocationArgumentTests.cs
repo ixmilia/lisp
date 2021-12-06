@@ -35,9 +35,9 @@ namespace IxMilia.Lisp.Test
         {
             // a b c
             var argumentCollection = GetArgumentCollection(
-                new LispSymbol("a"),
-                new LispSymbol("b"),
-                new LispSymbol("c")
+                new LispSymbol("A"),
+                new LispSymbol("B"),
+                new LispSymbol("C")
             );
             Assert.Equal(3, argumentCollection.RegularArguments.Count);
             Assert.Empty(argumentCollection.OptionalArguments);
@@ -45,9 +45,9 @@ namespace IxMilia.Lisp.Test
             Assert.Empty(argumentCollection.AuxiliaryArguments);
             Assert.Null(argumentCollection.RestArgument);
 
-            Assert.Equal("a", argumentCollection.RegularArguments[0].Name);
-            Assert.Equal("b", argumentCollection.RegularArguments[1].Name);
-            Assert.Equal("c", argumentCollection.RegularArguments[2].Name);
+            Assert.Equal("A", argumentCollection.RegularArguments[0].Name);
+            Assert.Equal("B", argumentCollection.RegularArguments[1].Name);
+            Assert.Equal("C", argumentCollection.RegularArguments[2].Name);
         }
 
         [Fact]
@@ -55,12 +55,12 @@ namespace IxMilia.Lisp.Test
         {
             // a &optional (should-be-fourteen 14) should-be-nil
             var argumentCollection = GetArgumentCollection(
-                new LispSymbol("a"),
-                new LispLambdaListKeyword("&optional"),
+                new LispSymbol("A"),
+                new LispLambdaListKeyword("&OPTIONAL"),
                 LispList.FromItems(
-                    new LispSymbol("should-be-fourteen"),
+                    new LispSymbol("SHOULD-BE-FOURTEEN"),
                     new LispInteger(14)),
-                new LispSymbol("should-be-nil")
+                new LispSymbol("SHOULD-BE-NIL")
             );
             Assert.Equal(1, argumentCollection.RegularArguments.Count);
             Assert.Equal(2, argumentCollection.OptionalArguments.Count);
@@ -68,10 +68,10 @@ namespace IxMilia.Lisp.Test
             Assert.Empty(argumentCollection.AuxiliaryArguments);
             Assert.Null(argumentCollection.RestArgument);
 
-            Assert.Equal("a", argumentCollection.RegularArguments[0].Name);
-            Assert.Equal("should-be-fourteen", argumentCollection.OptionalArguments[0].Name);
+            Assert.Equal("A", argumentCollection.RegularArguments[0].Name);
+            Assert.Equal("SHOULD-BE-FOURTEEN", argumentCollection.OptionalArguments[0].Name);
             Assert.Equal(14, ((LispInteger)argumentCollection.OptionalArguments[0].DefaultValue).Value);
-            Assert.Equal("should-be-nil", argumentCollection.OptionalArguments[1].Name);
+            Assert.Equal("SHOULD-BE-NIL", argumentCollection.OptionalArguments[1].Name);
             Assert.True(argumentCollection.OptionalArguments[1].DefaultValue.IsNil());
         }
 
@@ -80,12 +80,12 @@ namespace IxMilia.Lisp.Test
         {
             // a &key (should-be-fourteen 14) should-be-nil
             var argumentCollection = GetArgumentCollection(
-                new LispSymbol("a"),
-                new LispLambdaListKeyword("&key"),
+                new LispSymbol("A"),
+                new LispLambdaListKeyword("&KEY"),
                 LispList.FromItems(
-                    new LispSymbol("should-be-fourteen"),
+                    new LispSymbol("SHOULD-BE-FOURTEEN"),
                     new LispInteger(14)),
-                new LispSymbol("should-be-nil")
+                new LispSymbol("SHOULD-BE-NIL")
             );
             Assert.Equal(1, argumentCollection.RegularArguments.Count);
             Assert.Empty(argumentCollection.OptionalArguments);
@@ -93,9 +93,9 @@ namespace IxMilia.Lisp.Test
             Assert.Empty(argumentCollection.AuxiliaryArguments);
             Assert.Null(argumentCollection.RestArgument);
 
-            Assert.Equal("a", argumentCollection.RegularArguments[0].Name);
-            Assert.Equal(14, ((LispInteger)argumentCollection.KeywordArguments["should-be-fourteen"].DefaultValue).Value);
-            Assert.True(argumentCollection.KeywordArguments["should-be-nil"].DefaultValue.IsNil());
+            Assert.Equal("A", argumentCollection.RegularArguments[0].Name);
+            Assert.Equal(14, ((LispInteger)argumentCollection.KeywordArguments["SHOULD-BE-FOURTEEN"].DefaultValue).Value);
+            Assert.True(argumentCollection.KeywordArguments["SHOULD-BE-NIL"].DefaultValue.IsNil());
         }
 
         [Fact]
@@ -103,12 +103,12 @@ namespace IxMilia.Lisp.Test
         {
             // a &aux (two 2) nniill
             var argumentCollection = GetArgumentCollection(
-                new LispSymbol("a"),
-                new LispLambdaListKeyword("&aux"),
+                new LispSymbol("A"),
+                new LispLambdaListKeyword("&AUX"),
                 LispList.FromItems(
-                    new LispSymbol("two"),
+                    new LispSymbol("TWO"),
                     new LispInteger(2)),
-                new LispSymbol("nniill")
+                new LispSymbol("NNIILL")
             );
             Assert.Equal(1, argumentCollection.RegularArguments.Count);
             Assert.Empty(argumentCollection.OptionalArguments);
@@ -116,10 +116,10 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(2, argumentCollection.AuxiliaryArguments.Count);
             Assert.Null(argumentCollection.RestArgument);
 
-            Assert.Equal("a", argumentCollection.RegularArguments[0].Name);
-            Assert.Equal("two", argumentCollection.AuxiliaryArguments[0].Name);
+            Assert.Equal("A", argumentCollection.RegularArguments[0].Name);
+            Assert.Equal("TWO", argumentCollection.AuxiliaryArguments[0].Name);
             Assert.Equal(2, ((LispInteger)argumentCollection.AuxiliaryArguments[0].InitialValue).Value);
-            Assert.Equal("nniill", argumentCollection.AuxiliaryArguments[1].Name);
+            Assert.Equal("NNIILL", argumentCollection.AuxiliaryArguments[1].Name);
             Assert.True(argumentCollection.AuxiliaryArguments[1].InitialValue.IsNil());
         }
 
@@ -128,17 +128,17 @@ namespace IxMilia.Lisp.Test
         {
             // a &rest the-rest
             var argumentCollection = GetArgumentCollection(
-                new LispSymbol("a"),
-                new LispLambdaListKeyword("&rest"),
-                new LispSymbol("the-rest")
+                new LispSymbol("A"),
+                new LispLambdaListKeyword("&REST"),
+                new LispSymbol("THE-REST")
             );
             Assert.Equal(1, argumentCollection.RegularArguments.Count);
             Assert.Empty(argumentCollection.OptionalArguments);
             Assert.Empty(argumentCollection.KeywordArguments);
             Assert.NotNull(argumentCollection.RestArgument);
 
-            Assert.Equal("a", argumentCollection.RegularArguments[0].Name);
-            Assert.Equal("the-rest", argumentCollection.RestArgument.Name);
+            Assert.Equal("A", argumentCollection.RegularArguments[0].Name);
+            Assert.Equal("THE-REST", argumentCollection.RestArgument.Name);
         }
 
         [Fact]
@@ -146,23 +146,23 @@ namespace IxMilia.Lisp.Test
         {
             // a &optional should-be-nil &key some-special-value &rest the-rest
             var argumentCollection = GetArgumentCollection(
-                new LispSymbol("a"),
-                new LispLambdaListKeyword("&optional"),
-                new LispSymbol("should-be-nil"),
-                new LispLambdaListKeyword("&key"),
-                new LispSymbol("some-special-value"),
-                new LispLambdaListKeyword("&rest"),
-                new LispSymbol("the-rest")
+                new LispSymbol("A"),
+                new LispLambdaListKeyword("&OPTIONAL"),
+                new LispSymbol("SHOULD-BE-NIL"),
+                new LispLambdaListKeyword("&KEY"),
+                new LispSymbol("SOME-SPECIAL-VALUE"),
+                new LispLambdaListKeyword("&REST"),
+                new LispSymbol("THE-REST")
             );
             Assert.Equal(1, argumentCollection.RegularArguments.Count);
             Assert.Equal(1, argumentCollection.OptionalArguments.Count);
             Assert.Equal(1, argumentCollection.KeywordArguments.Count);
             Assert.NotNull(argumentCollection.RestArgument);
 
-            Assert.Equal("a", argumentCollection.RegularArguments[0].Name);
-            Assert.Equal("should-be-nil", argumentCollection.OptionalArguments[0].Name);
-            Assert.True(argumentCollection.KeywordArguments.ContainsKey("some-special-value"));
-            Assert.Equal("the-rest", argumentCollection.RestArgument.Name);
+            Assert.Equal("A", argumentCollection.RegularArguments[0].Name);
+            Assert.Equal("SHOULD-BE-NIL", argumentCollection.OptionalArguments[0].Name);
+            Assert.True(argumentCollection.KeywordArguments.ContainsKey("SOME-SPECIAL-VALUE"));
+            Assert.Equal("THE-REST", argumentCollection.RestArgument.Name);
         }
 
         [Fact]
@@ -180,9 +180,9 @@ namespace IxMilia.Lisp.Test
             var matched = MatchArguments(
                 new[]
                 {
-                    new LispRegularInvocationArgument(new LispSymbol("a")),
-                    new LispRegularInvocationArgument(new LispSymbol("b")),
-                    new LispRegularInvocationArgument(new LispSymbol("c")),
+                    new LispRegularInvocationArgument(new LispSymbol("A")),
+                    new LispRegularInvocationArgument(new LispSymbol("B")),
+                    new LispRegularInvocationArgument(new LispSymbol("C")),
                 },
                 Array.Empty<LispOptionalInvocationArgument>(),
                 Array.Empty<LispKeywordInvocationArgument>(),
@@ -191,19 +191,19 @@ namespace IxMilia.Lisp.Test
                 new LispObject[]
                 {
                     new LispInteger(1),
-                    new LispString("two"),
+                    new LispString("TWO"),
                     new LispFloat(3.0),
                 }
             );
             Assert.Equal(3, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1.Name);
+            Assert.Equal("A", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("b", matched[1].Item1.Name);
-            Assert.Equal("two", ((LispString)matched[1].Item2).Value);
+            Assert.Equal("B", matched[1].Item1.Name);
+            Assert.Equal("TWO", ((LispString)matched[1].Item2).Value);
 
-            Assert.Equal("c", matched[2].Item1.Name);
+            Assert.Equal("C", matched[2].Item1.Name);
             Assert.Equal(3.0, ((LispFloat)matched[2].Item2).Value);
         }
 
@@ -215,12 +215,12 @@ namespace IxMilia.Lisp.Test
             var matched = MatchArguments(
                 new[]
                 {
-                    new LispRegularInvocationArgument(new LispSymbol("a")),
+                    new LispRegularInvocationArgument(new LispSymbol("A")),
                 },
                 new[]
                 {
-                    new LispOptionalInvocationArgument(new LispSymbol("defaults-to-fourteen"), new LispInteger(14)),
-                    new LispOptionalInvocationArgument(new LispSymbol("defaults-to-nil"), LispNilList.Instance),
+                    new LispOptionalInvocationArgument(new LispSymbol("DEFAULTS-TO-FOURTEEN"), new LispInteger(14)),
+                    new LispOptionalInvocationArgument(new LispSymbol("DEFAULTS-TO-NIL"), LispNilList.Instance),
                 },
                 Array.Empty<LispKeywordInvocationArgument>(),
                 Array.Empty<LispAuxiliaryInvocationArgument>(),
@@ -233,13 +233,13 @@ namespace IxMilia.Lisp.Test
             );
             Assert.Equal(3, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1.Name);
+            Assert.Equal("A", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("defaults-to-fourteen", matched[1].Item1.Name);
+            Assert.Equal("DEFAULTS-TO-FOURTEEN", matched[1].Item1.Name);
             Assert.Equal(2, ((LispInteger)matched[1].Item2).Value);
 
-            Assert.Equal("defaults-to-nil", matched[2].Item1.Name);
+            Assert.Equal("DEFAULTS-TO-NIL", matched[2].Item1.Name);
             Assert.True(matched[2].Item2.IsNil());
         }
 
@@ -251,32 +251,32 @@ namespace IxMilia.Lisp.Test
             var matched = MatchArguments(
                 new[]
                 {
-                    new LispRegularInvocationArgument(new LispSymbol("a")),
+                    new LispRegularInvocationArgument(new LispSymbol("A")),
                 },
                 Array.Empty<LispOptionalInvocationArgument>(),
                 new[]
                 {
-                    new LispKeywordInvocationArgument(new LispSymbol("defaults-to-fourteen"), new LispInteger(14)),
-                    new LispKeywordInvocationArgument(new LispSymbol("defaults-to-nil"), LispNilList.Instance),
+                    new LispKeywordInvocationArgument(new LispSymbol("DEFAULTS-TO-FOURTEEN"), new LispInteger(14)),
+                    new LispKeywordInvocationArgument(new LispSymbol("DEFAULTS-TO-NIL"), LispNilList.Instance),
                 },
                 Array.Empty<LispAuxiliaryInvocationArgument>(),
                 null,
                 new LispObject[]
                 {
-                    new LispKeyword(":defaults-to-fourteen"),
+                    new LispKeyword(":DEFAULTS-TO-FOURTEEN"),
                     new LispInteger(1),
                     new LispInteger(2),
                 }
             );
             Assert.Equal(3, matched.Length);
 
-            Assert.Equal("defaults-to-fourteen", matched[0].Item1.Name);
+            Assert.Equal("DEFAULTS-TO-FOURTEEN", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("a", matched[1].Item1.Name);
+            Assert.Equal("A", matched[1].Item1.Name);
             Assert.Equal(2, ((LispInteger)matched[1].Item2).Value);
 
-            Assert.Equal("defaults-to-nil", matched[2].Item1.Name);
+            Assert.Equal("DEFAULTS-TO-NIL", matched[2].Item1.Name);
             Assert.True(matched[2].Item2.IsNil());
         }
 
@@ -288,14 +288,14 @@ namespace IxMilia.Lisp.Test
             var matched = MatchArguments(
                 new[]
                 {
-                    new LispRegularInvocationArgument(new LispSymbol("a")),
+                    new LispRegularInvocationArgument(new LispSymbol("A")),
                 },
                 Array.Empty<LispOptionalInvocationArgument>(),
                 Array.Empty<LispKeywordInvocationArgument>(),
                 new[]
                 {
-                    new LispAuxiliaryInvocationArgument(new LispSymbol("two"), new LispInteger(2)),
-                    new LispAuxiliaryInvocationArgument(new LispSymbol("nniill"), LispNilList.Instance),
+                    new LispAuxiliaryInvocationArgument(new LispSymbol("TWO"), new LispInteger(2)),
+                    new LispAuxiliaryInvocationArgument(new LispSymbol("NNIILL"), LispNilList.Instance),
                 },
                 null,
                 new LispObject[]
@@ -318,12 +318,12 @@ namespace IxMilia.Lisp.Test
             var matched = MatchArguments(
                 new[]
                 {
-                    new LispRegularInvocationArgument(new LispSymbol("a")),
+                    new LispRegularInvocationArgument(new LispSymbol("A")),
                 },
                 Array.Empty<LispOptionalInvocationArgument>(),
                 Array.Empty<LispKeywordInvocationArgument>(),
                 Array.Empty<LispAuxiliaryInvocationArgument>(),
-                new LispRestInvocationArgument(new LispSymbol("the-rest")),
+                new LispRestInvocationArgument(new LispSymbol("THE-REST")),
                 new LispObject[]
                 {
                     new LispInteger(1),
@@ -331,10 +331,10 @@ namespace IxMilia.Lisp.Test
             );
             Assert.Equal(2, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1.Name);
+            Assert.Equal("A", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("the-rest", matched[1].Item1.Name);
+            Assert.Equal("THE-REST", matched[1].Item1.Name);
             Assert.True(matched[1].Item2.IsNil());
         }
 
@@ -346,12 +346,12 @@ namespace IxMilia.Lisp.Test
             var matched = MatchArguments(
                 new[]
                 {
-                    new LispRegularInvocationArgument(new LispSymbol("a")),
+                    new LispRegularInvocationArgument(new LispSymbol("A")),
                 },
                 Array.Empty<LispOptionalInvocationArgument>(),
                 Array.Empty<LispKeywordInvocationArgument>(),
                 Array.Empty<LispAuxiliaryInvocationArgument>(),
-                new LispRestInvocationArgument(new LispSymbol("the-rest")),
+                new LispRestInvocationArgument(new LispSymbol("THE-REST")),
                 new LispObject[]
                 {
                     new LispInteger(1),
@@ -361,10 +361,10 @@ namespace IxMilia.Lisp.Test
             );
             Assert.Equal(2, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1.Name);
+            Assert.Equal("A", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("the-rest", matched[1].Item1.Name);
+            Assert.Equal("THE-REST", matched[1].Item1.Name);
             var rest = ((LispList)matched[1].Item2).ToList();
             Assert.Equal(2, rest.Count);
             Assert.Equal(2, ((LispInteger)rest[0]).Value);
@@ -379,18 +379,18 @@ namespace IxMilia.Lisp.Test
             var matched = MatchArguments(
                 new[]
                 {
-                    new LispRegularInvocationArgument(new LispSymbol("a")),
+                    new LispRegularInvocationArgument(new LispSymbol("A")),
                 },
                 new[]
                 {
-                    new LispOptionalInvocationArgument(new LispSymbol("nil-list"), LispNilList.Instance),
+                    new LispOptionalInvocationArgument(new LispSymbol("NIL-LIST"), LispNilList.Instance),
                 },
                 new[]
                 {
-                    new LispKeywordInvocationArgument(new LispSymbol("some-special-value"), LispNilList.Instance),
+                    new LispKeywordInvocationArgument(new LispSymbol("SOME-SPECIAL-VALUE"), LispNilList.Instance),
                 },
                 Array.Empty<LispAuxiliaryInvocationArgument>(),
-                new LispRestInvocationArgument(new LispSymbol("the-rest")),
+                new LispRestInvocationArgument(new LispSymbol("THE-REST")),
                 new LispObject[]
                 {
                     new LispInteger(1),
@@ -398,16 +398,16 @@ namespace IxMilia.Lisp.Test
             );
             Assert.Equal(4, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1.Name);
+            Assert.Equal("A", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("nil-list", matched[1].Item1.Name);
+            Assert.Equal("NIL-LIST", matched[1].Item1.Name);
             Assert.True(matched[1].Item2.IsNil());
 
-            Assert.Equal("some-special-value", matched[2].Item1.Name);
+            Assert.Equal("SOME-SPECIAL-VALUE", matched[2].Item1.Name);
             Assert.True(matched[2].Item2.IsNil());
 
-            Assert.Equal("the-rest", matched[3].Item1.Name);
+            Assert.Equal("THE-REST", matched[3].Item1.Name);
             Assert.True(matched[3].Item2.IsNil());
         }
 
@@ -419,39 +419,39 @@ namespace IxMilia.Lisp.Test
             var matched = MatchArguments(
                 new[]
                 {
-                    new LispRegularInvocationArgument(new LispSymbol("a")),
+                    new LispRegularInvocationArgument(new LispSymbol("A")),
                 },
                 new[]
                 {
-                    new LispOptionalInvocationArgument(new LispSymbol("dos"), LispNilList.Instance),
+                    new LispOptionalInvocationArgument(new LispSymbol("DOS"), LispNilList.Instance),
                 },
                 new[]
                 {
-                    new LispKeywordInvocationArgument(new LispSymbol("tres"), LispNilList.Instance),
+                    new LispKeywordInvocationArgument(new LispSymbol("TRES"), LispNilList.Instance),
                 },
                 Array.Empty<LispAuxiliaryInvocationArgument>(),
-                new LispRestInvocationArgument(new LispSymbol("the-rest")),
+                new LispRestInvocationArgument(new LispSymbol("THE-REST")),
                 new LispObject[]
                 {
                     new LispInteger(1),
                     new LispInteger(2),
-                    new LispKeyword(":tres"),
+                    new LispKeyword(":TRES"),
                     new LispInteger(3),
                     new LispInteger(4),
                 }
             );
             Assert.Equal(4, matched.Length);
 
-            Assert.Equal("a", matched[0].Item1.Name);
+            Assert.Equal("A", matched[0].Item1.Name);
             Assert.Equal(1, ((LispInteger)matched[0].Item2).Value);
 
-            Assert.Equal("dos", matched[1].Item1.Name);
+            Assert.Equal("DOS", matched[1].Item1.Name);
             Assert.Equal(2, ((LispInteger)matched[1].Item2).Value);
 
-            Assert.Equal("tres", matched[2].Item1.Name);
+            Assert.Equal("TRES", matched[2].Item1.Name);
             Assert.Equal(3, ((LispInteger)matched[2].Item2).Value);
 
-            Assert.Equal("the-rest", matched[3].Item1.Name);
+            Assert.Equal("THE-REST", matched[3].Item1.Name);
             var rest = ((LispList)matched[3].Item2).ToList();
             Assert.Equal(1, rest.Count);
             Assert.Equal(4, ((LispInteger)rest[0]).Value);

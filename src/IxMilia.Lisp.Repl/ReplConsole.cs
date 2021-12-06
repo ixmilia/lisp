@@ -50,7 +50,7 @@ namespace IxMilia.Lisp.Repl
         private LispReplResult EvalAndPrint(string line)
         {
             var result = _repl.Eval(line);
-            if (result.ExecutionState.LastResult!= null)
+            if (result.ExecutionState.LastResult != null)
             {
                 Output.WriteLine(result.ExecutionState.LastResult.ToString());
             }

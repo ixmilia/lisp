@@ -55,8 +55,8 @@ _>
             var replConsole = new ReplConsole("*test*", input, output, error);
             replConsole.Run();
             var expectedOutput = NormalizeNewlines(@"
-_> _> _> Symbol 'asdf' not found:
-  at (root) in '*test*': (1, 6)
+_> _> _> Symbol 'ASDF' not found:
+  at (ROOT) in '*test*': (1, 6)
 
 _> 
 ".Trim('\r', '\n'));

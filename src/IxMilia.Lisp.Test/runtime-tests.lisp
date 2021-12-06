@@ -223,7 +223,7 @@
 )
 
 (defun format-tests ()
-    (assert-equal "(1 a \"b\")" (format nil "~S" '(1 a "b")) "format: s-expression")
+    (assert-equal "(1 A \"b\")" (format nil "~S" '(1 a "b")) "format: s-expression")
     (assert-equal "~" (format nil "~~") "format tilde")
     (assert-equal "~~~~~~~~~~~~" (format nil "~12~") "format lots of tildes")
 )

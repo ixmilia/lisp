@@ -13,7 +13,7 @@ namespace IxMilia.Lisp
 
     public class LispHost
     {
-        private const string TerminalIOString = "*terminal-io*";
+        private const string TerminalIOString = "*TERMINAL-IO*";
 
         private string _initialFilePath;
         public readonly LispRootStackFrame RootFrame;
@@ -119,7 +119,7 @@ namespace IxMilia.Lisp
                 var executionState = Eval("init.lisp", content);
                 if (executionState.LastResult != T)
                 {
-                    throw new Exception($"Expected 't' but found '{executionState.LastResult}' at ({executionState.LastResult.SourceLocation?.Line}, {executionState.LastResult.SourceLocation?.Column}).");
+                    throw new Exception($"Expected 'T' but found '{executionState.LastResult}' at ({executionState.LastResult.SourceLocation?.Line}, {executionState.LastResult.SourceLocation?.Column}).");
                 }
 
                 //RootFrame.UpdateCallStackLocation(new LispInteger(0)

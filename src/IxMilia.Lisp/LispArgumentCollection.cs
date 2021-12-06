@@ -247,21 +247,21 @@ namespace IxMilia.Lisp
                 {
                     switch (lambdaListKeyword.Keyword)
                     {
-                        case "&aux":
-                        case "&key":
-                        case "&optional":
+                        case "&AUX":
+                        case "&KEY":
+                        case "&OPTIONAL":
                             i++;
 
                             Action<LispSymbol, LispObject> addArgument;
                             switch (lambdaListKeyword.Keyword)
                             {
-                                case "&aux":
+                                case "&AUX":
                                     addArgument = (declaration, initialValue) => auxiliaryArguments.Add(new LispAuxiliaryInvocationArgument(declaration, initialValue));
                                     break;
-                                case "&key":
+                                case "&KEY":
                                     addArgument = (declaration, defaultValue) => keywordArguments.Add(new LispKeywordInvocationArgument(declaration, defaultValue));
                                     break;
-                                case "&optional":
+                                case "&OPTIONAL":
                                     addArgument = (declaration, defaultValue) => optionalArguments.Add(new LispOptionalInvocationArgument(declaration, defaultValue));
                                     break;
                                 default:
@@ -312,13 +312,13 @@ namespace IxMilia.Lisp
                             }
                             i--; // back track for next argument
                             break;
-                        case "&rest":
+                        case "&REST":
                             if (argumentList.Length == i + 2 &&
                                 argumentList[i + 1] is LispSymbol restName)
                             {
                                 if (!(rest is null))
                                 {
-                                    error = new LispError("Duplicate `&rest` argument definition");
+                                    error = new LispError("Duplicate `&REST` argument definition");
                                     return false;
                                 }
 

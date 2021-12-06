@@ -24,7 +24,7 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public void ParseConstants()
         {
-            Assert.Equal("a", ((LispSymbol)SingleSyntaxNode("a")).Value);
+            Assert.Equal("A", ((LispSymbol)SingleSyntaxNode("a")).Value);
             Assert.Equal(3, ((LispInteger)SingleSyntaxNode("3")).Value);
             Assert.Equal(3.0, ((LispFloat)SingleSyntaxNode("3.0")).Value);
             Assert.Equal("a", ((LispString)SingleSyntaxNode("\"a\"")).Value);
@@ -47,7 +47,7 @@ namespace IxMilia.Lisp.Test
         public void ParseList()
         {
             Assert.Empty(((LispList)SingleSyntaxNode("()")).ToList());
-            Assert.Equal(new[] { "a" }, ((LispList)SingleSyntaxNode("(a)")).ToList().Cast<LispSymbol>().Select(n => n.Value).ToArray());
+            Assert.Equal(new[] { "A" }, ((LispList)SingleSyntaxNode("(a)")).ToList().Cast<LispSymbol>().Select(n => n.Value).ToArray());
             Assert.Equal(new[] { 1 }, ((LispList)SingleSyntaxNode("(1)")).ToList().Cast<LispInteger>().Select(n => n.Value).ToArray());
             Assert.Equal(new[] { 1, 2 }, ((LispList)SingleSyntaxNode("(1 2)")).ToList().Cast<LispInteger>().Select(n => n.Value).ToArray());
             Assert.Equal(new[] { 1, 2, 3 }, ((LispList)SingleSyntaxNode("( 1 2 3 )")).ToList().Cast<LispInteger>().Select(n => n.Value).ToArray());
@@ -76,9 +76,9 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public void Quoted()
         {
-            Assert.Equal(new LispSymbol("a"), SingleSyntaxNode("a"));
-            Assert.Equal(new LispQuotedObject(new LispSymbol("a")), SingleSyntaxNode("'a"));
-            Assert.Equal(new LispQuotedObject(new LispQuotedObject(new LispSymbol("a"))), SingleSyntaxNode("''a"));
+            Assert.Equal(new LispSymbol("A"), SingleSyntaxNode("a"));
+            Assert.Equal(new LispQuotedObject(new LispSymbol("A")), SingleSyntaxNode("'a"));
+            Assert.Equal(new LispQuotedObject(new LispQuotedObject(new LispSymbol("A"))), SingleSyntaxNode("''a"));
             Assert.Equal(new LispQuotedObject(new LispList(new LispInteger(1))), SingleSyntaxNode("'(1)"));
         }
 

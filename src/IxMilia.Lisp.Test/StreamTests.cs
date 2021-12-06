@@ -9,11 +9,11 @@ namespace IxMilia.Lisp.Test
         public void ReadStreamObjectsThenDefaultEofMarker()
         {
             var input = new StringReader("(abc 2)\n14");
-            var stream = new LispStream("test-stream", input, TextWriter.Null);
+            var stream = new LispStream("TEST-STREAM", input, TextWriter.Null);
 
             var list = ((LispList)stream.ReadObject()).ToList();
             Assert.Equal(2, list.Count);
-            Assert.Equal("abc", ((LispSymbol)list[0]).Value);
+            Assert.Equal("ABC", ((LispSymbol)list[0]).Value);
             Assert.Equal(2, ((LispInteger)list[1]).Value);
 
             var number = (LispInteger)stream.ReadObject();
@@ -27,7 +27,7 @@ namespace IxMilia.Lisp.Test
         public void ReadStreamObjectsThenCustomEofMarker()
         {
             var input = new StringReader("14");
-            var stream = new LispStream("test-stream", input, TextWriter.Null);
+            var stream = new LispStream("TEST-STREAM", input, TextWriter.Null);
 
             var number = (LispInteger)stream.ReadObject();
             Assert.Equal(14, number.Value);
@@ -40,9 +40,9 @@ namespace IxMilia.Lisp.Test
         public void ReadFunctionDefaultEofMarker()
         {
             var input = new StringReader("14");
-            var testStream = new LispStream("test-stream", input, TextWriter.Null);
+            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
-            host.SetValue("test-stream", testStream);
+            host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval("(list (read test-stream) (read test-stream))").LastResult; // EOF propagates to the top
             Assert.Equal("EOF", ((LispError)result).Message);
         }
@@ -51,9 +51,9 @@ namespace IxMilia.Lisp.Test
         public void ReadFunctionCustomEofMarker()
         {
             var input = new StringReader("14");
-            var testStream = new LispStream("test-stream", input, TextWriter.Null);
+            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
-            host.SetValue("test-stream", testStream);
+            host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval("(list (read test-stream) (read test-stream nil -54))").LastResult;
             var resultList = ((LispList)result).ToList();
             Assert.Equal(2, resultList.Count);
@@ -74,7 +74,7 @@ namespace IxMilia.Lisp.Test
 ");
             Assert.IsNotType<LispError>(result);
             Assert.Equal("read: \"just a string\"\nevaluated: 5\n", NormalizeNewlines(output.ToString()));
-            Assert.Null(host.GetValue("file-stream"));
+            Assert.Null(host.GetValue("FILE-STREAM"));
         }
 
         [Fact]
@@ -92,7 +92,7 @@ namespace IxMilia.Lisp.Test
                 Assert.IsNotType<LispError>(result);
                 var actual = NormalizeNewlines(File.ReadAllText(outputFile.FilePath));
                 Assert.Equal("wrote: \"just-a-string\"\nwrote: (+ 2 3)\n", actual);
-                Assert.Null(host.GetValue("file-stream"));
+                Assert.Null(host.GetValue("FILE-STREAM"));
             }
         }
     }
