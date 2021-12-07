@@ -26,6 +26,7 @@ namespace IxMilia.Lisp.Test
         {
             Assert.Equal(LispList.FromItems(new LispString("a")), Read(" (\"a\") "));
             Assert.Equal(LispList.FromItems(new LispString("a"), LispNilList.Instance, new LispString("b")), Read(" ( \"a\" () \"b\" ) "));
+            Assert.Equal(LispList.FromItems(new LispInteger(4), LispNilList.Instance), Read("(4())"));
         }
 
         [Fact]
@@ -34,6 +35,24 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("", ((LispString)Read("\"\"")).Value);
             Assert.Equal("a", ((LispString)Read(" \"a\" ")).Value);
             Assert.Equal("\\\"\\", ((LispString)Read(" \"\\\\\\\"\\\\\" ")).Value);
+        }
+
+        [Fact]
+        public void Numbers()
+        {
+            Assert.Equal(4, ((LispInteger)Read("4")).Value);
+            Assert.Equal(4, ((LispInteger)Read("+4")).Value);
+            Assert.Equal(-14, ((LispInteger)Read("-14")).Value);
+            Assert.Equal("1/2", Read("1/2").ToString());
+            Assert.Equal("1/2", Read("+1/2").ToString());
+            Assert.Equal("-1/2", Read("-1/2").ToString());
+        }
+
+        [Fact]
+        public void Keywords()
+        {
+            Assert.Equal(":ABC", ((LispKeyword)Read(" :abc ")).Keyword);
+            Assert.Equal("&REST", ((LispLambdaListKeyword)Read(" &rest ")).Keyword);
         }
     }
 }

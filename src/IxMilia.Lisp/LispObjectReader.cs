@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace IxMilia.Lisp
 {
@@ -14,6 +16,26 @@ namespace IxMilia.Lisp
         private int _line = 1;
         private int _column = 1;
 
+        private static List<Tuple<Regex, Func<Match, LispObject>>> RegexMatchers = new List<Tuple<Regex, Func<Match, LispObject>>>();
+
+        static LispObjectReader()
+        {
+            // integer
+            RegexMatchers.Add(Tuple.Create<Regex, Func<Match, LispObject>>(new Regex(@"^((\+|-)?\d+)$", RegexOptions.Compiled), (match) =>
+            {
+                var i = int.Parse(match.Groups[1].Value);
+                return new LispInteger(i);
+            }));
+
+            // ratio
+            RegexMatchers.Add(Tuple.Create<Regex, Func<Match, LispObject>>(new Regex(@"^((\+|-)?\d+)/(\d+)$", RegexOptions.Compiled), (match) =>
+            {
+                var numerator = int.Parse(match.Groups[1].Value);
+                var denominator = int.Parse(match.Groups[3].Value);
+                return new LispRatio(numerator, denominator);
+            }));
+        }
+
         public LispObjectReader(LispHost host, LispStream input, bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             _host = host;
@@ -26,49 +48,75 @@ namespace IxMilia.Lisp
 
         public LispObject Read()
         {
-            LispObject result = null;
+            ConsumeTrivia();
             var next = Peek();
-            while (!next.IsNil())
+            if (next.IsNil())
             {
-                if (!(next is LispCharacter lc))
-                {
-                    result = new LispError("Expected a character");
-                    break;
-                }
+                return _eofValue ?? new LispError("EOF");
+            }
 
-                var c = lc.Value;
-                if (IsTrivia(c))
+            if (!(next is LispCharacter lc))
+            {
+                return new LispError("Expected a character");
+            }
+
+            LispObject result = null;
+            var c = lc.Value;
+            if (IsTrivia(c))
+            {
+                ConsumeTrivia();
+            }
+            else if (IsLeftParen(c))
+            {
+                Advance();
+                result = ReadList();
+            }
+            else if (IsDoubleQuote(c))
+            {
+                Advance();
+                result = ReadString();
+            }
+            else
+            {
+                var text = ReadUntilTriviaOrListMarker();
+                if (text.StartsWith(":"))
                 {
-                    ConsumeTrivia();
+                    result = new LispKeyword(text.ToUpperInvariant());
                 }
-                else if (IsLeftParen(c))
+                else if (text.StartsWith("&"))
                 {
-                    Advance();
-                    result = ReadList();
-                    break;
-                }
-                else if (IsDoubleQuote(c))
-                {
-                    Advance();
-                    result = ReadString();
-                    break;
+                    result = new LispLambdaListKeyword(text.ToUpperInvariant());
                 }
                 else
                 {
-                    result = new LispError($"Unexpected character '{c}' at position ({_line}, {_column})");
-                    break;
-                }
+                    var foundRegex = false;
+                    foreach (var regexPair in RegexMatchers)
+                    {
+                        var regex = regexPair.Item1;
+                        var creator = regexPair.Item2;
+                        var collection = regex.Matches(text);
+                        if (collection.Count >= 1)
+                        {
+                            var match = collection[0];
+                            result = creator(match);
+                            foundRegex = true;
+                            break;
+                        }
+                    }
 
-                next = Peek();
+                    if (!foundRegex)
+                    {
+                        result = new LispError($"Unexpected character '{c}' at position ({_line}, {_column})");
+                    }
+                }
             }
 
             if (result is object)
             {
                 result.SourceLocation = new LispSourceLocation("", _line, _column);
-                return result;
             }
 
-            return _eofValue ?? new LispError("EOF");
+            return result;
         }
 
         private LispObject ReadList()
@@ -237,6 +285,28 @@ namespace IxMilia.Lisp
         private static bool IsDoubleQuote(char c)
         {
             return c == '"';
+        }
+
+        private string ReadUntilTriviaOrListMarker()
+        {
+            var builder = new StringBuilder();
+            while (TryPeek(out var lc))
+            {
+                // TODO: this is too agressive for `#\(` and `#\)`
+                var c = lc.Value;
+                if (IsTrivia(c) ||
+                    IsLeftParen(c) ||
+                    IsRightParen(c))
+                {
+                    break;
+                }
+
+                builder.Append(c);
+                Advance();
+            }
+
+            var text = builder.ToString();
+            return text;
         }
 
         private void ConsumeTrivia()
