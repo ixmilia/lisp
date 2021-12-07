@@ -94,6 +94,14 @@ namespace IxMilia.Lisp
                 {
                     result = new LispLambdaListKeyword(text.ToUpperInvariant());
                 }
+                else if (text.StartsWith("#'"))
+                {
+                    result = new LispQuotedNamedFunctionReference(text.Substring(2).ToUpperInvariant());
+                }
+                else if (text.StartsWith(@"#\"))
+                {
+                    result = TryAssignCharacter(text.Substring(2));
+                }
                 else
                 {
                     var foundRegex = false;
@@ -194,7 +202,7 @@ namespace IxMilia.Lisp
                         Advance();
                         break;
                     }
-                    else if (c == '\\')
+                    else if (IsBackslash(c))
                     {
                         isEscape = true;
                     }
@@ -209,6 +217,17 @@ namespace IxMilia.Lisp
 
             var text = builder.ToString();
             return new LispString(text);
+        }
+
+        private LispObject TryAssignCharacter(string text)
+        {
+            if (text.Length == 1)
+            {
+                return new LispCharacter(text[0]);
+            }
+
+            // TODO: handle `#\SPACE`, etc.
+            return new LispError($"Unexpected character escape sequence '{text}'");
         }
 
         private LispObject Peek()
@@ -277,6 +296,11 @@ namespace IxMilia.Lisp
             return IsNewlineLike(c)
                 || IsWhitespace(c)
                 || IsSemi(c);
+        }
+
+        private static bool IsBackslash(char c)
+        {
+            return c == '\\';
         }
 
         private static bool IsLeftParen(char c)

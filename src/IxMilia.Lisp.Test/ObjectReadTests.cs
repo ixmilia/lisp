@@ -71,11 +71,27 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(value, number.Value);
         }
 
+        [Theory]
+        [InlineData(@"#\a", 'a')]
+        [InlineData(@"#\/", '/')]
+        [InlineData(@"#\'", '\'')]
+        public void Characters(string code, char expected)
+        {
+            var c = (LispCharacter)Read(code);
+            Assert.Equal(expected, c.Value);
+        }
+
         [Fact]
         public void Keywords()
         {
             Assert.Equal(":ABC", ((LispKeyword)Read(" :abc ")).Keyword);
             Assert.Equal("&REST", ((LispLambdaListKeyword)Read(" &rest ")).Keyword);
+        }
+
+        [Fact]
+        public void QuotedNamedFunctions()
+        {
+            Assert.Equal("READ", ((LispQuotedNamedFunctionReference)Read("#'read")).Name);
         }
     }
 }
