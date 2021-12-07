@@ -34,6 +34,13 @@ namespace IxMilia.Lisp
                 var denominator = int.Parse(match.Groups[3].Value);
                 return new LispRatio(numerator, denominator);
             }));
+
+            // float
+            RegexMatchers.Add(Tuple.Create<Regex, Func<Match, LispObject>>(new Regex(@"^((\+|-)?\d+(\.\d+)?(e(\+|-)?\d+)?)$", RegexOptions.Compiled), (match) =>
+            {
+                var d = double.Parse(match.Value);
+                return new LispFloat(d);
+            }));
         }
 
         public LispObjectReader(LispHost host, LispStream input, bool errorOnEof, LispObject eofValue, bool isRecursive)

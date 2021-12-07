@@ -37,15 +37,38 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("\\\"\\", ((LispString)Read(" \"\\\\\\\"\\\\\" ")).Value);
         }
 
-        [Fact]
-        public void Numbers()
+        [Theory]
+        [InlineData("0", 0)]
+        [InlineData("3", 3)]
+        [InlineData("+3", 3)]
+        [InlineData("-31", -31)]
+        public void Integers(string code, int value)
         {
-            Assert.Equal(4, ((LispInteger)Read("4")).Value);
-            Assert.Equal(4, ((LispInteger)Read("+4")).Value);
-            Assert.Equal(-14, ((LispInteger)Read("-14")).Value);
-            Assert.Equal("1/2", Read("1/2").ToString());
-            Assert.Equal("1/2", Read("+1/2").ToString());
-            Assert.Equal("-1/2", Read("-1/2").ToString());
+            var number = (LispInteger)Read(code);
+            Assert.Equal(value, number.Value);
+        }
+
+        [Theory]
+        [InlineData("1/2", "1/2")]
+        [InlineData("+1/2", "1/2")]
+        [InlineData("-1/2", "-1/2")]
+        public void Ratios(string code, string value)
+        {
+            var ratio = (LispRatio)Read(code);
+            Assert.Equal(value, ratio.ToString());
+        }
+
+        [Theory]
+        [InlineData("3.5", 3.5)]
+        [InlineData("3.5e4", 3.5e4)]
+        [InlineData("+3.5e4", 3.5e4)]
+        [InlineData("-3.5e4", -3.5e4)]
+        [InlineData("3.5e+4", 3.5e4)]
+        [InlineData("3.5e-4", 3.5e-4)]
+        public void Floats(string code, double value)
+        {
+            var number = (LispFloat)Read(code);
+            Assert.Equal(value, number.Value);
         }
 
         [Fact]
