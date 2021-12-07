@@ -1538,6 +1538,11 @@ namespace IxMilia.Lisp
         {
             return new LispStream(Name, Input, Output);
         }
+
+        public override string ToString()
+        {
+            return $"<stream> {Name}";
+        }
     }
 
     public class LispFileStream : LispStream

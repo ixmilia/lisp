@@ -294,6 +294,37 @@ namespace IxMilia.Lisp
             return quotedResult;
         }
 
+        [LispFunction("MAKE-STRING-INPUT-STREAM")]
+        public LispObject MakeStringInputStream(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length >= 1 &&
+                args[0] is LispString inputString)
+            {
+                var startIndex = 0;
+                var endIndex = inputString.Value.Length - 1;
+                if (args.Length >= 2 &&
+                    args[1] is LispInteger startIndexBound)
+                {
+                    startIndex = startIndexBound.Value;
+                    if (args.Length >= 3 &&
+                        args[2] is LispInteger endIndexBound)
+                    {
+                        endIndex = endIndexBound.Value;
+                        // TODO: allow fourth argument of an input string stream
+                    }
+                }
+
+                var fullString = inputString.Value.Substring(startIndex, endIndex - startIndex + 1);
+                var input = new StringReader(fullString);
+                var inputStream = new LispStream("", input, TextWriter.Null);
+                return inputStream;
+            }
+            else
+            {
+                return new LispError("Expected an input string");
+            }
+        }
+
         [LispFunction("FORMAT")]
         public LispObject Format(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
@@ -336,6 +367,63 @@ namespace IxMilia.Lisp
             return new LispError("Expected output type and string");
         }
 
+        [LispFunction("READ-CHAR")]
+        public LispObject ReadChar(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            var inputStream = host.TerminalIO;
+            var errorOnEof = true;
+            var eofValue = host.Nil;
+            var _isRecursive = false;
+            if (args.Length >= 1)
+            {
+                if (args[0] is LispStream stream)
+                {
+                    inputStream = stream;
+                }
+                else
+                {
+                    return new LispError("Expected an input stream");
+                }
+
+                if (args.Length >= 2)
+                {
+                    errorOnEof = args[1].IsTLike();
+
+                    if (args.Length >= 3)
+                    {
+                        eofValue = args[2];
+
+                        if (args.Length >= 4)
+                        {
+                            _isRecursive = args[3].IsTLike();
+
+                            if (args.Length >= 5)
+                            {
+                                return new LispError("Too many arguments");
+                            }
+                        }
+                    }
+                }
+            }
+
+            var peeked = inputStream.Input.Peek();
+            if (peeked == -1)
+            {
+                // eof
+                if (errorOnEof)
+                {
+                    return new LispError("EOF");
+                }
+                else
+                {
+                    return eofValue;
+                }
+            }
+
+            var c = (char)inputStream.Input.Read();
+            return new LispCharacter(c);
+        }
+
         [LispFunction("READ")]
         public LispObject Read(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
@@ -360,6 +448,50 @@ namespace IxMilia.Lisp
             }
 
             var result = readStream.ReadObject(eofMarker);
+            return result;
+        }
+
+        [LispFunction("READ2")]
+        public LispObject Read2(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            var inputStream = host.TerminalIO;
+            var errorOnEof = true;
+            var eofValue = host.Nil;
+            var isRecursive = false;
+            if (args.Length >= 1)
+            {
+                if (args[0] is LispStream stream)
+                {
+                    inputStream = stream;
+                }
+                else
+                {
+                    return new LispError("Expected an input stream");
+                }
+
+                if (args.Length >= 2)
+                {
+                    errorOnEof = args[1].IsTLike();
+
+                    if (args.Length >= 3)
+                    {
+                        eofValue = args[2];
+
+                        if (args.Length >= 4)
+                        {
+                            isRecursive = args[3].IsTLike();
+
+                            if (args.Length >= 5)
+                            {
+                                return new LispError("Too many arguments");
+                            }
+                        }
+                    }
+                }
+            }
+
+            var reader = new LispObjectReader(host, inputStream, errorOnEof, eofValue, isRecursive);
+            var result = reader.Read();
             return result;
         }
 

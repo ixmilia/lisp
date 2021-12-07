@@ -8,6 +8,7 @@ using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
 {
+    // https://gist.github.com/chaitanyagupta/9324402
     public delegate void LispSpecialOperatorDelegate(LispHost host, LispExecutionState executionState, LispObject[] args); // args unevaluated, no result
     public delegate LispObject LispMacroDelegate(LispHost host, LispExecutionState executionState, LispObject[] args); // args unevaluated, result evaluated
     public delegate LispObject LispFunctionDelegate(LispHost host, LispExecutionState executionState, LispObject[] args); // args evaluated, result unevaluated
