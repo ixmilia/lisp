@@ -7,7 +7,7 @@ namespace IxMilia.Lisp
 {
     internal class LispEvaluator
     {
-        public static LispEvaluationState Evaluate(LispExecutionState executionState)
+        public static LispEvaluationState Evaluate(LispHost host, LispExecutionState executionState)
         {
             var shouldDribbleReturnValue = executionState.StackFrame.Root.DribbleStream != null;
             while (executionState.TryDequeueOperation(out var operation))
@@ -109,7 +109,7 @@ namespace IxMilia.Lisp
                                         {
                                             // TODO: evaluate using the operation queue
                                             var itemExecutionState = LispExecutionState.CreateExecutionState(executionState.StackFrame, new LispObject[] { v }, executionState.UseTailCalls, allowHalting: false, createDribbleInstructions: false);
-                                            Evaluate(itemExecutionState);
+                                            Evaluate(host, itemExecutionState);
                                             return itemExecutionState.LastResult;
                                         });
                                         var firstError = evaluatedValues.OfType<LispError>().FirstOrDefault();
@@ -325,7 +325,7 @@ namespace IxMilia.Lisp
                             switch (invocation.InvocationObject)
                             {
                                 case LispSpecialOperator specialOperator:
-                                    specialOperator.Delegate.Invoke(executionState, arguments);
+                                    specialOperator.Delegate.Invoke(host, executionState, arguments);
                                     break;
                                 case LispMacro macro:
                                     {
@@ -349,7 +349,7 @@ namespace IxMilia.Lisp
                                                 break;
                                             case LispNativeMacro nativeMacro:
                                                 captureValueSetHalt = true;
-                                                result = nativeMacro.Macro.Invoke(executionState.StackFrame, arguments);
+                                                result = nativeMacro.Macro.Invoke(host, executionState, arguments);
                                                 break;
                                             default:
                                                 throw new NotImplementedException($"Unsupported macro object {invocation.InvocationObject.GetType().Name}");
@@ -376,7 +376,7 @@ namespace IxMilia.Lisp
                                         switch (function)
                                         {
                                             case LispCodeFunction codeFunction:
-                                                if (!codeFunction.TryBindArguments(arguments, executionState.StackFrame, out var bindError))
+                                                if (!codeFunction.TryBindArguments(arguments, host, executionState.StackFrame, out var bindError))
                                                 {
                                                     executionState.ReportError(bindError, invocation.InvocationObject);
                                                     goto invocation_done;
@@ -384,7 +384,7 @@ namespace IxMilia.Lisp
                                                 break;
                                             case LispNativeFunction nativeFunction:
                                                 captureValueSetHalt = true;
-                                                var evaluationResult = nativeFunction.Function.Invoke(executionState.StackFrame, arguments);
+                                                var evaluationResult = nativeFunction.Function.Invoke(host, executionState, arguments);
                                                 if (!evaluationResult.SourceLocation.HasValue)
                                                 {
                                                     evaluationResult.SourceLocation = invocation.SourceLocation;

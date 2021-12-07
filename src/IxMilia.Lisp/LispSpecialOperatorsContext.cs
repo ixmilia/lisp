@@ -3,7 +3,7 @@
     public class LispSpecialOperatorsContext
     {
         [LispSpecialOperator("PROGN")]
-        public void ProgN(LispExecutionState executionState, LispObject[] args)
+        public void ProgN(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             for (int i = args.Length - 1; i >= 0; i--)
             {
@@ -16,7 +16,7 @@
         }
 
         [LispSpecialOperator("QUOTE")]
-        public void Quote(LispExecutionState executionState, LispObject[] args)
+        public void Quote(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             // TODO: validate argument count
             executionState.PushArgument(args[0]);

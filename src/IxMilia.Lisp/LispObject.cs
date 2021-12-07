@@ -1279,7 +1279,7 @@ namespace IxMilia.Lisp
             return $"{Name} ({ArgumentCollection})";
         }
 
-        public bool TryBindArguments(LispObject[] args, LispStackFrame frame, out LispError error)
+        public bool TryBindArguments(LispObject[] args, LispHost host, LispStackFrame frame, out LispError error)
         {
             if (!ArgumentCollection.TryMatchInvocationArguments(args, out var matchedArguments, out error))
             {
@@ -1296,7 +1296,7 @@ namespace IxMilia.Lisp
                     case LispKeywordInvocationArgument _:
                     case LispOptionalInvocationArgument _:
                         // `&aux`, `&key`, and `&optional` arguments need to be evaluated
-                        argumentValue = frame.Eval(argumentValue);
+                        argumentValue = host.EvalAtStackFrame(frame, argumentValue);
                         break;
                 }
 

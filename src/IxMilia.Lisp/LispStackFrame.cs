@@ -87,18 +87,6 @@ namespace IxMilia.Lisp
             _values.Remove(name);
         }
 
-        public LispObject Eval(LispObject obj)
-        {
-            return EvalMany(new LispObject[] { obj });
-        }
-
-        public LispObject EvalMany(IEnumerable<LispObject> nodes)
-        {
-            var executionState = LispExecutionState.CreateExecutionState(this, nodes, useTailCalls: false, allowHalting: false, createDribbleInstructions: false);
-            LispEvaluator.Evaluate(executionState);
-            return executionState.LastResult;
-        }
-
         internal void UpdateCallStackLocation(LispSourceLocation? sourceLocation)
         {
             SourceLocation = sourceLocation;

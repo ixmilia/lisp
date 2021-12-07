@@ -34,7 +34,7 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             bool sentinelHit = false;
-            host.AddFunction("SENTINEL", (frame, args) =>
+            host.AddFunction("SENTINEL", (host, executionState, args) =>
             {
                 sentinelHit = true;
                 return new LispInteger(54);
@@ -70,7 +70,7 @@ namespace IxMilia.Lisp.Test
         public void HaltExecutionOnMacroExpansion()
         {
             var host = new LispHost();
-            host.AddMacro("FOURTY-TWO", (frame, args) =>
+            host.AddMacro("FOURTY-TWO", (host, executionState, args) =>
             {
                 return new LispInteger(42);
             });
@@ -99,7 +99,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             bool hitBreakpoint = false;
             bool sentinelHit = false;
-            host.AddFunction("SENTINEL", (frame, args) =>
+            host.AddFunction("SENTINEL", (host, executionState, args) =>
             {
                 sentinelHit = true;
                 return new LispInteger(54);
@@ -209,9 +209,9 @@ namespace IxMilia.Lisp.Test
         public void ExecutionCannotBeHaltedWhenEvaluatingFromWithinANativeFunction()
         {
             var host = new LispHost();
-            host.AddFunction("NATIVE-FUNCTION", (frame, args) =>
+            host.AddFunction("NATIVE-FUNCTION", (host, executionState, args) =>
             {
-                var result = frame.Eval(LispList.FromEnumerable(new LispObject[] { new LispSymbol("*"), new LispInteger(2), new LispInteger(2) }));
+                var result = host.EvalAtStackFrame(executionState.StackFrame, LispList.FromEnumerable(new LispObject[] { new LispSymbol("*"), new LispInteger(2), new LispInteger(2) }));
                 return result;
             });
             var hitBreakpoint = false;
@@ -235,9 +235,9 @@ namespace IxMilia.Lisp.Test
         public void ExecutionCannotBeHaltedWhenEvaluatingFromWithinANativeMacro()
         {
             var host = new LispHost();
-            host.AddMacro("NATIVE-FUNCTION", (frame, args) =>
+            host.AddMacro("NATIVE-FUNCTION", (host, executionState, args) =>
             {
-                var result = frame.Eval(LispList.FromEnumerable(new LispObject[] { new LispSymbol("*"), new LispInteger(2), new LispInteger(2) }));
+                var result = host.EvalAtStackFrame(executionState.StackFrame, LispList.FromEnumerable(new LispObject[] { new LispSymbol("*"), new LispInteger(2), new LispInteger(2) }));
                 return result;
             });
             var hitBreakpoint = false;
@@ -406,9 +406,9 @@ namespace IxMilia.Lisp.Test
         public void ExecutionCanStepIn(bool useTailCalls)
         {
             var host = new LispHost(useTailCalls: useTailCalls);
-            host.AddFunction("NATIVE-FUNCTION", (frame, args) =>
+            host.AddFunction("NATIVE-FUNCTION", (host, executionState, args) =>
             {
-                return frame.T;
+                return host.T;
             });
             var hasHalted = false;
             host.RootFrame.EvaluatingExpression += (s, e) =>

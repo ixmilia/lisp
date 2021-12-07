@@ -12,14 +12,14 @@ namespace IxMilia.Lisp
         }
 
         [LispMacro("TRACE")]
-        public LispObject Trace(LispStackFrame frame, LispObject[] args)
+        public LispObject Trace(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             var tracedList = _repl.Trace(args);
             return LispList.FromItems(new LispSymbol("QUOTE"), tracedList);
         }
 
         [LispMacro("UNTRACE")]
-        public LispObject Untrace(LispStackFrame frame, LispObject[] args)
+        public LispObject Untrace(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             var untracedList = _repl.Untrace(args);
             return LispList.FromItems(new LispSymbol("QUOTE"), untracedList);

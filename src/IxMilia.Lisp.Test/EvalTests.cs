@@ -21,7 +21,7 @@ namespace IxMilia.Lisp.Test
         public void ExternalFunction()
         {
             var host = new LispHost();
-            host.AddFunction("ADD", (h, args) => (LispInteger)args[0] + (LispInteger)args[1]);
+            host.AddFunction("ADD", (host, executionState, args) => (LispInteger)args[0] + (LispInteger)args[1]);
             Assert.Equal(new LispInteger(3), host.Eval("(add 1 2)").LastResult);
         }
 
@@ -288,9 +288,9 @@ namespace IxMilia.Lisp.Test
             var lastDotNetStackDepth = 0;
             var invocationCount = 0;
             var maxInvocationCount = 10;
-            host.AddFunction("RECORD-STACK-DEPTH", (frame, args) =>
+            host.AddFunction("RECORD-STACK-DEPTH", (host, executionState, args) =>
             {
-                var currentInterpreterStackDepth = frame.Depth;
+                var currentInterpreterStackDepth = executionState.StackFrame.Depth;
                 var currentDotNetStackDepth = new StackTrace().FrameCount;
 
                 if (invocationCount++ > maxInvocationCount)
@@ -304,14 +304,14 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
                     currentDotNetStackDepth == lastDotNetStackDepth)
                 {
                     // done
-                    return frame.T;
+                    return host.T;
                 }
                 else
                 {
                     // haven't reached a stable stack depth; keep going
                     lastInterpreterStackDepth = currentInterpreterStackDepth;
                     lastDotNetStackDepth = currentDotNetStackDepth;
-                    return frame.Nil;
+                    return host.Nil;
                 }
             });
             var result = host.Eval(@"
@@ -332,9 +332,9 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
             var lastDotNetStackDepth = 0;
             var invocationCount = 0;
             var maxInvocationCount = 10;
-            host.AddFunction("RECORD-STACK-DEPTH", (frame, args) =>
+            host.AddFunction("RECORD-STACK-DEPTH", (host, executionState, args) =>
             {
-                var currentInterpreterStackDepth = frame.Depth;
+                var currentInterpreterStackDepth = executionState.StackFrame.Depth;
                 var currentDotNetStackDepth = new StackTrace().FrameCount;
 
                 if (invocationCount++ > maxInvocationCount)
@@ -348,14 +348,14 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
                     currentDotNetStackDepth == lastDotNetStackDepth)
                 {
                     // done
-                    return frame.T;
+                    return host.T;
                 }
                 else
                 {
                     // haven't reached a stable stack depth; keep going
                     lastInterpreterStackDepth = currentInterpreterStackDepth;
                     lastDotNetStackDepth = currentDotNetStackDepth;
-                    return frame.Nil;
+                    return host.Nil;
                 }
             });
             var result = host.Eval(@"
