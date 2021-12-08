@@ -427,33 +427,6 @@ namespace IxMilia.Lisp
         [LispFunction("READ")]
         public LispObject Read(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
-            LispStream readStream;
-            LispObject eofMarker = null;
-            if (args.Length == 0)
-            {
-                readStream = host.TerminalIO;
-            }
-            else if (args.Length >= 1 && args[0] is LispStream stream)
-            {
-                readStream = stream;
-                if (args.Length == 3 &&
-                    args[1].IsNil())
-                {
-                    eofMarker = args[2];
-                }
-            }
-            else
-            {
-                return new LispError("Expected a stream");
-            }
-
-            var result = readStream.ReadObject(eofMarker);
-            return result;
-        }
-
-        [LispFunction("READ2")]
-        public LispObject Read2(LispHost host, LispExecutionState executionState, LispObject[] args)
-        {
             var inputStream = host.TerminalIO;
             var errorOnEof = true;
             var eofValue = host.Nil;

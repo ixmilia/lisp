@@ -59,8 +59,7 @@ namespace IxMilia.Lisp
         public LispObject Read()
         {
             ConsumeTrivia();
-            var next = Peek();
-            if (next.IsNil())
+            if (!TryPeek(out var next))
             {
                 if (_errorOnEof)
                 {
