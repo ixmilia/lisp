@@ -10,7 +10,7 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             var input = new LispStream("", new StringReader(text), TextWriter.Null);
-            var reader = new LispObjectReader(host, input, true, host.Nil, false);
+            var reader = new LispObjectReader(host, input, false, host.Nil, false);
             var result = reader.Read();
             return result;
         }
@@ -46,6 +46,24 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(1, error.SourceLocation?.Line);
             Assert.Equal(10, error.SourceLocation?.Column);
             Assert.Equal("Unexpected duplicate '.' in list at (1, 10); first '.' at (1, 6)", error.Message);
+        }
+
+        [Fact]
+        public void UnmatchedLeftParen()
+        {
+            var error = (LispError)Read("(1 2 3");
+            Assert.Equal("Unmatched '(' at (1, 1) (depth 1)", error.Message);
+            Assert.Equal(1, error.SourceLocation?.Line);
+            Assert.Equal(1, error.SourceLocation?.Column);
+        }
+
+        [Fact]
+        public void UnmatchedRightParen()
+        {
+            var error = (LispError)Read(")");
+            Assert.Equal("Unexpected character ')' at position (1, 1)", error.Message);
+            Assert.Equal(1, error.SourceLocation?.Line);
+            Assert.Equal(1, error.SourceLocation?.Column);
         }
 
         [Fact]

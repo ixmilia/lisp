@@ -16,6 +16,7 @@ namespace IxMilia.Lisp
         private bool _isRecursive;
         private int _line = 1;
         private int _column = 1;
+        private int _leftParenCount = 0;
 
         private static List<Tuple<Regex, Func<Match, LispObject>>> RegexMatchers = new List<Tuple<Regex, Func<Match, LispObject>>>();
 
@@ -81,7 +82,6 @@ namespace IxMilia.Lisp
             }
             else if (IsLeftParen(c))
             {
-                Advance();
                 result = ReadList();
             }
             else if (IsDoubleQuote(c))
@@ -127,7 +127,7 @@ namespace IxMilia.Lisp
 
                     if (!foundRegex)
                     {
-                        result = new LispError($"Unexpected character '{c}' at position ({_line}, {_column})");
+                        result = new LispError($"Unexpected character '{c}' at position ({lc.SourceLocation?.Line}, {lc.SourceLocation?.Column})");
                     }
                 }
             }
@@ -146,20 +146,29 @@ namespace IxMilia.Lisp
             var items = new List<LispObject>();
             var tailItems = new List<LispObject>();
             LispSourceLocation? dotLocation = null;
+            var isListComplete = false;
+            var first = Peek(); // should be `(`
+            switch (first)
+            {
+                case LispCharacter firstCharacter when firstCharacter.Value == '(':
+                    _leftParenCount++;
+                    break;
+                default:
+                    throw new Exception("First character should always be `(`");
+            }
+
+            Advance();
             ConsumeTrivia();
             var next = Peek();
-            while (!next.IsNil())
+            while (next is LispCharacter lc)
             {
-                if (!(next is LispCharacter lc))
-                {
-                    return new LispError("Exepcted a character");
-                }
-
                 var c = lc.Value;
                 if (IsRightParen(c))
                 {
                     // done
                     Advance();
+                    isListComplete = true;
+                    _leftParenCount--;
                     break;
                 }
                 else if (IsPeriod(c))
@@ -187,6 +196,11 @@ namespace IxMilia.Lisp
 
                 ConsumeTrivia();
                 next = Peek();
+            }
+
+            if (!isListComplete)
+            {
+                return new LispError($"Unmatched '(' at ({first.SourceLocation?.Line}, {first.SourceLocation?.Column}) (depth {_leftParenCount})");
             }
 
             LispObject result;
@@ -302,8 +316,8 @@ namespace IxMilia.Lisp
             var executionState = _host.Eval(LispList.FromItems(
                 new LispSymbol("READ-CHAR"),
                 _input, // input-stream
-                _eofValue is object ? _host.T : _host.Nil, // eof-error-p
-                _eofValue ?? _host.Nil, // eof-value
+                _errorOnEof ? _host.T : _host.Nil, // eof-error-p
+                _eofValue, // eof-value
                 _host.T // recursive-p
             ));
             _nextValue = executionState.LastResult;
