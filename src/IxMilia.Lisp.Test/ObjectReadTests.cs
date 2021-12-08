@@ -130,5 +130,13 @@ namespace IxMilia.Lisp.Test
         {
             Assert.Equal("READ", ((LispQuotedNamedFunctionReference)Read("#'read")).Name);
         }
+
+        [Fact]
+        public void Symbols()
+        {
+            Assert.Equal("+", ((LispSymbol)Read("+")).Value);
+            Assert.Equal(">>", ((LispSymbol)Read(">>")).Value);
+            Assert.Equal("SOME:SYMBOL", ((LispSymbol)Read("some:symbol")).Value);
+        }
     }
 }

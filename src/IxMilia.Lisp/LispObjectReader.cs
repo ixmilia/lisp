@@ -127,7 +127,14 @@ namespace IxMilia.Lisp
 
                     if (!foundRegex)
                     {
-                        result = new LispError($"Unexpected character '{c}' at position ({lc.SourceLocation?.Line}, {lc.SourceLocation?.Column})");
+                        if (!IsRightParen(lc.Value))
+                        {
+                            result = new LispSymbol(text.ToUpperInvariant());
+                        }
+                        else
+                        {
+                            result = new LispError($"Unexpected character '{c}' at position ({lc.SourceLocation?.Line}, {lc.SourceLocation?.Column})");
+                        }
                     }
                 }
             }
