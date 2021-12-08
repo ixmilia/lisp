@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -59,7 +60,12 @@ namespace IxMilia.Lisp
             var next = Peek();
             if (next.IsNil())
             {
-                return _eofValue ?? new LispError("EOF");
+                if (_errorOnEof)
+                {
+                    return new LispError("EOF");
+                }
+
+                return _eofValue;
             }
 
             if (!(next is LispCharacter lc))
@@ -126,9 +132,10 @@ namespace IxMilia.Lisp
                 }
             }
 
-            if (result is object)
+            if (result is object &&
+                result.SourceLocation == null)
             {
-                result.SourceLocation = new LispSourceLocation("", _line, _column);
+                result.SourceLocation = next.SourceLocation;
             }
 
             return result;
@@ -137,6 +144,8 @@ namespace IxMilia.Lisp
         private LispObject ReadList()
         {
             var items = new List<LispObject>();
+            var tailItems = new List<LispObject>();
+            LispSourceLocation? dotLocation = null;
             ConsumeTrivia();
             var next = Peek();
             while (!next.IsNil())
@@ -153,14 +162,53 @@ namespace IxMilia.Lisp
                     Advance();
                     break;
                 }
+                else if (IsPeriod(c))
+                {
+                    if (dotLocation.HasValue)
+                    {
+                        var error = new LispError($"Unexpected duplicate '.' in list at ({lc.SourceLocation?.Line}, {lc.SourceLocation?.Column}); first '.' at ({dotLocation.Value.Line}, {dotLocation.Value.Column})");
+                        error.SourceLocation = lc.SourceLocation;
+                        return error;
+                    }
+
+                    Advance();
+                    dotLocation = lc.SourceLocation;
+                }
 
                 var nextItem = Read();
-                items.Add(nextItem);
+                if (!dotLocation.HasValue)
+                {
+                    items.Add(nextItem);
+                }
+                else
+                {
+                    tailItems.Add(nextItem);
+                }
+
                 ConsumeTrivia();
                 next = Peek();
             }
 
-            var result = LispList.FromEnumerable(items);
+            LispObject result;
+            if (dotLocation.HasValue)
+            {
+                if (tailItems.Count == 1)
+                {
+                    // improper list
+                    var allItems = items.Concat(tailItems).ToList();
+                    result = LispList.FromEnumerableImproper(allItems[0], allItems[1], allItems.Skip(2));
+                }
+                else
+                {
+                    result = new LispError("Too many trailing items");
+                }
+            }
+            else
+            {
+                // proper list
+                result = LispList.FromEnumerable(items);
+            }
+
             return result;
         }
 
@@ -259,6 +307,7 @@ namespace IxMilia.Lisp
                 _host.T // recursive-p
             ));
             _nextValue = executionState.LastResult;
+            _nextValue.SourceLocation = new LispSourceLocation(_input.Name, _line, _column);
             _column++;
         }
 
@@ -301,6 +350,11 @@ namespace IxMilia.Lisp
         private static bool IsBackslash(char c)
         {
             return c == '\\';
+        }
+
+        private static bool IsPeriod(char c)
+        {
+            return c == '.';
         }
 
         private static bool IsLeftParen(char c)

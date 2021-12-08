@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Linq;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
@@ -27,6 +28,24 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(LispList.FromItems(new LispString("a")), Read(" (\"a\") "));
             Assert.Equal(LispList.FromItems(new LispString("a"), LispNilList.Instance, new LispString("b")), Read(" ( \"a\" () \"b\" ) "));
             Assert.Equal(LispList.FromItems(new LispInteger(4), LispNilList.Instance), Read("(4())"));
+        }
+
+        [Fact]
+        public void DottedList()
+        {
+            var list = (LispList)Read("(1 . 2)");
+            Assert.Equal(1, list.Length);
+            Assert.Equal(new[] { 1, 2 }, list.ToList().Cast<LispInteger>().Select(n => n.Value).ToArray());
+            Assert.False(list.IsProperList);
+        }
+
+        [Fact]
+        public void BadDottedList()
+        {
+            var error = (LispError)Read("(1 2 . 3 . 4)");
+            Assert.Equal(1, error.SourceLocation?.Line);
+            Assert.Equal(10, error.SourceLocation?.Column);
+            Assert.Equal("Unexpected duplicate '.' in list at (1, 10); first '.' at (1, 6)", error.Message);
         }
 
         [Fact]
