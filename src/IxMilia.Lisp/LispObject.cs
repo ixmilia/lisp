@@ -676,9 +676,14 @@ namespace IxMilia.Lisp
 
         private static void Reduce(int numerator, int denominator, out int finalNum, out int finalDenom)
         {
-            var gcd = Gcd(numerator, denominator);
-            finalNum = numerator / gcd;
-            finalDenom = denominator / gcd;
+            var gcd = Gcd(Math.Abs(numerator), Math.Abs(denominator));
+            finalNum = Math.Abs(numerator / gcd);
+            finalDenom = Math.Abs(denominator / gcd);
+
+            if (Math.Sign(numerator) != Math.Sign(denominator))
+            {
+                finalNum *= -1;
+            }
         }
 
         private static int Gcd(int a, int b)

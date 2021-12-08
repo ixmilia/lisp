@@ -31,6 +31,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(new LispInteger(2), new LispRatio(4, 2).Reduce());
             Assert.Equal(new LispInteger(1), new LispRatio(2, 2).Reduce());
             Assert.Equal(new LispRatio(5, 4), new LispRatio(10, 8).Reduce());
+            Assert.Equal(new LispRatio(-1, 2), new LispRatio(2, -4).Reduce());
         }
 
         [Fact]

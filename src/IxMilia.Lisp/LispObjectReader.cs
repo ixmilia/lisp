@@ -30,11 +30,11 @@ namespace IxMilia.Lisp
             }));
 
             // ratio
-            RegexMatchers.Add(Tuple.Create<Regex, Func<Match, LispObject>>(new Regex(@"^((\+|-)?\d+)/(\d+)$", RegexOptions.Compiled), (match) =>
+            RegexMatchers.Add(Tuple.Create<Regex, Func<Match, LispObject>>(new Regex(@"^((\+|-)?\d+)/((\+|-)?\d+)$", RegexOptions.Compiled), (match) =>
             {
                 var numerator = int.Parse(match.Groups[1].Value);
                 var denominator = int.Parse(match.Groups[3].Value);
-                return new LispRatio(numerator, denominator);
+                return new LispRatio(numerator, denominator).Reduce();
             }));
 
             // float

@@ -89,6 +89,8 @@ namespace IxMilia.Lisp.Test
         [InlineData("1/2", "1/2")]
         [InlineData("+1/2", "1/2")]
         [InlineData("-1/2", "-1/2")]
+        [InlineData("1/-2", "-1/2")]
+        [InlineData("2/4", "1/2")]
         public void Ratios(string code, string value)
         {
             var ratio = (LispRatio)Read(code);
