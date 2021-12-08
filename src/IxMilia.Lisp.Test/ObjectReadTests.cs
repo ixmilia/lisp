@@ -138,5 +138,33 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(">>", ((LispSymbol)Read(">>")).Value);
             Assert.Equal("SOME:SYMBOL", ((LispSymbol)Read("some:symbol")).Value);
         }
+
+        [Fact]
+        public void SourceLocations()
+        {
+            var list = (LispList)Read(" ( a b c ( 1 2 3 ) ) ");
+            Assert.Equal(1, list.SourceLocation?.Line);
+            Assert.Equal(2, list.SourceLocation?.Column);
+
+            var listValues = list.ToList();
+            Assert.Equal(1, listValues[0].SourceLocation?.Line);
+            Assert.Equal(4, listValues[0].SourceLocation?.Column);
+            Assert.Equal(1, listValues[1].SourceLocation?.Line);
+            Assert.Equal(6, listValues[1].SourceLocation?.Column);
+            Assert.Equal(1, listValues[2].SourceLocation?.Line);
+            Assert.Equal(8, listValues[2].SourceLocation?.Column);
+
+            var innerList = (LispList)listValues[3];
+            Assert.Equal(1, innerList.SourceLocation?.Line);
+            Assert.Equal(10, innerList.SourceLocation?.Column);
+
+            var innerListValues = innerList.ToList();
+            Assert.Equal(1, innerListValues[0].SourceLocation?.Line);
+            Assert.Equal(12, innerListValues[0].SourceLocation?.Column);
+            Assert.Equal(1, innerListValues[1].SourceLocation?.Line);
+            Assert.Equal(14, innerListValues[1].SourceLocation?.Column);
+            Assert.Equal(1, innerListValues[2].SourceLocation?.Line);
+            Assert.Equal(16, innerListValues[2].SourceLocation?.Column);
+        }
     }
 }
