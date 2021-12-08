@@ -167,7 +167,7 @@ namespace IxMilia.Lisp.Parser
                 var next = ParseList(parent);
                 if (next is LispList innerList)
                 {
-                    return new LispForwardListReference(forwardRef, innerList);
+                    return new LispForwardListReference(forwardRef.SymbolReference, innerList);
                 }
                 else if (_errorOnIncompleteExpressions)
                 {

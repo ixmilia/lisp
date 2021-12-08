@@ -81,7 +81,7 @@ namespace IxMilia.Lisp
 
                 // recurse into these
                 case LispForwardListReference forwardList:
-                    result = new LispForwardListReference(forwardList.ForwardReference, (LispList)forwardList.List.PerformMacroReplacements(replacements));
+                    result = new LispForwardListReference(forwardList.SymbolReference, (LispList)forwardList.List.PerformMacroReplacements(replacements));
                     break;
                 case LispList list:
                     result = new LispList(list.Value.PerformMacroReplacements(replacements), list.Next.PerformMacroReplacements(replacements));
@@ -871,12 +871,12 @@ namespace IxMilia.Lisp
 
     internal class LispForwardListReference : LispObject
     {
-        public LispForwardReferenceToken ForwardReference { get; }
+        public string SymbolReference { get; }
         public LispList List { get; }
 
-        public LispForwardListReference(LispForwardReferenceToken forwardReference, LispList list)
+        public LispForwardListReference(string symbolReference, LispList list)
         {
-            ForwardReference = forwardReference;
+            SymbolReference = symbolReference;
             List = list;
         }
 
@@ -887,7 +887,13 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispForwardListReference(ForwardReference, (LispList)List.Clone());
+            return new LispForwardListReference(SymbolReference, (LispList)List.Clone());
+        }
+
+        public override string ToString()
+        {
+            var leadingText = SymbolReference.Substring(0, SymbolReference.Length - 1) + "=";
+            return string.Concat(leadingText, List.ToString());
         }
     }
 

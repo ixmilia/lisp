@@ -31,6 +31,15 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void ForwardReferncedLists()
+        {
+            var list = (LispForwardListReference)Read("#1=(1 2 #1#)");
+            Assert.True(list.List.IsProperList);
+            Assert.Equal(3, list.List.Length);
+            Assert.Equal("#1=(1 2 #1#)", list.ToString());
+        }
+
+        [Fact]
         public void DottedList()
         {
             var list = (LispList)Read("(1 . 2)");

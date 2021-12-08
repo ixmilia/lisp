@@ -19,6 +19,7 @@ namespace IxMilia.Lisp
         private int _leftParenCount = 0;
 
         private static List<Tuple<Regex, Func<Match, LispObject>>> RegexMatchers = new List<Tuple<Regex, Func<Match, LispObject>>>();
+        private static Regex ListForwardReferenceRegex = new Regex(@"^#(\d+)=$", RegexOptions.Compiled);
 
         static LispObjectReader()
         {
@@ -107,6 +108,19 @@ namespace IxMilia.Lisp
                 else if (text.StartsWith(@"#\"))
                 {
                     result = TryAssignCharacter(text.Substring(2));
+                }
+                else if (ListForwardReferenceRegex.IsMatch(text))
+                {
+                    var candidateInnerList = Read();
+                    if (candidateInnerList is LispList innerList)
+                    {
+                        var symbolReference = text.Substring(0, text.Length - 1).ToUpperInvariant() + "#";
+                        result = new LispForwardListReference(symbolReference, innerList);
+                    }
+                    else
+                    {
+                        result = new LispError("Expected list");
+                    }
                 }
                 else
                 {

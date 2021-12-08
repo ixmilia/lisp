@@ -103,7 +103,7 @@ namespace IxMilia.Lisp
                                     {
                                         LispObject result;
                                         var finalList = new LispCircularList();
-                                        executionState.StackFrame.SetValue(forwardRef.ForwardReference.SymbolReference, finalList);
+                                        executionState.StackFrame.SetValue(forwardRef.SymbolReference, finalList);
                                         var values = forwardRef.List.ToList();
                                         var evaluatedValues = values.Select(v =>
                                         {
