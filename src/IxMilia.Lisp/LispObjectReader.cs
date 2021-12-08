@@ -84,6 +84,12 @@ namespace IxMilia.Lisp
             {
                 result = ReadList();
             }
+            else if (IsSingleQuote(c))
+            {
+                Advance();
+                var innerObject = Read();
+                result = LispList.FromItems(new LispSymbol("QUOTE"), innerObject);
+            }
             else if (IsDoubleQuote(c))
             {
                 Advance();
@@ -410,6 +416,11 @@ namespace IxMilia.Lisp
         private static bool IsRightParen(char c)
         {
             return c == ')';
+        }
+
+        private static bool IsSingleQuote(char c)
+        {
+            return c == '\'';
         }
 
         private static bool IsDoubleQuote(char c)

@@ -151,6 +151,15 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void Quoted()
+        {
+            Assert.Equal(new LispSymbol("A"), Read("a"));
+            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A")), Read("'a"));
+            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A"))), Read("''a"));
+            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), new LispList(new LispInteger(1))), Read("'(1)"));
+        }
+
+        [Fact]
         public void SourceLocations()
         {
             var list = (LispList)Read(" ( a b c ( 1 2 3 ) ) ");
