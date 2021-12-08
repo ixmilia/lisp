@@ -166,5 +166,33 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(1, innerListValues[2].SourceLocation?.Line);
             Assert.Equal(16, innerListValues[2].SourceLocation?.Column);
         }
+
+        [Fact]
+        public void ParsedObjectsHaveParentsSet()
+        {
+            var rootList = Read(@"
+(defun test-function ()
+    (+ 1 2)
+    (* (- 3 4) (/ 5 6)))
+");
+            Assert.Null(rootList.Parent);
+
+            // check top level children
+            var children = rootList.GetChildren().ToList();
+            Assert.Equal(5, children.Count);
+            foreach (var child in children)
+            {
+                Assert.True(ReferenceEquals(child.Parent, rootList), $"child = [{child}]; child.Parent [{child.Parent}] != rootNode [{rootList}]");
+            }
+
+            // spot-check one level more
+            var multiplyExpression = children.Last();
+            var nextLevelChildren = multiplyExpression.GetChildren().ToList();
+            Assert.Equal(3, nextLevelChildren.Count);
+            foreach (var child in nextLevelChildren)
+            {
+                Assert.True(ReferenceEquals(child.Parent, multiplyExpression));
+            }
+        }
     }
 }

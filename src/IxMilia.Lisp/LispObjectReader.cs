@@ -230,6 +230,17 @@ namespace IxMilia.Lisp
                 result = LispList.FromEnumerable(items);
             }
 
+            // set parents
+            foreach (var item in items)
+            {
+                item.Parent = result;
+            }
+
+            foreach (var item in tailItems)
+            {
+                item.Parent = result;
+            }
+
             return result;
         }
 
