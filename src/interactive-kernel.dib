@@ -22,7 +22,7 @@ class LispKernel : Kernel, IKernelCommandHandler<SubmitCode>
 
     public Task HandleAsync(SubmitCode command, KernelInvocationContext context)
     {
-        var result = _repl.Eval(command.Code);
+        var result = _repl.Eval(command.Code, consumeIncompleteInput: false);
         if (result.ExecutionState.LastResult is { } lastResult)
         {
             var formatted = new FormattedValue("text/plain", lastResult.ToString());
