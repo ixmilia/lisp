@@ -406,6 +406,11 @@ namespace IxMilia.Lisp
                 }
             }
 
+            return ReadChar(inputStream, errorOnEof, eofValue, _isRecursive);
+        }
+
+        internal static LispObject ReadChar(LispStream inputStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        {
             var peeked = inputStream.Input.Peek();
             if (peeked == -1)
             {
@@ -463,9 +468,10 @@ namespace IxMilia.Lisp
                 }
             }
 
-            var reader = new LispObjectReader(host, inputStream, errorOnEof, eofValue, isRecursive);
+            var reader = new LispObjectReader(host, errorOnEof, eofValue, isRecursive);
+            reader.SetReaderStream(inputStream);
             var result = reader.Read();
-            return result;
+            return result.LastResult;
         }
 
         [LispMacro("WITH-OPEN-FILE")]
@@ -858,7 +864,8 @@ namespace IxMilia.Lisp
                 var a1Raw = args[i];
                 var a2 = args[i + 1];
 
-                var a1 = host.Eval(a1Raw).LastResult;
+                var evalResult = host.Eval(a1Raw);
+                var a1 = evalResult.LastResult;
 
                 // lastResult = (append a1 a2)
                 var simulatedFunctionCall1 = LispList.FromItems(new LispSymbol("APPEND"), LispList.FromItems(new LispSymbol("QUOTE"), a1), a2);

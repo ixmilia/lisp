@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using IxMilia.Lisp.Parser;
-using IxMilia.Lisp.Tokens;
+using System.Text;
 
 namespace IxMilia.Lisp
 {
@@ -845,7 +844,31 @@ namespace IxMilia.Lisp
 
         public override string ToString()
         {
-            return LispStringToken.ToRoundTrippable(Value);
+            var sb = new StringBuilder();
+            sb.Append('"');
+            foreach (var c in Value)
+            {
+                switch (c)
+                {
+                    case '"':
+                    case '\\':
+                        sb.Append('\\');
+                        sb.Append(c);
+                        break;
+                    case '\n':
+                        sb.Append("\\n");
+                        break;
+                    case '\t':
+                        sb.Append("\\t");
+                        break;
+                    default:
+                        sb.Append(c);
+                        break;
+                }
+            }
+
+            sb.Append('"');
+            return sb.ToString();
         }
 
         public static bool operator ==(LispString a, LispString b)
@@ -1505,39 +1528,6 @@ namespace IxMilia.Lisp
             Name = name;
             Input = input;
             Output = output;
-        }
-
-        public LispObject ReadObject(LispObject eofMarker = null)
-        {
-            eofMarker = eofMarker ?? new LispError("EOF");
-            var input = Input.ReadLine();
-            if (input is null)
-            {
-                return eofMarker;
-            }
-
-            var tokenizer = new LispTokenizer(Name, input);
-            var tokens = tokenizer.GetTokens();
-            var parser = new LispParser();
-            parser.AddTokens(tokens);
-            var result = parser.Parse();
-            if (result.RemainingTokens.Any())
-            {
-                return new LispError("Incomplete expression");
-            }
-
-            var nodes = result.Nodes.ToList();
-            if (nodes.Count == 0)
-            {
-                return eofMarker;
-            }
-
-            if (nodes.Count > 1)
-            {
-                return new LispError("More than one expression read");
-            }
-
-            return nodes[0];
         }
 
         public override IEnumerable<LispObject> GetChildren()

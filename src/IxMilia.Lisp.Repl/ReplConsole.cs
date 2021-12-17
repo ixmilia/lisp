@@ -38,7 +38,7 @@ namespace IxMilia.Lisp.Repl
             while ((line = Input.ReadLine()) != "#quit")
             {
                 var result = EvalAndPrint(line);
-                while (!result.ExecutionState.IsExecutionComplete && !(result.ExecutionState.LastResult is LispError))
+                while (!result.ExecutionState.IsExecutionComplete && !(result.LastResult is LispError))
                 {
                     _repl.Eval(result.ExecutionState);
                 }
@@ -47,12 +47,12 @@ namespace IxMilia.Lisp.Repl
             }
         }
 
-        private LispReplResult EvalAndPrint(string line)
+        private LispReplResult EvalAndPrint(string line, bool consumeIncompleteInput = true)
         {
-            var result = _repl.Eval(line);
-            if (result.ExecutionState.LastResult != null)
+            var result = _repl.Eval(line, consumeIncompleteInput);
+            if (result.LastResult != null)
             {
-                Output.WriteLine(result.ExecutionState.LastResult.ToString());
+                Output.WriteLine(result.LastResult.ToString());
             }
 
             return result;
@@ -81,7 +81,7 @@ namespace IxMilia.Lisp.Repl
                         inDebug = false;
                         break;
                     default:
-                        EvalAndPrint(line);
+                        EvalAndPrint(line, consumeIncompleteInput: false);
                         break;
                 }
             }

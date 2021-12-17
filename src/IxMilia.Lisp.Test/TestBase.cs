@@ -9,11 +9,11 @@ namespace IxMilia.Lisp.Test
         protected static LispObject Eval(string code)
         {
             var host = new LispHost();
-            var executionState = host.Eval(code);
-            var result = executionState.LastResult;
+            var evalResult = host.Eval(code);
+            var result = evalResult.LastResult;
             Assert.NotNull(result);
             EnsureNotError(result);
-            Assert.True(executionState.IsExecutionComplete);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
             return result;
         }
 

@@ -2,18 +2,16 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using IxMilia.Lisp.Parser;
-using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
 {
     public class LispRepl
     {
         private string _location;
-        private LispParser _parser;
         private TextReader _input;
         private TextWriter _output;
         private TextWriter _traceWriter;
+        private string _incompleteInput;
 
         internal LispHost Host { get; }
 
@@ -28,7 +26,6 @@ namespace IxMilia.Lisp
             Host = new LispHost(_location, _input, _output, useTailCalls);
             Host.RootFrame.FunctionEntered += FunctionEntered;
             Host.RootFrame.FunctionReturned += FunctionReturned;
-            _parser = new LispParser(errorOnIncompleteExpressions: false);
 
             var replContext = new LispReplDefaultContext(this);
             Host.AddContextObject(replContext);
@@ -63,19 +60,21 @@ namespace IxMilia.Lisp
             _traceWriter.Flush();
         }
 
-        public LispReplResult Eval(string code)
+        public LispReplResult Eval(string code, bool consumeIncompleteInput = true)
         {
-            var tokenizer = new LispTokenizer(_location, code);
-            var tokens = tokenizer.GetTokens();
-            _parser.AddTokens(tokens);
-            var result = _parser.Parse();
-            var executionState = Host.Eval(result.Nodes);
-            return new LispReplResult(executionState, result.ParseDepth);
+            var unconsumedCode = consumeIncompleteInput && !string.IsNullOrEmpty(_incompleteInput)
+                ? string.Concat(_incompleteInput, Environment.NewLine)
+                : null;
+            var fullCode = string.Concat(unconsumedCode, code);
+            var evalResult = Host.Eval(fullCode);
+            _incompleteInput = evalResult.IncompleteInput;
+            var replResult = new LispReplResult(evalResult.ExecutionState, evalResult.ExpressionDepth);
+            return replResult;
         }
 
         internal void Eval(LispExecutionState executionState)
         {
-            Host.Run(executionState);
+            Host.EvalContinue(executionState);
         }
 
         internal LispObject Trace(LispObject[] args)

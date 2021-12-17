@@ -17,6 +17,7 @@ namespace IxMilia.Lisp
         private int _line = 1;
         private int _column = 1;
         private int _leftParenCount = 0;
+        private StringBuilder _incompleteInput = null;
 
         private static List<Tuple<Regex, Func<Match, LispObject>>> RegexMatchers = new List<Tuple<Regex, Func<Match, LispObject>>>();
         private static Regex ListForwardReferenceRegex = new Regex(@"^#(\d+)=$", RegexOptions.Compiled);
@@ -46,125 +47,200 @@ namespace IxMilia.Lisp
             }));
         }
 
-        public LispObjectReader(LispHost host, LispStream input, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        public LispObjectReader(LispHost host, bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             _host = host;
-            _input = input;
             _errorOnEof = errorOnEof;
             _eofValue = eofValue;
             _isRecursive = isRecursive;
+        }
+
+        public void SetReaderStream(LispStream input)
+        {
+            _input = input;
+            _line = 1;
+            _column = 1;
+            _leftParenCount = 0;
             Advance();
         }
 
-        public LispObject Read()
+        public LispObjectReaderResult Read()
         {
-            ConsumeTrivia();
-            if (!TryPeek(out var next))
+            var isRootInvocation = false;
+            if (_incompleteInput is null)
             {
-                if (_errorOnEof)
-                {
-                    return new LispError("EOF");
-                }
-
-                return _eofValue;
-            }
-
-            if (!(next is LispCharacter lc))
-            {
-                return new LispError("Expected a character");
+                isRootInvocation = true;
+                _incompleteInput = new StringBuilder();
             }
 
             LispObject result = null;
-            var c = lc.Value;
-            if (IsTrivia(c))
+            ConsumeTrivia();
+            if (!TryPeek(out var next))
             {
-                ConsumeTrivia();
+                result = _errorOnEof ? new LispError("EOF") : _eofValue;
             }
-            else if (IsLeftParen(c))
+            else if (!(next is LispCharacter lc))
             {
-                result = ReadList();
-            }
-            else if (IsSingleQuote(c))
-            {
-                Advance();
-                var innerObject = Read();
-                result = LispList.FromItems(new LispSymbol("QUOTE"), innerObject);
-            }
-            else if (IsDoubleQuote(c))
-            {
-                Advance();
-                result = ReadString();
+                result = new LispError("Expected a character");
             }
             else
             {
-                var text = ReadUntilTriviaOrListMarker();
-                if (text.StartsWith(":"))
+                var c = lc.Value;
+                if (isRootInvocation && _incompleteInput.Length == 0)
                 {
-                    result = new LispKeyword(text.ToUpperInvariant());
+                    // don't lose the first character
+                    _incompleteInput.Append(c);
                 }
-                else if (text.StartsWith("&"))
+
+                if (IsTrivia(c))
                 {
-                    result = new LispLambdaListKeyword(text.ToUpperInvariant());
+                    ConsumeTrivia();
                 }
-                else if (text.StartsWith("#'"))
+                else if (IsLeftParen(c))
                 {
-                    result = new LispQuotedNamedFunctionReference(text.Substring(2).ToUpperInvariant());
+                    result = ReadList();
                 }
-                else if (text.StartsWith(@"#\"))
+                else if (IsSingleQuote(c))
                 {
-                    result = TryAssignCharacter(text.Substring(2));
-                }
-                else if (ListForwardReferenceRegex.IsMatch(text))
-                {
-                    var candidateInnerList = Read();
-                    if (candidateInnerList is LispList innerList)
+                    Advance();
+                    var innerResult = Read();
+                    if (innerResult.LastResult is LispError)
                     {
-                        var symbolReference = text.Substring(0, text.Length - 1).ToUpperInvariant() + "#";
-                        result = new LispForwardListReference(symbolReference, innerList);
+                        result = innerResult.LastResult;
                     }
                     else
                     {
-                        result = new LispError("Expected list");
+                        result = LispList.FromItems(new LispSymbol("QUOTE"), innerResult.LastResult);
                     }
+                }
+                else if (IsDoubleQuote(c))
+                {
+                    Advance();
+                    result = ReadString();
                 }
                 else
                 {
-                    var foundRegex = false;
-                    foreach (var regexPair in RegexMatchers)
+                    var text = ReadUntilTriviaOrListMarker();
+                    if (text.StartsWith(":"))
                     {
-                        var regex = regexPair.Item1;
-                        var creator = regexPair.Item2;
-                        var collection = regex.Matches(text);
-                        if (collection.Count >= 1)
-                        {
-                            var match = collection[0];
-                            result = creator(match);
-                            foundRegex = true;
-                            break;
-                        }
+                        result = new LispKeyword(text.ToUpperInvariant());
                     }
-
-                    if (!foundRegex)
+                    else if (text.StartsWith("&"))
                     {
-                        if (!IsRightParen(lc.Value))
+                        result = new LispLambdaListKeyword(text.ToUpperInvariant());
+                    }
+                    else if (text.StartsWith("#'"))
+                    {
+                        if (text == "#'")
                         {
-                            result = new LispSymbol(text.ToUpperInvariant());
+                            // looks like a lambda
+                            var lambdaReadResult = Read();
+                            var lambdaCandidate = lambdaReadResult.LastResult;
+                            if (lambdaCandidate is LispList lambdaList &&
+                                lambdaList.Value is LispSymbol lambdaSymbol &&
+                                lambdaSymbol.Value == "LAMBDA")
+                            {
+                                var lambdaName = $"(LAMBDA-{lambdaList.SourceLocation?.Line}-{lambdaList.SourceLocation?.Column})"; // surrounded by parens to make it un-utterable
+                                var lambdaItems = new List<LispObject>();
+                                lambdaItems.Add(new LispSymbol(lambdaName));
+                                lambdaItems.AddRange(lambdaList.ToList().Skip(1));
+
+                                if (!LispDefaultContext.TryGetCodeFunctionFromItems(lambdaItems.ToArray(), out var lambdaFunction, out var error))
+                                {
+                                    result = error;
+                                }
+                                else
+                                {
+                                    result = new LispQuotedLambdaFunctionReference(lambdaFunction);
+                                }
+                            }
+                            else if (lambdaCandidate is LispError)
+                            {
+                                // propagate the error
+                                result = lambdaCandidate;
+                            }
+                            else
+                            {
+                                // not sure what it is
+                                result = new LispError($"Unexpected object '{lambdaCandidate}' at location ({lambdaCandidate.SourceLocation?.Line}, {lambdaCandidate.SourceLocation?.Column})");
+                            }
                         }
                         else
                         {
-                            result = new LispError($"Unexpected character '{c}' at position ({lc.SourceLocation?.Line}, {lc.SourceLocation?.Column})");
+                            // probably a named function reference
+                            result = new LispQuotedNamedFunctionReference(text.Substring(2).ToUpperInvariant());
+                        }
+                    }
+                    else if (text.StartsWith(@"#\"))
+                    {
+                        result = TryAssignCharacter(text.Substring(2));
+                    }
+                    else if (ListForwardReferenceRegex.IsMatch(text))
+                    {
+                        var candidateInnerListReaderResult = Read();
+                        var candidateInnerList = candidateInnerListReaderResult.LastResult;
+                        if (candidateInnerList is LispList innerList)
+                        {
+                            var symbolReference = text.Substring(0, text.Length - 1).ToUpperInvariant() + "#";
+                            result = new LispForwardListReference(symbolReference, innerList);
+                        }
+                        else if (candidateInnerList is LispError)
+                        {
+                            result = candidateInnerList;
+                        }
+                        else
+                        {
+                            result = new LispError("Expected list");
+                        }
+                    }
+                    else
+                    {
+                        var foundRegex = false;
+                        foreach (var regexPair in RegexMatchers)
+                        {
+                            var regex = regexPair.Item1;
+                            var creator = regexPair.Item2;
+                            var collection = regex.Matches(text);
+                            if (collection.Count >= 1)
+                            {
+                                var match = collection[0];
+                                result = creator(match);
+                                foundRegex = true;
+                                break;
+                            }
+                        }
+
+                        if (!foundRegex)
+                        {
+                            if (!IsRightParen(lc.Value))
+                            {
+                                result = new LispSymbol(text.ToUpperInvariant());
+                            }
+                            else
+                            {
+                                result = new LispError($"Unexpected character '{c}' at position ({lc.SourceLocation?.Line}, {lc.SourceLocation?.Column})");
+                            }
                         }
                     }
                 }
             }
 
             if (result is object &&
-                result.SourceLocation == null)
+                result.SourceLocation == null &&
+                next is object)
             {
                 result.SourceLocation = next.SourceLocation;
             }
 
-            return result;
+            var incompleteInput = result is LispError
+                ? _incompleteInput.ToString()
+                : null;
+            if (isRootInvocation)
+            {
+                _incompleteInput = null;
+            }
+
+            return new LispObjectReaderResult(result, incompleteInput, _leftParenCount);
         }
 
         private LispObject ReadList()
@@ -210,7 +286,13 @@ namespace IxMilia.Lisp
                     dotLocation = lc.SourceLocation;
                 }
 
-                var nextItem = Read();
+                var nextItemResult = Read();
+                var nextItem = nextItemResult.LastResult;
+                if (nextItem is LispError)
+                {
+                    return nextItem;
+                }
+
                 if (!dotLocation.HasValue)
                 {
                     items.Add(nextItem);
@@ -246,7 +328,14 @@ namespace IxMilia.Lisp
             else
             {
                 // proper list
-                result = LispList.FromEnumerable(items);
+                if (items.Any())
+                {
+                    result = LispList.FromEnumerable(items);
+                }
+                else
+                {
+                    result = LispNilList.CreateForParser();
+                }
             }
 
             // set parents
@@ -350,16 +439,15 @@ namespace IxMilia.Lisp
 
         private void Advance()
         {
-            var executionState = _host.Eval(LispList.FromItems(
-                new LispSymbol("READ-CHAR"),
-                _input, // input-stream
-                _errorOnEof ? _host.T : _host.Nil, // eof-error-p
-                _eofValue, // eof-value
-                _host.T // recursive-p
-            ));
-            _nextValue = executionState.LastResult;
+            var result = LispDefaultContext.ReadChar(_input, _errorOnEof, _eofValue, isRecursive: true);
+            _nextValue = result;
             _nextValue.SourceLocation = new LispSourceLocation(_input.Name, _line, _column);
             _column++;
+
+            if (_nextValue is LispCharacter lc)
+            {
+                _incompleteInput?.Append(lc.Value);
+            }
         }
 
         private static bool IsNewlineLike(char c)
@@ -489,23 +577,13 @@ namespace IxMilia.Lisp
 
         private void ConsumeNewlineTrivia()
         {
-            if (!TryPeek(out var c) || !IsNewlineLike(c.Value))
+            while (TryPeek(out var c)
+                && IsNewlineLike(c.Value))
             {
-                return;
+                _line++;
+                _column = 1;
+                Advance();
             }
-
-            Advance();
-            if (c.Value != '\n')
-            {
-                // maybe consume one more character
-                if (TryPeek(out c) && c.Value == '\n')
-                {
-                    Advance();
-                }
-            }
-
-            _line++;
-            _column = 1;
         }
 
         private void ConsumeCommentTrivia()

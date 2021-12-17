@@ -11,15 +11,15 @@ namespace IxMilia.Lisp.Test
         {
             var repl = new LispRepl();
             var result = repl.Eval("(+ (+ 1 2) (+ 3 4");
-            Assert.Null(result.ExecutionState.LastResult);
+            Assert.Null(result.LastResult);
             Assert.Equal(2, result.ExpressionDepth);
 
             result = repl.Eval(")");
-            Assert.Null(result.ExecutionState.LastResult);
+            Assert.Null(result.LastResult);
             Assert.Equal(1, result.ExpressionDepth);
 
             result = repl.Eval(")");
-            Assert.Equal(new LispInteger(10), result.ExecutionState.LastResult);
+            Assert.Equal(new LispInteger(10), result.LastResult);
             Assert.Equal(0, result.ExpressionDepth);
         }
 
@@ -28,11 +28,11 @@ namespace IxMilia.Lisp.Test
         {
             var repl = new LispRepl();
             var result = repl.Eval("(+ 1 2)(+ 5 6");
-            Assert.Equal(new LispInteger(3), result.ExecutionState.LastResult);
+            Assert.Equal(new LispInteger(3), result.LastResult);
             Assert.Equal(1, result.ExpressionDepth);
 
             result = repl.Eval(")");
-            Assert.Equal(new LispInteger(11), result.ExecutionState.LastResult);
+            Assert.Equal(new LispInteger(11), result.LastResult);
             Assert.Equal(0, result.ExpressionDepth);
         }
 
@@ -41,7 +41,7 @@ namespace IxMilia.Lisp.Test
         {
             var repl = new LispRepl();
             var result = repl.Eval("(+ 1 abcd)(+ 2 3)");
-            var error = (LispError)result.ExecutionState.LastResult;
+            var error = (LispError)result.LastResult;
             Assert.Equal("Symbol 'ABCD' not found", error.Message);
             Assert.Equal(1, error.SourceLocation?.Line);
             Assert.Equal(6, error.SourceLocation?.Column);

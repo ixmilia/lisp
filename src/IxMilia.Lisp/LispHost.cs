@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using IxMilia.Lisp.Parser;
-using IxMilia.Lisp.Tokens;
 
 namespace IxMilia.Lisp
 {
@@ -18,6 +15,8 @@ namespace IxMilia.Lisp
         private const string TerminalIOString = "*TERMINAL-IO*";
 
         private string _initialFilePath;
+        private LispObjectReader _objectReader;
+        private LispObject _eofMarker = new LispSymbol("(EOF)");
         public readonly LispRootStackFrame RootFrame;
 
         public bool UseTailCalls { get; }
@@ -25,7 +24,7 @@ namespace IxMilia.Lisp
         public LispObject Nil { get; }
         public LispStream TerminalIO { get; }
 
-        public LispHost(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false)
+        public LispHost(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false, bool useInitScript = true)
         {
             _initialFilePath = filePath;
             RootFrame = new LispRootStackFrame(input ?? TextReader.Null, output ?? TextWriter.Null);
@@ -35,7 +34,14 @@ namespace IxMilia.Lisp
             TerminalIO = RootFrame.TerminalIO;
             AddContextObject(new LispSpecialOperatorsContext());
             AddContextObject(new LispDefaultContext());
-            ApplyInitScript();
+
+            var nullStream = new LispStream("<null>", TextReader.Null, TextWriter.Null);
+            _objectReader = new LispObjectReader(this, false, _eofMarker, false);
+            _objectReader.SetReaderStream(nullStream);
+            if (useInitScript)
+            {
+                ApplyInitScript();
+            }
         }
 
         public void AddSpecialOperator(string name, LispSpecialOperatorDelegate del)
@@ -144,16 +150,11 @@ namespace IxMilia.Lisp
             using (var reader = new StreamReader(initStream))
             {
                 var content = reader.ReadToEnd();
-                var executionState = Eval("init.lisp", content);
-                if (executionState.LastResult != T)
+                var evalResult = Eval("init.lisp", content);
+                if (evalResult.ExecutionState?.LastResult != T)
                 {
-                    throw new Exception($"Expected 'T' but found '{executionState.LastResult}' at ({executionState.LastResult.SourceLocation?.Line}, {executionState.LastResult.SourceLocation?.Column}).");
+                    throw new Exception($"Expected 'T' but found '{evalResult.ExecutionState?.LastResult}' at ({evalResult.ExecutionState?.LastResult.SourceLocation?.Line}, {evalResult.ExecutionState?.LastResult.SourceLocation?.Column}).");
                 }
-
-                //RootFrame.UpdateCallStackLocation(new LispInteger(0)
-                //{
-                //    SourceLocation = new LispSourceLocation(_initialFilePath, RootFrame.SourceLocation?.Line ?? 0, RootFrame.SourceLocation?.Column ?? 0)
-                //});
             }
         }
 
@@ -184,70 +185,82 @@ namespace IxMilia.Lisp
             return RootFrame.GetValue<TObject>(name);
         }
 
-        public IEnumerable<LispObject> Parse(string code)
-        {
-            return Parse(_initialFilePath, code);
-        }
-
-        public IEnumerable<LispObject> Parse(string filePath, string code)
-        {
-            var tokenizer = new LispTokenizer(filePath, code);
-            var tokens = tokenizer.GetTokens();
-            var parser = new LispParser(tokens);
-            var nodes = parser.Parse().Nodes;
-            return nodes;
-        }
-
-        public LispExecutionState CreateExecutionState(string code)
-        {
-            return CreateExecutionState(_initialFilePath, code);
-        }
-
-        public LispExecutionState CreateExecutionState(string filePath, string code)
-        {
-            var nodes = Parse(filePath, code);
-            return CreateExecutionState(nodes);
-        }
-
-        public LispExecutionState CreateExecutionState(IEnumerable<LispObject> nodes)
-        {
-            return LispExecutionState.CreateExecutionState(RootFrame, nodes, UseTailCalls, allowHalting: true, createDribbleInstructions: true);
-        }
-
-        public LispExecutionState Eval(string code)
+        public LispEvalResult Eval(string code)
         {
             return Eval(_initialFilePath, code);
         }
 
-        public LispExecutionState Eval(string filePath, string code)
+        public LispEvalResult Eval(string filePath, string code)
         {
-            var nodes = Parse(filePath, code);
-            return Eval(nodes);
+            var executionState = LispExecutionState.CreateExecutionState(RootFrame, filePath, code, UseTailCalls, allowHalting: true);
+            _objectReader.SetReaderStream(executionState.CodeInputStream);
+            return EvalContinue(executionState);
         }
 
-        public LispExecutionState Eval(LispObject obj)
+        public LispEvalResult Eval(LispObject obj)
         {
-            return Eval(new LispObject[] { obj });
+            var executionState = LispExecutionState.CreateExecutionState(RootFrame, "TODO: input name", obj, UseTailCalls, allowHalting: true, createDribbleInstructions: true);
+            return EvalContinue(executionState);
         }
 
-        public LispExecutionState Eval(IEnumerable<LispObject> nodes)
+        public LispEvalResult EvalContinue(LispExecutionState executionState)
         {
-            var executionState = CreateExecutionState(nodes);
-            Run(executionState);
-            return executionState;
+            var evalResult = new LispEvalResult(executionState);
+
+            var evaluationState = RunQueuedOperations(executionState);
+            if (evaluationState != LispEvaluationState.Complete ||
+                (executionState.LastResult is object && executionState.IsExecutionComplete))
+            {
+                return evalResult;
+            }
+
+            var readerResult = ReadWithoutDribbleStream();
+            while (!ReferenceEquals(readerResult.LastResult, _eofMarker))
+            {
+                evalResult.ExpressionDepth = readerResult.ExpressionDepth;
+                evalResult.IncompleteInput = readerResult.IncompleteInput;
+                if (readerResult.LastResult is LispError readError)
+                {
+                    evalResult.ReadError = readError;
+                    break;
+                }
+
+                executionState.TryPopArgument(out var _discard); // when evaluating multiple expressions, discard all but the last
+                executionState.InsertObjectOperations(readerResult.LastResult, createDribbleInstructions: true);
+                evaluationState = RunQueuedOperations(executionState);
+                if (evaluationState != LispEvaluationState.Complete ||
+                    evalResult.LastResult is LispError)
+                {
+                    break;
+                }
+
+                readerResult = ReadWithoutDribbleStream();
+            }
+
+            return evalResult;
+        }
+
+        private LispEvaluationState RunQueuedOperations(LispExecutionState executionState)
+        {
+            var evaluationState = LispEvaluator.Evaluate(this, executionState);
+            RootFrame.OnHalted(evaluationState);
+            return evaluationState;
+        }
+
+        private LispObjectReaderResult ReadWithoutDribbleStream()
+        {
+            var dribbleStream = RootFrame.DribbleStream;
+            RootFrame.DribbleStream = null;
+            var obj = _objectReader.Read();
+            RootFrame.DribbleStream = dribbleStream;
+            return obj;
         }
 
         public LispObject EvalAtStackFrame(LispStackFrame frame, LispObject obj)
         {
-            var executionState = LispExecutionState.CreateExecutionState(frame, new[] { obj }, useTailCalls: false, allowHalting: false, createDribbleInstructions: false);
-            LispEvaluator.Evaluate(this, executionState);
-            return executionState.LastResult;
-        }
-
-        public void Run(LispExecutionState executionState)
-        {
-            var evaluationState = LispEvaluator.Evaluate(this, executionState);
-            RootFrame.OnHalted(evaluationState);
+            var executionState = LispExecutionState.CreateExecutionState(frame, "TODO: input name", obj, useTailCalls: false, allowHalting: false, createDribbleInstructions: false);
+            var evalResult = EvalContinue(executionState);
+            return evalResult.LastResult;
         }
 
         public void StepOver(LispExecutionState executionState)
@@ -287,7 +300,7 @@ namespace IxMilia.Lisp
             RootFrame.FunctionEntered += functionEnterEventHandler;
             RootFrame.FunctionReturned += functionExitedEventHandler;
             RootFrame.EvaluatingExpression += expressionHalter;
-            Run(executionState);
+            EvalContinue(executionState);
             RootFrame.EvaluatingExpression -= expressionHalter;
             RootFrame.FunctionReturned -= functionExitedEventHandler;
             RootFrame.FunctionEntered -= functionEnterEventHandler;
@@ -326,7 +339,7 @@ namespace IxMilia.Lisp
             });
             RootFrame.FunctionEntered += functionEnterHandler;
             RootFrame.FunctionReturned += functionExitHalter;
-            Run(executionState);
+            EvalContinue(executionState);
             RootFrame.FunctionReturned -= functionExitHalter;
             RootFrame.FunctionEntered -= functionEnterHandler;
 
@@ -350,7 +363,7 @@ namespace IxMilia.Lisp
                 }
             });
             RootFrame.EvaluatingExpression += nextExpressionHalter;
-            Run(executionState);
+            EvalContinue(executionState);
             RootFrame.EvaluatingExpression -= nextExpressionHalter;
         }
     }

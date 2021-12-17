@@ -15,18 +15,18 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun inner-function ()
     42)
 (defun outer-function ()
     (inner-function))
 (outer-function)
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Null(executionState.LastResult);
-            host.Run(executionState);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(42, ((LispInteger)executionState.LastResult).Value);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Null(evalResult.LastResult);
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(42, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -48,7 +48,7 @@ namespace IxMilia.Lisp.Test
                     capturedReturnValue = e.ReturnValue;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun inner-function ()
     42)
 (defun outer-function ()
@@ -56,13 +56,13 @@ namespace IxMilia.Lisp.Test
     (sentinel))
 (outer-function)
 ");
-            Assert.False(executionState.IsExecutionComplete);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
             Assert.Equal(42, ((LispInteger)capturedReturnValue).Value);
-            Assert.Equal(42, ((LispInteger)executionState.LastResult).Value);
+            Assert.Equal(42, ((LispInteger)evalResult.LastResult).Value);
             Assert.False(sentinelHit);
-            host.Run(executionState);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(54, ((LispInteger)executionState.LastResult).Value);
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(54, ((LispInteger)evalResult.LastResult).Value);
             Assert.True(sentinelHit);
         }
 
@@ -81,16 +81,16 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (fourty-two)
 (+ 1 2)
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: 42", executionState.PeekOperation().ToString());
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: 42", evalResult.ExecutionState.PeekOperation().ToString());
 
-            host.Run(executionState);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(3, ((LispInteger)executionState.LastResult).Value);
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -115,7 +115,7 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun inner-function ()
     (+ 40 2))
 (defun outer-function ()
@@ -124,12 +124,12 @@ namespace IxMilia.Lisp.Test
 (outer-function)
 ");
             Assert.True(hitBreakpoint);
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Null(executionState.LastResult);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Null(evalResult.LastResult);
             Assert.False(sentinelHit);
-            host.Run(executionState);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(54, ((LispInteger)executionState.LastResult).Value);
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(54, ((LispInteger)evalResult.LastResult).Value);
             Assert.True(sentinelHit);
         }
 
@@ -146,14 +146,14 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (+ (* 2 3) (/ 12 4))
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal(2, ((LispInteger)executionState.LastResult).Value);
-            host.Run(executionState);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(9, ((LispInteger)executionState.LastResult).Value);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(2, ((LispInteger)evalResult.LastResult).Value);
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(9, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -169,14 +169,14 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (+ (* 2 3) (/ 10 2))
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal(6, ((LispInteger)executionState.LastResult).Value);
-            host.Run(executionState);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(11, ((LispInteger)executionState.LastResult).Value);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(6, ((LispInteger)evalResult.LastResult).Value);
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(11, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -194,15 +194,15 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (+ (* 2 2) (* 3 3))
 ");
             Assert.True(hitBreakpoint);
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Null(executionState.LastResult);
-            host.Run(executionState);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(13, ((LispInteger)executionState.LastResult).Value);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Null(evalResult.LastResult);
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(13, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -225,10 +225,10 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true; // this should not be honored
                 }
             };
-            var executionState = host.Eval("(native-function)");
+            var evalResult = host.Eval("(native-function)");
             Assert.True(hitBreakpoint);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(4, ((LispInteger)executionState.LastResult).Value);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(4, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -251,10 +251,10 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true; // this should not be honored
                 }
             };
-            var executionState = host.Eval("(native-function)");
+            var evalResult = host.Eval("(native-function)");
             Assert.True(hitBreakpoint);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(4, ((LispInteger)executionState.LastResult).Value);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(4, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -270,15 +270,15 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (+ 1 2)
 (setf the-answer (+ 40 2))
 (+ the-answer 2)
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            host.Run(executionState);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(44, ((LispInteger)executionState.LastResult).Value);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(44, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -290,20 +290,20 @@ namespace IxMilia.Lisp.Test
             {
                 capturedError = e.Error;
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun test-method ()
     (error ""test error""))
 (test-method)
 ");
             // errors _always_ halt execution
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("test error", ((LispError)executionState.LastResult).Message);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("test error", ((LispError)evalResult.LastResult).Message);
             Assert.Equal("test error", capturedError.Message);
-            Assert.True(ReferenceEquals(capturedError, executionState.LastResult));
+            Assert.True(ReferenceEquals(capturedError, evalResult.LastResult));
 
             // all future processing stops
-            host.Run(executionState);
-            Assert.False(executionState.IsExecutionComplete);
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
         }
 
         [Fact]
@@ -315,20 +315,20 @@ namespace IxMilia.Lisp.Test
             {
                 capturedError = e.Error;
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun test-method ()
     (not-a-method))
 (test-method)
 ");
             // errors _always_ halt execution
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("Undefined macro/function 'NOT-A-METHOD', found '<null>'", ((LispError)executionState.LastResult).Message);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("Undefined macro/function 'NOT-A-METHOD', found '<null>'", ((LispError)evalResult.LastResult).Message);
             Assert.Equal("Undefined macro/function 'NOT-A-METHOD', found '<null>'", capturedError.Message);
-            Assert.True(ReferenceEquals(capturedError, executionState.LastResult));
+            Assert.True(ReferenceEquals(capturedError, evalResult.LastResult));
 
             // all future processing stops
-            host.Run(executionState);
-            Assert.False(executionState.IsExecutionComplete);
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
         }
 
         [Theory]
@@ -346,7 +346,7 @@ namespace IxMilia.Lisp.Test
                     hasHalted = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun test-method ()
     (+ 1 1)
     (+ 2 (- 5 3)) ; initial halt here
@@ -354,20 +354,20 @@ namespace IxMilia.Lisp.Test
 (test-method)
 (+ 4 4)
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 2 (- 5 3))", executionState.PeekOperation().ToString());
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: (+ 2 (- 5 3))", evalResult.ExecutionState.PeekOperation().ToString());
 
-            host.StepOver(executionState);
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 3 3)", executionState.PeekOperation().ToString());
+            host.StepOver(evalResult.ExecutionState);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: (+ 3 3)", evalResult.ExecutionState.PeekOperation().ToString());
 
-            host.StepOver(executionState); // end of function, this was really a step out
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 4 4)", executionState.PeekOperation().ToString());
+            host.StepOver(evalResult.ExecutionState); // end of function, this was really a step out
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: (+ 4 4)", evalResult.ExecutionState.PeekOperation().ToString());
 
-            host.StepOver(executionState); // execution complete; this was the last operation
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(8, ((LispInteger)executionState.LastResult).Value);
+            host.StepOver(evalResult.ExecutionState); // execution complete; this was the last operation
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(8, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -381,23 +381,23 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun test-method ()
     (+ 1 2))
 (test-method)
 (+ 4 5)
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal(3, ((LispInteger)executionState.LastResult).Value);
-            Assert.Null(executionState.PeekCurrentExpression());
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)evalResult.LastResult).Value);
+            Assert.Null(evalResult.ExecutionState.PeekCurrentExpression());
 
-            host.StepOver(executionState); // nothing to step over; it's really a step out
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 4 5)", executionState.PeekOperation().ToString());
+            host.StepOver(evalResult.ExecutionState); // nothing to step over; it's really a step out
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: (+ 4 5)", evalResult.ExecutionState.PeekOperation().ToString());
 
-            host.Run(executionState);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(9, ((LispInteger)executionState.LastResult).Value); ;
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(9, ((LispInteger)evalResult.LastResult).Value); ;
         }
 
         [Theory]
@@ -419,22 +419,22 @@ namespace IxMilia.Lisp.Test
                     hasHalted = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun test-method ()
     (native-function)
     (+ 1 1))
 (test-method) ; initial halt here
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (TEST-METHOD)", executionState.PeekOperation().ToString());
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: (TEST-METHOD)", evalResult.ExecutionState.PeekOperation().ToString());
 
-            host.StepIn(executionState);
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (NATIVE-FUNCTION)", executionState.PeekOperation().ToString());
+            host.StepIn(evalResult.ExecutionState);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: (NATIVE-FUNCTION)", evalResult.ExecutionState.PeekOperation().ToString());
 
-            host.StepIn(executionState); // can't step in to a native function; this is really a step over
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 1 1)", executionState.PeekOperation().ToString());
+            host.StepIn(evalResult.ExecutionState); // can't step in to a native function; this is really a step over
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: (+ 1 1)", evalResult.ExecutionState.PeekOperation().ToString());
         }
 
         [Fact]
@@ -448,23 +448,23 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun test-method ()
     (+ 1 2))
 (test-method)
 (+ 4 5)
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal(3, ((LispInteger)executionState.LastResult).Value);
-            Assert.Null(executionState.PeekCurrentExpression());
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)evalResult.LastResult).Value);
+            Assert.Null(evalResult.ExecutionState.PeekCurrentExpression());
 
-            host.StepIn(executionState); // nothing to step in to, so it's really step out _then_ step in
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: 4", executionState.PeekOperation().ToString());
+            host.StepIn(evalResult.ExecutionState); // nothing to step in to, so it's really step out _then_ step in
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: 4", evalResult.ExecutionState.PeekOperation().ToString());
 
-            host.Run(executionState);
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(9, ((LispInteger)executionState.LastResult).Value); ;
+            host.EvalContinue(evalResult.ExecutionState);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(9, ((LispInteger)evalResult.LastResult).Value); ;
         }
 
         [Theory]
@@ -482,7 +482,7 @@ namespace IxMilia.Lisp.Test
                     hasHalted = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun test-method ()
     (+ 1 1) ; initial halt here
     (+ 2 2))
@@ -490,16 +490,16 @@ namespace IxMilia.Lisp.Test
 (+ 3 3)
 (+ 4 4)
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 1 1)", executionState.PeekOperation().ToString());
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: (+ 1 1)", evalResult.ExecutionState.PeekOperation().ToString());
 
-            host.StepOut(executionState);
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 3 3)", executionState.PeekOperation().ToString());
+            host.StepOut(evalResult.ExecutionState);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal("s: (+ 3 3)", evalResult.ExecutionState.PeekOperation().ToString());
 
-            host.StepOut(executionState); // can't step out at the root level; this was really a run to end
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(8, ((LispInteger)executionState.LastResult).Value);
+            host.StepOut(evalResult.ExecutionState); // can't step out at the root level; this was really a run to end
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(8, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -513,19 +513,19 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun test-method ()
     (+ 1 2))
 (test-method)
 (+ 4 5)
 ");
-            Assert.False(executionState.IsExecutionComplete);
-            Assert.Equal(3, ((LispInteger)executionState.LastResult).Value);
-            Assert.Null(executionState.PeekCurrentExpression());
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)evalResult.LastResult).Value);
+            Assert.Null(evalResult.ExecutionState.PeekCurrentExpression());
 
-            host.StepOut(executionState); // stepping out here steps out of everything
-            Assert.True(executionState.IsExecutionComplete);
-            Assert.Equal(9, ((LispInteger)executionState.LastResult).Value); ;
+            host.StepOut(evalResult.ExecutionState); // stepping out here steps out of everything
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.Equal(9, ((LispInteger)evalResult.LastResult).Value); ;
         }
     }
 }

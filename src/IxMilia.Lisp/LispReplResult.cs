@@ -5,6 +5,8 @@
         public LispExecutionState ExecutionState { get; }
         public int ExpressionDepth { get; }
 
+        public LispObject LastResult => ExecutionState?.LastResult;
+
         public LispReplResult(LispExecutionState executionState, int expressionDepth)
         {
             ExecutionState = executionState;

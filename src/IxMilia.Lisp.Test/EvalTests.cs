@@ -9,6 +9,15 @@ namespace IxMilia.Lisp.Test
     public class EvalTests : TestBase
     {
         [Fact]
+        public void SimpleEvalNoInit()
+        {
+            var host = new LispHost(useInitScript: false);
+            var result = host.Eval(@"(defmacro if (pred tv fv)
+    (cond (pred tv)
+          (t fv)))  (if (> 1 2) ""one"" ""two"")").LastResult;
+        }
+
+        [Fact]
         public void SingleItem()
         {
             var host = new LispHost();
@@ -126,12 +135,12 @@ namespace IxMilia.Lisp.Test
         public void ErrorPropagationFromCodeFunctionBody()
         {
             var host = new LispHost();
-            var executionState = host.Eval("test-file.lisp", @"
+            var evalResult = host.Eval("test-file.lisp", @"
 (defun inc (x)
     (add x 1))
 (inc 2)
 ");
-            var error = (LispError)executionState.LastResult;
+            var error = (LispError)evalResult.LastResult;
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
             Assert.Equal(3, error.SourceLocation.Value.Line);
             Assert.Equal(6, error.SourceLocation.Value.Column);
@@ -144,12 +153,12 @@ namespace IxMilia.Lisp.Test
         public void ErrorPropagationFromCodeFunctionArgument()
         {
             var host = new LispHost();
-            var executionState = host.Eval("test-file.lisp", @"
+            var evalResult = host.Eval("test-file.lisp", @"
 (defun inc (x)
     (add x 1))
 (inc two)
 ");
-            var error = (LispError)executionState.LastResult;
+            var error = (LispError)evalResult.LastResult;
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
             Assert.Equal(4, error.SourceLocation.Value.Line);
             Assert.Equal(6, error.SourceLocation.Value.Column);
@@ -162,13 +171,13 @@ namespace IxMilia.Lisp.Test
         public void ErrorPropagationFromMultipleExpressions()
         {
             var host = new LispHost();
-            var executionState = host.Eval("test-file.lisp", @"
+            var evalResult = host.Eval("test-file.lisp", @"
 (+ 1 1)
 (* 2 2)
 (+ one 2)
 (+ 3 3)
 ");
-            var error = (LispError)executionState.LastResult;
+            var error = (LispError)evalResult.LastResult;
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
             Assert.Equal(4, error.SourceLocation.Value.Line);
             Assert.Equal(4, error.SourceLocation.Value.Column);
@@ -542,15 +551,15 @@ returned from AVERAGE with 5
         public void LabelsRecursivelyCalled()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (labels ((fact (n acc)
             (if (<= n 0)
                 acc
                 (fact (- n 1) (* n acc)))))
         (fact 5 1))
 ");
-            EnsureNotError(executionState.LastResult);
-            Assert.Equal(120, ((LispInteger)executionState.LastResult).Value);
+            EnsureNotError(evalResult.LastResult);
+            Assert.Equal(120, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -814,64 +823,64 @@ returned from AVERAGE with 5
         public void IntermediateValuesAreRemovedFromTheArgumentStack()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (+ 1 1)
 (+ 2 2)
 ");
-            Assert.Equal(4, ((LispInteger)executionState.LastResult).Value);
-            Assert.True(executionState.TryPopArgument(out var lastResult));
+            Assert.Equal(4, ((LispInteger)evalResult.LastResult).Value);
+            Assert.True(evalResult.ExecutionState.TryPopArgument(out var lastResult));
             Assert.Equal(4, ((LispInteger)lastResult).Value);
-            Assert.False(executionState.TryPopArgument(out var shouldNotBeHere), $"Expected no more arguments, but found [{shouldNotBeHere}]");
+            Assert.False(evalResult.ExecutionState.TryPopArgument(out var shouldNotBeHere), $"Expected no more arguments, but found [{shouldNotBeHere}]");
         }
 
         [Fact]
         public void MacroExpansionWithFunctionInvocation()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (labels ((square (x) (* x x)))
     (square 2))
 ");
-            Assert.Equal(4, ((LispInteger)executionState.LastResult).Value);
-            Assert.Null(executionState.StackFrame.GetValue("square")); // no leakage
+            Assert.Equal(4, ((LispInteger)evalResult.LastResult).Value);
+            Assert.Null(evalResult.ExecutionState.StackFrame.GetValue("square")); // no leakage
         }
 
         [Fact]
         public void MacroExpansionWithFunctionReferences()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (labels ((square (x) (* x x)))
     (car (mapcar #'square '(2))))
 ");
-            Assert.Equal(4, ((LispInteger)executionState.LastResult).Value);
-            Assert.Null(executionState.StackFrame.GetValue("square")); // no leakage
+            Assert.Equal(4, ((LispInteger)evalResult.LastResult).Value);
+            Assert.Null(evalResult.ExecutionState.StackFrame.GetValue("square")); // no leakage
         }
 
         [Fact]
         public void IncFMacro()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (setf total 0)
 (incf total) ; = 1
 (incf total 10) ; = 11
 total
 ");
-            Assert.Equal(11, ((LispInteger)executionState.LastResult).Value);
+            Assert.Equal(11, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
         public void DecFMacro()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (setf total 20)
 (decf total) ; = 19
 (decf total 10) ; = 9
 total
 ");
-            Assert.Equal(9, ((LispInteger)executionState.LastResult).Value);
+            Assert.Equal(9, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
@@ -885,8 +894,8 @@ total
 ";
             GetCodeAndPosition(rawCode, out var code, out var line, out var column);
             var host = new LispHost();
-            var executionState = host.Eval(code);
-            var error = (LispError)executionState.LastResult;
+            var evalResult = host.Eval(code);
+            var error = (LispError)evalResult.LastResult;
             Assert.Equal("Symbol 'A' not found", error.Message);
             Assert.Equal(line, error.SourceLocation.Value.Line);
             Assert.Equal(column, error.SourceLocation.Value.Column);
@@ -896,96 +905,96 @@ total
         public void LetSequentialBinding()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (let* ((a 10)
        (b (+ 2 a)))
     (+ a b))
 ");
-            Assert.Equal(22, ((LispInteger)executionState.LastResult).Value);
+            Assert.Equal(22, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
         public void Push()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (setf my-stack ())
 (setf a (push 1 my-stack))
 (setf b (push 2 my-stack))
 ");
-            Assert.Equal("(2 1)", executionState.StackFrame.GetValue("MY-STACK").ToString());
-            Assert.Equal("(1)", executionState.StackFrame.GetValue("A").ToString());
-            Assert.Equal("(2 1)", executionState.StackFrame.GetValue("B").ToString());
+            Assert.Equal("(2 1)", evalResult.ExecutionState.StackFrame.GetValue("MY-STACK").ToString());
+            Assert.Equal("(1)", evalResult.ExecutionState.StackFrame.GetValue("A").ToString());
+            Assert.Equal("(2 1)", evalResult.ExecutionState.StackFrame.GetValue("B").ToString());
         }
 
         [Fact]
         public void Pop()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (setf my-stack '(2 1))
 (setf a (pop my-stack))
 (setf b (pop my-stack))
 ");
-            Assert.Equal("()", executionState.StackFrame.GetValue("MY-STACK").ToString());
-            Assert.Equal("2", executionState.StackFrame.GetValue("A").ToString());
-            Assert.Equal("1", executionState.StackFrame.GetValue("B").ToString());
+            Assert.Equal("()", evalResult.ExecutionState.StackFrame.GetValue("MY-STACK").ToString());
+            Assert.Equal("2", evalResult.ExecutionState.StackFrame.GetValue("A").ToString());
+            Assert.Equal("1", evalResult.ExecutionState.StackFrame.GetValue("B").ToString());
         }
 
         [Fact]
         public void WhenT()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun evals-to-t () t)
 (when (evals-to-t)
     (+ 1 1)
     (+ 3 3))
 ");
-            EnsureNotError(executionState.LastResult);
-            Assert.Equal(6, ((LispInteger)executionState.LastResult).Value);
+            EnsureNotError(evalResult.LastResult);
+            Assert.Equal(6, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]
         public void WhenNil()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun evals-to-nil () ())
 (when (evals-to-nil)
     (+ 1 1)
     (+ 3 3))
 ");
-            EnsureNotError(executionState.LastResult);
-            Assert.True(executionState.LastResult.IsNil(), $"Expected nil, but got: {executionState.LastResult}");
+            EnsureNotError(evalResult.LastResult);
+            Assert.True(evalResult.LastResult.IsNil(), $"Expected nil, but got: {evalResult.LastResult}");
         }
 
         [Fact]
         public void UnlessT()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun evals-to-t () t)
 (unless (evals-to-t)
     (+ 1 1)
     (+ 3 3))
 ");
-            EnsureNotError(executionState.LastResult);
-            Assert.True(executionState.LastResult.IsNil(), $"Expected nil, but got: {executionState.LastResult}");
+            EnsureNotError(evalResult.LastResult);
+            Assert.True(evalResult.LastResult.IsNil(), $"Expected nil, but got: {evalResult.LastResult}");
         }
 
         [Fact]
         public void UnlessNil()
         {
             var host = new LispHost();
-            var executionState = host.Eval(@"
+            var evalResult = host.Eval(@"
 (defun evals-to-nil () ())
 (unless (evals-to-nil)
     (+ 1 1)
     (+ 3 3))
 ");
-            EnsureNotError(executionState.LastResult);
-            Assert.Equal(6, ((LispInteger)executionState.LastResult).Value);
+            EnsureNotError(evalResult.LastResult);
+            Assert.Equal(6, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Fact]

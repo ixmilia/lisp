@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace IxMilia.Lisp
@@ -7,17 +8,21 @@ namespace IxMilia.Lisp
     {
         private Stack<LispObject> _argumentStack = new Stack<LispObject>();
         private List<ILispEvaluatorOperation> _operationQueue;
+        private ReportingStringReader _codeReader;
+        internal LispStream CodeInputStream;
         internal LispStackFrame StackFrame { get; set; }
         internal bool UseTailCalls { get; }
         internal bool AllowHalting { get; }
 
         public LispObject LastResult => _argumentStack.Count > 0 ? _argumentStack.Peek() : null;
 
-        public bool IsExecutionComplete => _operationQueue.Count == 0;
+        public bool IsExecutionComplete => _operationQueue.Count == 0 && _codeReader.IsComplete;
 
-        private LispExecutionState(IEnumerable<ILispEvaluatorOperation> operations, LispStackFrame stackFrame, bool useTailCalls, bool allowHalting)
+        private LispExecutionState(LispStackFrame stackFrame, string inputName, ReportingStringReader codeReader, bool useTailCalls, bool allowHalting)
         {
-            _operationQueue = operations.ToList();
+            _operationQueue = new List<ILispEvaluatorOperation>();
+            _codeReader = codeReader;
+            CodeInputStream = new LispStream(inputName, _codeReader, TextWriter.Null);
             StackFrame = stackFrame;
             UseTailCalls = useTailCalls;
             AllowHalting = allowHalting;
@@ -43,6 +48,21 @@ namespace IxMilia.Lisp
         internal void InsertOperation(ILispEvaluatorOperation operation)
         {
             _operationQueue.Insert(0, operation);
+        }
+
+        internal void InsertObjectOperations(LispObject obj, bool createDribbleInstructions)
+        {
+            if (createDribbleInstructions)
+            {
+                InsertOperation(new LispEvaluatorDribbleExit());
+            }
+
+            InsertOperation(new LispEvaluatorObjectExpression(obj));
+
+            if (createDribbleInstructions)
+            {
+                InsertOperation(new LispEvaluatorDribbleEnter(obj));
+            }
         }
 
         internal bool TryDequeueOperation(out ILispEvaluatorOperation operation)
@@ -90,30 +110,18 @@ namespace IxMilia.Lisp
             return false;
         }
 
-        internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, IEnumerable<LispObject> nodes, bool useTailCalls, bool allowHalting, bool createDribbleInstructions)
+        internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, string inputName, string code, bool useTailCalls, bool allowHalting)
         {
-            var operations = new List<ILispEvaluatorOperation>();
-            var nodeList = nodes.ToList();
-            for (int i = 0; i < nodeList.Count; i++)
-            {
-                var node = nodeList[i];
-                if (createDribbleInstructions)
-                {
-                    operations.Add(new LispEvaluatorDribbleEnter(node));
-                }
+            var reader = new ReportingStringReader(code);
+            var executionState = new LispExecutionState(stackFrame, inputName, reader, useTailCalls, allowHalting);
+            return executionState;
+        }
 
-                operations.Add(new LispEvaluatorObjectExpression(node));
-                if (createDribbleInstructions)
-                {
-                    operations.Add(new LispEvaluatorDribbleExit());
-                }
-                if (i != nodeList.Count - 1)
-                {
-                    operations.Add(new LispEvaluatorPopArgument());
-                }
-            }
-
-            return new LispExecutionState(operations, stackFrame, useTailCalls, allowHalting);
+        internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, string inputName, LispObject obj, bool useTailCalls, bool allowHalting, bool createDribbleInstructions)
+        {
+            var executionState = CreateExecutionState(stackFrame, inputName, string.Empty, useTailCalls, allowHalting);
+            executionState.InsertObjectOperations(obj, createDribbleInstructions);
+            return executionState;
         }
     }
 }
