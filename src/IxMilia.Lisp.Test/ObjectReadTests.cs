@@ -329,5 +329,65 @@ namespace IxMilia.Lisp.Test
 ");
             Assert.Equal(new LispInteger(500), evalResult.LastResult);
         }
+
+        [Fact]
+        public void PeekCharPeekTypeIsNotGiven()
+        {
+            var input = new StringReader(" ab ");
+            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var host = new LispHost();
+
+            host.SetValue("TEST-STREAM", testStream);
+            var result = host.Eval("(peek-char test-stream)").LastResult;
+            Assert.Equal(new LispCharacter(' '), result);
+        }
+
+        [Fact]
+        public void PeekCharPeekTypeIsNil()
+        {
+            var input = new StringReader(" ab ");
+            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var host = new LispHost();
+
+            host.SetValue("TEST-STREAM", testStream);
+            var result = host.Eval("(peek-char nil test-stream)").LastResult;
+            Assert.Equal(new LispCharacter(' '), result);
+        }
+
+        [Fact]
+        public void PeekCharPeekTypeIsTThenSymbol()
+        {
+            var input = new StringReader(" ab ");
+            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var host = new LispHost();
+
+            host.SetValue("TEST-STREAM", testStream);
+            var result = host.Eval("(peek-char t test-stream)").LastResult;
+            Assert.Equal(new LispCharacter('a'), result);
+        }
+
+        [Fact]
+        public void PeekCharPeekTypeIsTThenComment()
+        {
+            var input = new StringReader(" ;ab ");
+            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var host = new LispHost();
+
+            host.SetValue("TEST-STREAM", testStream);
+            var result = host.Eval("(peek-char t test-stream)").LastResult;
+            Assert.Equal(new LispCharacter(';'), result);
+        }
+
+        [Fact]
+        public void PeekCharPeekTypeIsCharacter()
+        {
+            var input = new StringReader(" ab ");
+            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var host = new LispHost();
+
+            host.SetValue("TEST-STREAM", testStream);
+            var result = host.Eval("(peek-char #\\b test-stream)").LastResult;
+            Assert.Equal(new LispCharacter('b'), result);
+        }
     }
 }

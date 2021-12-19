@@ -420,7 +420,7 @@ namespace IxMilia.Lisp
 
         private LispObject Peek(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
-            var result = LispDefaultContext.PeekChar(_input, errorOnEof, eofValue, isRecursive);
+            var result = LispDefaultContext.PeekChar(null, _input, errorOnEof, eofValue, isRecursive);
             if (result.SourceLocation is null)
             {
                 result.SourceLocation = new LispSourceLocation(_input.Name, _line, _column);
@@ -477,6 +477,11 @@ namespace IxMilia.Lisp
                 default:
                     return false;
             }
+        }
+
+        internal static bool IsSkippableWhitespace(char c)
+        {
+            return IsNewlineLike(c) || IsWhitespace(c);
         }
 
         private static bool IsSemi(char c)

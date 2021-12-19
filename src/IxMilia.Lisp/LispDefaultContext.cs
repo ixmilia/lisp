@@ -369,13 +369,23 @@ namespace IxMilia.Lisp
         [LispFunction("PEEK-CHAR")]
         public LispObject PeekChar(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
+            var peekType = host.Nil;
             var inputStream = host.TerminalIO;
             var errorOnEof = true;
             var eofValue = host.Nil;
             var _isRecursive = false;
             if (args.Length >= 1)
             {
-                if (args[0] is LispStream stream)
+                var argumentOffset = 0;
+                if (args[0].IsNil() ||
+                    args[0] == host.T ||
+                    args[0] is LispCharacter)
+                {
+                    peekType = args[0];
+                    argumentOffset = 1;
+                }
+
+                if (args[0 + argumentOffset] is LispStream stream)
                 {
                     inputStream = stream;
                 }
@@ -384,19 +394,19 @@ namespace IxMilia.Lisp
                     return new LispError("Expected an input stream");
                 }
 
-                if (args.Length >= 2)
+                if (args.Length >= 2 + argumentOffset)
                 {
-                    errorOnEof = args[1].IsTLike();
+                    errorOnEof = args[1 + argumentOffset].IsTLike();
 
-                    if (args.Length >= 3)
+                    if (args.Length >= 3 + argumentOffset)
                     {
-                        eofValue = args[2];
+                        eofValue = args[2 + argumentOffset];
 
-                        if (args.Length >= 4)
+                        if (args.Length >= 4 + argumentOffset)
                         {
-                            _isRecursive = args[3].IsTLike();
+                            _isRecursive = args[3 + argumentOffset].IsTLike();
 
-                            if (args.Length >= 5)
+                            if (args.Length >= 5 + argumentOffset)
                             {
                                 return new LispError("Too many arguments");
                             }
@@ -405,7 +415,7 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return PeekChar(inputStream, errorOnEof, eofValue, _isRecursive);
+            return PeekChar(peekType, inputStream, errorOnEof, eofValue, _isRecursive);
         }
 
         [LispFunction("READ-CHAR")]
@@ -450,23 +460,58 @@ namespace IxMilia.Lisp
             return ReadChar(inputStream, errorOnEof, eofValue, _isRecursive);
         }
 
-        internal static LispObject PeekChar(LispStream inputStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        internal static LispObject PeekChar(LispObject peekType, LispStream inputStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
-            var peeked = inputStream.Input.Peek();
-            if (peeked == -1)
+            Func<char, bool> shouldConsumeAndSkip;
+            if (peekType == null || peekType.IsNil())
             {
-                // eof
-                if (errorOnEof)
-                {
-                    return new LispError("EOF");
-                }
-                else
-                {
-                    return eofValue;
-                }
+                // simple peek, don't consume
+                shouldConsumeAndSkip = (_) => false;
+            }
+            else if (peekType is LispCharacter lc)
+            {
+                // consume until `lc`, then return lc
+                shouldConsumeAndSkip = (c) => lc.Value != c;
+            }
+            else if (peekType.IsTLike())
+            {
+                // consume whitespace, return next
+                shouldConsumeAndSkip = (c) => LispObjectReader.IsSkippableWhitespace(c);
+            }
+            else
+            {
+                return new LispError("Expected `nil`, `t` or character");
             }
 
-            return new LispCharacter((char)peeked);
+            int peeked;
+            char peekedChar;
+            while (true)
+            {
+                peeked = inputStream.Input.Peek();
+                peekedChar = (char)peeked;
+                if (peeked == -1)
+                {
+                    // eof
+                    if (errorOnEof)
+                    {
+                        return new LispError("EOF");
+                    }
+                    else
+                    {
+                        return eofValue;
+                    }
+                }
+
+                if (!shouldConsumeAndSkip(peekedChar))
+                {
+                    break;
+                }
+
+                // swallow it
+                inputStream.Input.Read();
+            }
+
+            return new LispCharacter(peekedChar);
         }
 
         internal static LispObject ReadChar(LispStream inputStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
