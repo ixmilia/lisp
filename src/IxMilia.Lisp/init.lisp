@@ -1,6 +1,39 @@
+;;; we can't yet read raw characters, so we have to use `(code-char ...)` and `(function ...)`
+(defun process-function-reference (item)
+    (cond ((symbolp item)                           (eval (list (quote function) item))) ; #'some-function-reference
+          ((and (listp item)
+                (eql (car item) (quote lambda)))    (kernel:make-lambda-function item)) ; #'(lambda ...); `kernel:make-lambda-function` is defined internally
+          (t                                        (error "Expected function reference or lambda"))
+    )
+)
+(defun single-hash-reader (stream char)
+    (let ((next-char (peek-char nil stream t nil t)))
+        (cond ((char= next-char (code-char 92)) (progn (read-char stream t nil t) ; swallow backslash (code 92 = \)
+                                                       (read-char stream t nil t))) ; keep next raw character
+                                                       ; TODO: handle `#\SPACE`, etc.
+              ((char= next-char (code-char 39)) (progn (read-char stream t nil t) ; swallow single quote (code 39 = ')
+                                                       (process-function-reference (read stream t nil t))))
+              ((or (char= next-char (code-char 48))  ; code 48 = 0
+                   (char= next-char (code-char 49))  ; code 49 = 1
+                   (char= next-char (code-char 50))  ; code 50 = 2
+                   (char= next-char (code-char 51))  ; code 51 = 3
+                   (char= next-char (code-char 52))  ; code 52 = 4
+                   (char= next-char (code-char 53))  ; code 53 = 5
+                   (char= next-char (code-char 54))  ; code 54 = 6
+                   (char= next-char (code-char 55))  ; code 55 = 7
+                   (char= next-char (code-char 56))  ; code 56 = 8
+                   (char= next-char (code-char 57))) ; code 57 = 9
+                                                     (kernel:process-list-forward-reference)) ; `kernel:process-list-forward-reference` is defined internally
+              (t                                     (error "Expected back slash, single quote, or digit"))
+        ) ; end of `cond`
+    ) ; end of `let`
+) ; end of `defun`
+(set-macro-character (code-char 35) (function single-hash-reader)) ; code 35 = #
+
+;;;  from here on forward we can do things like `#\X`, `#'function-ref`, etc.
+
 (defun single-quote-reader (stream char)
     (list (quote quote) (read stream t nil t)))
-
 (set-macro-character #\' #'single-quote-reader)
 
 (defun null (x) (equal () x))

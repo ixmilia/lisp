@@ -366,6 +366,34 @@ namespace IxMilia.Lisp
             return new LispError("Expected output type and string");
         }
 
+        [LispFunction("CODE-CHAR")]
+        public LispObject CodeChar(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 1 &&
+                args[0] is LispInteger i)
+            {
+                var c = (char)i.Value;
+                return new LispCharacter(c);
+            }
+
+            return new LispError("Expected an integer");
+        }
+
+        [LispFunction("CHAR=")]
+        public LispObject CharEquals(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 2 &&
+                args[0] is LispCharacter c1 &&
+                args[1] is LispCharacter c2)
+            {
+                return c1.Value == c2.Value
+                    ? host.T
+                    : host.Nil;
+            }
+
+            return new LispError("Expected 2 characters");
+        }
+
         [LispFunction("PEEK-CHAR")]
         public LispObject PeekChar(LispHost host, LispExecutionState executionState, LispObject[] args)
         {

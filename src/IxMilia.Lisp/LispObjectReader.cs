@@ -17,7 +17,6 @@ namespace IxMilia.Lisp
         private Dictionary<char, LispFunctionReference> _macroFunctions = new Dictionary<char, LispFunctionReference>();
 
         private static List<Tuple<Regex, Func<Match, LispObject>>> RegexMatchers = new List<Tuple<Regex, Func<Match, LispObject>>>();
-        private static Regex ListForwardReferenceRegex = new Regex(@"^#(\d+)=$", RegexOptions.Compiled);
 
         public LispStream InputStream => _input;
 
@@ -61,6 +60,61 @@ namespace IxMilia.Lisp
                 }
 
                 return new LispError("Expected character and function reference");
+            });
+            _host.AddFunction("KERNEL:MAKE-LAMBDA-FUNCTION", (__host, executionState, args) =>
+            {
+                if (args.Length == 1 &&
+                    args[0] is LispList lambdaList &&
+                    lambdaList.Value is LispSymbol lambdaSymbol &&
+                    lambdaSymbol.Value == "LAMBDA")
+                {
+                    var lambdaName = $"(LAMBDA-{lambdaList.SourceLocation?.Line}-{lambdaList.SourceLocation?.Column})"; // surrounded by parens to make it un-utterable
+                    var lambdaItems = new List<LispObject>();
+                    lambdaItems.Add(new LispSymbol(lambdaName));
+                    lambdaItems.AddRange(lambdaList.ToList().Skip(1));
+
+                    if (!LispDefaultContext.TryGetCodeFunctionFromItems(lambdaItems.ToArray(), out var lambdaFunction, out var error))
+                    {
+                        return error;
+                    }
+                    else
+                    {
+                        return new LispQuotedLambdaFunctionReference(lambdaFunction);
+                    }
+                }
+
+                return new LispError("Expected a lambda");
+            });
+            _host.AddFunction("KERNEL:PROCESS-LIST-FORWARD-REFERENCE", (__host, executionState, args) =>
+            {
+                var forwardReferenceId = ReadUntilCharMatches(true, null, true, c => IsEquals(c) || IsHash(c));
+                var trailingCharacter = Peek(true, null, true);
+                Advance(true, null, true); // swallow `=` or `#`
+
+                var symbolReference = string.Concat("#", forwardReferenceId, "#");
+                switch (trailingCharacter)
+                {
+                    case LispCharacter lc when lc.Value == '#':
+                        return new LispSymbol(symbolReference);
+                    case LispCharacter lc when lc.Value == '=':
+                        var candidateInnerListReaderResult = Read(true, null, true);
+                        var candidateInnerList = candidateInnerListReaderResult.LastResult;
+                        if (candidateInnerList is LispList innerList)
+                        {
+
+                            return new LispForwardListReference(symbolReference, innerList);
+                        }
+                        else if (candidateInnerList is LispError)
+                        {
+                            return candidateInnerList;
+                        }
+                        else
+                        {
+                            return new LispError("Expected list");
+                        }
+                    default:
+                        return trailingCharacter; // probably an error
+                }
             });
         }
 
@@ -128,70 +182,6 @@ namespace IxMilia.Lisp
                     else if (text.StartsWith("&"))
                     {
                         result = new LispLambdaListKeyword(text.ToUpperInvariant());
-                    }
-                    else if (text.StartsWith("#'"))
-                    {
-                        if (text == "#'")
-                        {
-                            // looks like a lambda
-                            var lambdaReadResult = Read(errorOnEof, eofValue, isRecursive);
-                            var lambdaCandidate = lambdaReadResult.LastResult;
-                            if (lambdaCandidate is LispList lambdaList &&
-                                lambdaList.Value is LispSymbol lambdaSymbol &&
-                                lambdaSymbol.Value == "LAMBDA")
-                            {
-                                var lambdaName = $"(LAMBDA-{lambdaList.SourceLocation?.Line}-{lambdaList.SourceLocation?.Column})"; // surrounded by parens to make it un-utterable
-                                var lambdaItems = new List<LispObject>();
-                                lambdaItems.Add(new LispSymbol(lambdaName));
-                                lambdaItems.AddRange(lambdaList.ToList().Skip(1));
-
-                                if (!LispDefaultContext.TryGetCodeFunctionFromItems(lambdaItems.ToArray(), out var lambdaFunction, out var error))
-                                {
-                                    result = error;
-                                }
-                                else
-                                {
-                                    result = new LispQuotedLambdaFunctionReference(lambdaFunction);
-                                }
-                            }
-                            else if (lambdaCandidate is LispError)
-                            {
-                                // propagate the error
-                                result = lambdaCandidate;
-                            }
-                            else
-                            {
-                                // not sure what it is
-                                result = new LispError($"Unexpected object '{lambdaCandidate}' at location ({lambdaCandidate.SourceLocation?.Line}, {lambdaCandidate.SourceLocation?.Column})");
-                            }
-                        }
-                        else
-                        {
-                            // probably a named function reference
-                            result = new LispQuotedNamedFunctionReference(text.Substring(2).ToUpperInvariant());
-                        }
-                    }
-                    else if (text.StartsWith(@"#\"))
-                    {
-                        result = TryAssignCharacter(text.Substring(2));
-                    }
-                    else if (ListForwardReferenceRegex.IsMatch(text))
-                    {
-                        var candidateInnerListReaderResult = Read(errorOnEof, eofValue, isRecursive);
-                        var candidateInnerList = candidateInnerListReaderResult.LastResult;
-                        if (candidateInnerList is LispList innerList)
-                        {
-                            var symbolReference = text.Substring(0, text.Length - 1).ToUpperInvariant() + "#";
-                            result = new LispForwardListReference(symbolReference, innerList);
-                        }
-                        else if (candidateInnerList is LispError)
-                        {
-                            result = candidateInnerList;
-                        }
-                        else
-                        {
-                            result = new LispError("Expected list");
-                        }
                     }
                     else
                     {
@@ -407,17 +397,6 @@ namespace IxMilia.Lisp
             return new LispString(text);
         }
 
-        private LispObject TryAssignCharacter(string text)
-        {
-            if (text.Length == 1)
-            {
-                return new LispCharacter(text[0]);
-            }
-
-            // TODO: handle `#\SPACE`, etc.
-            return new LispError($"Unexpected character escape sequence '{text}'");
-        }
-
         private LispObject Peek(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             var result = LispDefaultContext.PeekChar(null, _input, errorOnEof, eofValue, isRecursive);
@@ -484,6 +463,16 @@ namespace IxMilia.Lisp
             return IsNewlineLike(c) || IsWhitespace(c);
         }
 
+        private static bool IsEquals(char c)
+        {
+            return c == '=';
+        }
+
+        private static bool IsHash(char c)
+        {
+            return c == '#';
+        }
+
         private static bool IsSemi(char c)
         {
             return c == ';';
@@ -521,16 +510,13 @@ namespace IxMilia.Lisp
             return c == '"';
         }
 
-        private string ReadUntilTriviaOrListMarker(bool errorOnEof, LispObject eofValue, bool isRecursive)
+        private string ReadUntilCharMatches(bool errorOnEof, LispObject eofValue, bool isRecursive, Func<char, bool> stopCondition)
         {
             var builder = new StringBuilder();
             while (TryPeek(errorOnEof, eofValue, isRecursive, out var lc))
             {
-                // TODO: this is too agressive for `#\(` and `#\)`
                 var c = lc.Value;
-                if (IsTrivia(c) ||
-                    IsLeftParen(c) ||
-                    IsRightParen(c))
+                if (stopCondition(c))
                 {
                     break;
                 }
@@ -541,6 +527,16 @@ namespace IxMilia.Lisp
 
             var text = builder.ToString();
             return text;
+        }
+
+        private string ReadUntilTriviaOrListMarker(bool errorOnEof, LispObject eofValue, bool isRecursive)
+        {
+            return ReadUntilCharMatches(errorOnEof, eofValue, isRecursive, c =>
+            {
+                return IsTrivia(c)
+                    || IsLeftParen(c)
+                    || IsRightParen(c);
+            });
         }
 
         private void ConsumeTrivia(bool errorOnEof, LispObject eofValue, bool isRecursive)
