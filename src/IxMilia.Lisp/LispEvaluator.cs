@@ -87,6 +87,7 @@ namespace IxMilia.Lisp
                                 case LispInteger _:
                                 case LispFloat _:
                                 case LispRatio _:
+                                case LispCharacter _:
                                 case LispString _:
                                 case LispKeyword _:
                                 case LispLambdaListKeyword _:

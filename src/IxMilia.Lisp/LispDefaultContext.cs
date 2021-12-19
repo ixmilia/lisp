@@ -225,7 +225,7 @@ namespace IxMilia.Lisp
                 args[0] is LispFunctionReference functionRef &&
                 args[1] is LispList functionArguments)
             {
-                return FunCall(host, executionState, functionRef, functionArguments.ToList());
+                return FunCall(host, executionState.StackFrame, functionRef, functionArguments.ToList());
             }
             else
             {
@@ -233,10 +233,9 @@ namespace IxMilia.Lisp
             }
         }
 
-        private LispObject FunCall(LispHost host, LispExecutionState executionState, LispFunctionReference functionReference, IEnumerable<LispObject> functionArguments)
+        internal static LispObject FunCall(LispHost host, LispStackFrame evaluatingFrame, LispFunctionReference functionReference, IEnumerable<LispObject> functionArguments)
         {
             string synthesizedFunctionName = null;
-            var evaluatingFrame = executionState.StackFrame;
             Action preExecute = null;
             Action postExecute = null;
             if (functionReference is LispQuotedNamedFunctionReference namedFunction)
@@ -285,7 +284,7 @@ namespace IxMilia.Lisp
                 var candidateFunctionReference = host.EvalAtStackFrame(executionState.StackFrame, args[0]);
                 if (candidateFunctionReference is LispFunctionReference functionReference)
                 {
-                    result = FunCall(host, executionState, functionReference, args.Skip(1));
+                    result = FunCall(host, executionState.StackFrame, functionReference, args.Skip(1));
                 }
             }
 
@@ -367,6 +366,48 @@ namespace IxMilia.Lisp
             return new LispError("Expected output type and string");
         }
 
+        [LispFunction("PEEK-CHAR")]
+        public LispObject PeekChar(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            var inputStream = host.TerminalIO;
+            var errorOnEof = true;
+            var eofValue = host.Nil;
+            var _isRecursive = false;
+            if (args.Length >= 1)
+            {
+                if (args[0] is LispStream stream)
+                {
+                    inputStream = stream;
+                }
+                else
+                {
+                    return new LispError("Expected an input stream");
+                }
+
+                if (args.Length >= 2)
+                {
+                    errorOnEof = args[1].IsTLike();
+
+                    if (args.Length >= 3)
+                    {
+                        eofValue = args[2];
+
+                        if (args.Length >= 4)
+                        {
+                            _isRecursive = args[3].IsTLike();
+
+                            if (args.Length >= 5)
+                            {
+                                return new LispError("Too many arguments");
+                            }
+                        }
+                    }
+                }
+            }
+
+            return PeekChar(inputStream, errorOnEof, eofValue, _isRecursive);
+        }
+
         [LispFunction("READ-CHAR")]
         public LispObject ReadChar(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
@@ -407,6 +448,25 @@ namespace IxMilia.Lisp
             }
 
             return ReadChar(inputStream, errorOnEof, eofValue, _isRecursive);
+        }
+
+        internal static LispObject PeekChar(LispStream inputStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        {
+            var peeked = inputStream.Input.Peek();
+            if (peeked == -1)
+            {
+                // eof
+                if (errorOnEof)
+                {
+                    return new LispError("EOF");
+                }
+                else
+                {
+                    return eofValue;
+                }
+            }
+
+            return new LispCharacter((char)peeked);
         }
 
         internal static LispObject ReadChar(LispStream inputStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
@@ -468,10 +528,20 @@ namespace IxMilia.Lisp
                 }
             }
 
-            var reader = new LispObjectReader(host, errorOnEof, eofValue, isRecursive);
-            reader.SetReaderStream(inputStream);
-            var result = reader.Read();
-            return result.LastResult;
+            LispObject result = null;
+            var previousReaderStream = host.ObjectReader.InputStream;
+            try
+            {
+                host.ObjectReader.SetReaderStream(inputStream);
+                var readerResult = host.ObjectReader.Read(errorOnEof, eofValue, isRecursive);
+                result = readerResult.LastResult;
+            }
+            finally
+            {
+                host.ObjectReader.SetReaderStream(previousReaderStream);
+            }
+
+            return result;
         }
 
         [LispMacro("WITH-OPEN-FILE")]
@@ -1066,7 +1136,7 @@ namespace IxMilia.Lisp
                     {
                         LispList.FromItems(new LispSymbol("QUOTE"), item)
                     };
-                    var result = FunCall(host, executionState, functionReference, functionArguments);
+                    var result = FunCall(host, executionState.StackFrame, functionReference, functionArguments);
                     if (result is LispError)
                     {
                         return result;
@@ -1103,7 +1173,7 @@ namespace IxMilia.Lisp
                 var removed = 0;
                 foreach (var item in items)
                 {
-                    var result = FunCall(host, executionState, functionReference, new LispObject[] { item });
+                    var result = FunCall(host, executionState.StackFrame, functionReference, new LispObject[] { item });
                     if (result is LispError)
                     {
                         return result;
@@ -1146,7 +1216,7 @@ namespace IxMilia.Lisp
                 var removed = 0;
                 foreach (var item in items)
                 {
-                    var result = FunCall(host, executionState, functionReference, new LispObject[] { item });
+                    var result = FunCall(host, executionState.StackFrame, functionReference, new LispObject[] { item });
                     if (result is LispError)
                     {
                         return result;
@@ -1194,7 +1264,7 @@ namespace IxMilia.Lisp
                     var arg2 = items[fromEnd ? 0 : 1];
                     items.RemoveAt(0);
                     items.RemoveAt(0);
-                    var result = FunCall(host, executionState, functionReference, new LispObject[] { LispList.FromItems(new LispSymbol("QUOTE"), arg1), LispList.FromItems(new LispSymbol("QUOTE"), arg2) });
+                    var result = FunCall(host, executionState.StackFrame, functionReference, new LispObject[] { LispList.FromItems(new LispSymbol("QUOTE"), arg1), LispList.FromItems(new LispSymbol("QUOTE"), arg2) });
                     if (result is LispError)
                     {
                         return result;
@@ -1255,7 +1325,7 @@ namespace IxMilia.Lisp
                         };
                         break;
                     case LispFunctionReference functionRef:
-                        evaluator = (functionArguments) => FunCall(host, executionState, functionRef, functionArguments);
+                        evaluator = (functionArguments) => FunCall(host, executionState.StackFrame, functionRef, functionArguments);
                         break;
                     default:
                         return new LispError($"Unsupported `mapcar` execution target: {args[0].GetType().Name}");

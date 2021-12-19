@@ -1,3 +1,8 @@
+(defun single-quote-reader (stream char)
+    (list (quote quote) (read stream t nil t)))
+
+(set-macro-character #\' #'single-quote-reader)
+
 (defun null (x) (equal () x))
 
 (defmacro if (pred tv fv)

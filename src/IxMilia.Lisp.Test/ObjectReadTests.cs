@@ -10,9 +10,8 @@ namespace IxMilia.Lisp.Test
         {
             var host = new LispHost();
             var input = new LispStream("", new StringReader(text), TextWriter.Null);
-            var reader = new LispObjectReader(host, false, host.Nil, false);
-            reader.SetReaderStream(input);
-            var result = reader.Read();
+            host.ObjectReader.SetReaderStream(input);
+            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
             return result.LastResult;
         }
 
@@ -227,18 +226,17 @@ namespace IxMilia.Lisp.Test
             var input = new StringReader("(abc 2)\n14");
             var stream = new LispStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
-            var reader = new LispObjectReader(host, true, host.Nil, true);
-            reader.SetReaderStream(stream);
+            host.ObjectReader.SetReaderStream(stream);
 
-            var list = ((LispList)reader.Read().LastResult).ToList();
+            var list = ((LispList)host.ObjectReader.Read(false, new LispError("EOF"), false).LastResult).ToList();
             Assert.Equal(2, list.Count);
             Assert.Equal("ABC", ((LispSymbol)list[0]).Value);
             Assert.Equal(2, ((LispInteger)list[1]).Value);
 
-            var number = (LispInteger)reader.Read().LastResult;
+            var number = (LispInteger)host.ObjectReader.Read(false, new LispError("EOF"), false).LastResult;
             Assert.Equal(14, number.Value);
 
-            var eof = (LispError)reader.Read().LastResult;
+            var eof = (LispError)host.ObjectReader.Read(false, new LispError("EOF"), false).LastResult;
             Assert.Equal("EOF", eof.Message);
         }
 
@@ -248,13 +246,12 @@ namespace IxMilia.Lisp.Test
             var input = new StringReader("14");
             var stream = new LispStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
-            var reader = new LispObjectReader(host, false, new LispInteger(-54), true);
-            reader.SetReaderStream(stream);
+            host.ObjectReader.SetReaderStream(stream);
 
-            var number = (LispInteger)reader.Read().LastResult;
+            var number = (LispInteger)host.ObjectReader.Read(false, new LispError("EOF"), false).LastResult;
             Assert.Equal(14, number.Value);
 
-            var eof = (LispInteger)reader.Read().LastResult;
+            var eof = (LispInteger)host.ObjectReader.Read(false, new LispInteger(-54), false).LastResult;
             Assert.Equal(-54, eof.Value);
         }
 
@@ -317,6 +314,20 @@ namespace IxMilia.Lisp.Test
                 Assert.Equal("wrote: \"just-a-string\"\nwrote: (+ 2 3)\n", actual);
                 Assert.Null(host.GetValue("FILE-STREAM"));
             }
+        }
+
+        [Fact]
+        public void SupportReaderMacros()
+        {
+            var host = new LispHost();
+            var evalResult = host.Eval(@"
+; %5 -> (* 100 5)
+(defun percent-reader (stream char)
+    (list (quote *) 100 (read stream t nil t)))
+(set-macro-character #\% #'percent-reader)
+%5
+");
+            Assert.Equal(new LispInteger(500), evalResult.LastResult);
         }
     }
 }

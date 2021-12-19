@@ -10,17 +10,16 @@ namespace IxMilia.Lisp
     {
         private LispHost _host;
         private LispStream _input;
-        private LispObject _nextValue;
-        private bool _errorOnEof;
-        private LispObject _eofValue;
-        private bool _isRecursive;
         private int _line = 1;
         private int _column = 1;
         private int _leftParenCount = 0;
         private StringBuilder _incompleteInput = null;
+        private Dictionary<char, LispFunctionReference> _macroFunctions = new Dictionary<char, LispFunctionReference>();
 
         private static List<Tuple<Regex, Func<Match, LispObject>>> RegexMatchers = new List<Tuple<Regex, Func<Match, LispObject>>>();
         private static Regex ListForwardReferenceRegex = new Regex(@"^#(\d+)=$", RegexOptions.Compiled);
+
+        public LispStream InputStream => _input;
 
         static LispObjectReader()
         {
@@ -47,12 +46,22 @@ namespace IxMilia.Lisp
             }));
         }
 
-        public LispObjectReader(LispHost host, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        public LispObjectReader(LispHost host)
         {
             _host = host;
-            _errorOnEof = errorOnEof;
-            _eofValue = eofValue;
-            _isRecursive = isRecursive;
+
+            _host.AddFunction("SET-MACRO-CHARACTER", (__host, executionState, args) =>
+            {
+                if (args.Length == 2 &&
+                    args[0] is LispCharacter character &&
+                    args[1] is LispFunctionReference functionRef)
+                {
+                    _macroFunctions.Add(character.Value, functionRef);
+                    return __host.Nil;
+                }
+
+                return new LispError("Expected character and function reference");
+            });
         }
 
         public void SetReaderStream(LispStream input)
@@ -61,10 +70,9 @@ namespace IxMilia.Lisp
             _line = 1;
             _column = 1;
             _leftParenCount = 0;
-            Advance();
         }
 
-        public LispObjectReaderResult Read()
+        public LispObjectReaderResult Read(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             var isRootInvocation = false;
             if (_incompleteInput is null)
@@ -74,10 +82,10 @@ namespace IxMilia.Lisp
             }
 
             LispObject result = null;
-            ConsumeTrivia();
-            if (!TryPeek(out var next))
+            ConsumeTrivia(errorOnEof, eofValue, isRecursive);
+            if (!TryPeek(errorOnEof, eofValue, isRecursive, out var next))
             {
-                result = _errorOnEof ? new LispError("EOF") : _eofValue;
+                result = errorOnEof ? new LispError("EOF") : eofValue;
             }
             else if (!(next is LispCharacter lc))
             {
@@ -89,38 +97,30 @@ namespace IxMilia.Lisp
                 if (isRootInvocation && _incompleteInput.Length == 0)
                 {
                     // don't lose the first character
-                    _incompleteInput.Append(c);
+                    //_incompleteInput.Append(c);
                 }
 
-                if (IsTrivia(c))
+                if (_macroFunctions.TryGetValue(c, out var readerFunction))
                 {
-                    ConsumeTrivia();
+                    Advance(errorOnEof, eofValue, isRecursive);
+                    result = LispDefaultContext.FunCall(_host, _host.RootFrame, readerFunction, new LispObject[] { _input, lc });
+                }
+                else if (IsTrivia(c))
+                {
+                    ConsumeTrivia(errorOnEof, eofValue, isRecursive);
                 }
                 else if (IsLeftParen(c))
                 {
-                    result = ReadList();
-                }
-                else if (IsSingleQuote(c))
-                {
-                    Advance();
-                    var innerResult = Read();
-                    if (innerResult.LastResult is LispError)
-                    {
-                        result = innerResult.LastResult;
-                    }
-                    else
-                    {
-                        result = LispList.FromItems(new LispSymbol("QUOTE"), innerResult.LastResult);
-                    }
+                    result = ReadList(errorOnEof, eofValue, isRecursive);
                 }
                 else if (IsDoubleQuote(c))
                 {
-                    Advance();
-                    result = ReadString();
+                    Advance(errorOnEof, eofValue, isRecursive);
+                    result = ReadString(errorOnEof, eofValue, isRecursive);
                 }
                 else
                 {
-                    var text = ReadUntilTriviaOrListMarker();
+                    var text = ReadUntilTriviaOrListMarker(errorOnEof, eofValue, isRecursive);
                     if (text.StartsWith(":"))
                     {
                         result = new LispKeyword(text.ToUpperInvariant());
@@ -134,7 +134,7 @@ namespace IxMilia.Lisp
                         if (text == "#'")
                         {
                             // looks like a lambda
-                            var lambdaReadResult = Read();
+                            var lambdaReadResult = Read(errorOnEof, eofValue, isRecursive);
                             var lambdaCandidate = lambdaReadResult.LastResult;
                             if (lambdaCandidate is LispList lambdaList &&
                                 lambdaList.Value is LispSymbol lambdaSymbol &&
@@ -177,7 +177,7 @@ namespace IxMilia.Lisp
                     }
                     else if (ListForwardReferenceRegex.IsMatch(text))
                     {
-                        var candidateInnerListReaderResult = Read();
+                        var candidateInnerListReaderResult = Read(errorOnEof, eofValue, isRecursive);
                         var candidateInnerList = candidateInnerListReaderResult.LastResult;
                         if (candidateInnerList is LispList innerList)
                         {
@@ -243,13 +243,13 @@ namespace IxMilia.Lisp
             return new LispObjectReaderResult(result, incompleteInput, _leftParenCount);
         }
 
-        private LispObject ReadList()
+        private LispObject ReadList(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             var items = new List<LispObject>();
             var tailItems = new List<LispObject>();
             LispSourceLocation? dotLocation = null;
             var isListComplete = false;
-            var first = Peek(); // should be `(`
+            var first = Peek(errorOnEof, eofValue, isRecursive); // should be `(`
             switch (first)
             {
                 case LispCharacter firstCharacter when firstCharacter.Value == '(':
@@ -259,16 +259,16 @@ namespace IxMilia.Lisp
                     throw new Exception("First character should always be `(`");
             }
 
-            Advance();
-            ConsumeTrivia();
-            var next = Peek();
+            Advance(errorOnEof, eofValue, isRecursive);
+            ConsumeTrivia(errorOnEof, eofValue, isRecursive);
+            var next = Peek(errorOnEof, eofValue, isRecursive);
             while (next is LispCharacter lc)
             {
                 var c = lc.Value;
                 if (IsRightParen(c))
                 {
                     // done
-                    Advance();
+                    Advance(errorOnEof, eofValue, isRecursive);
                     isListComplete = true;
                     _leftParenCount--;
                     break;
@@ -282,11 +282,11 @@ namespace IxMilia.Lisp
                         return error;
                     }
 
-                    Advance();
+                    Advance(errorOnEof, eofValue, isRecursive);
                     dotLocation = lc.SourceLocation;
                 }
 
-                var nextItemResult = Read();
+                var nextItemResult = Read(errorOnEof, eofValue, isRecursive);
                 var nextItem = nextItemResult.LastResult;
                 if (nextItem is LispError)
                 {
@@ -302,8 +302,8 @@ namespace IxMilia.Lisp
                     tailItems.Add(nextItem);
                 }
 
-                ConsumeTrivia();
-                next = Peek();
+                ConsumeTrivia(errorOnEof, eofValue, isRecursive);
+                next = Peek(errorOnEof, eofValue, isRecursive);
             }
 
             if (!isListComplete)
@@ -352,11 +352,11 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        private LispObject ReadString()
+        private LispObject ReadString(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             var builder = new StringBuilder();
             var isEscape = false;
-            while (TryPeek(out var lc))
+            while (TryPeek(errorOnEof, eofValue, isRecursive, out var lc))
             {
                 var c = lc.Value;
                 if (isEscape)
@@ -387,7 +387,7 @@ namespace IxMilia.Lisp
                 {
                     if (IsDoubleQuote(c))
                     {
-                        Advance();
+                        Advance(errorOnEof, eofValue, isRecursive);
                         break;
                     }
                     else if (IsBackslash(c))
@@ -400,7 +400,7 @@ namespace IxMilia.Lisp
                     }
                 }
 
-                Advance();
+                Advance(errorOnEof, eofValue, isRecursive);
             }
 
             var text = builder.ToString();
@@ -418,14 +418,21 @@ namespace IxMilia.Lisp
             return new LispError($"Unexpected character escape sequence '{text}'");
         }
 
-        private LispObject Peek()
+        private LispObject Peek(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
-            return _nextValue;
+            var result = LispDefaultContext.PeekChar(_input, errorOnEof, eofValue, isRecursive);
+            if (result.SourceLocation is null)
+            {
+                result.SourceLocation = new LispSourceLocation(_input.Name, _line, _column);
+            }
+
+            return result;
         }
 
-        private bool TryPeek(out LispCharacter next)
+        private bool TryPeek(bool errorOnEof, LispObject eofValue, bool isRecursive, out LispCharacter next)
         {
-            if (_nextValue is LispCharacter lc)
+            var result = Peek(errorOnEof, eofValue, isRecursive);
+            if (result is LispCharacter lc)
             {
                 next = lc;
                 return true;
@@ -437,14 +444,12 @@ namespace IxMilia.Lisp
             }
         }
 
-        private void Advance()
+        private void Advance(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
-            var result = LispDefaultContext.ReadChar(_input, _errorOnEof, _eofValue, isRecursive: true);
-            _nextValue = result;
-            _nextValue.SourceLocation = new LispSourceLocation(_input.Name, _line, _column);
+            var result = LispDefaultContext.ReadChar(_input, errorOnEof, eofValue, isRecursive);
             _column++;
 
-            if (_nextValue is LispCharacter lc)
+            if (result is LispCharacter lc)
             {
                 _incompleteInput?.Append(lc.Value);
             }
@@ -506,20 +511,15 @@ namespace IxMilia.Lisp
             return c == ')';
         }
 
-        private static bool IsSingleQuote(char c)
-        {
-            return c == '\'';
-        }
-
         private static bool IsDoubleQuote(char c)
         {
             return c == '"';
         }
 
-        private string ReadUntilTriviaOrListMarker()
+        private string ReadUntilTriviaOrListMarker(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             var builder = new StringBuilder();
-            while (TryPeek(out var lc))
+            while (TryPeek(errorOnEof, eofValue, isRecursive, out var lc))
             {
                 // TODO: this is too agressive for `#\(` and `#\)`
                 var c = lc.Value;
@@ -531,28 +531,28 @@ namespace IxMilia.Lisp
                 }
 
                 builder.Append(c);
-                Advance();
+                Advance(errorOnEof, eofValue, isRecursive);
             }
 
             var text = builder.ToString();
             return text;
         }
 
-        private void ConsumeTrivia()
+        private void ConsumeTrivia(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
-            while (TryPeek(out var c))
+            while (TryPeek(errorOnEof, eofValue, isRecursive, out var c))
             {
                 if (IsWhitespace(c.Value))
                 {
-                    ConsumeWhitespaceTrivia();
+                    ConsumeWhitespaceTrivia(errorOnEof, eofValue, isRecursive);
                 }
                 else if (IsNewlineLike(c.Value))
                 {
-                    ConsumeNewlineTrivia();
+                    ConsumeNewlineTrivia(errorOnEof, eofValue, isRecursive);
                 }
                 else if (IsSemi(c.Value))
                 {
-                    ConsumeCommentTrivia();
+                    ConsumeCommentTrivia(errorOnEof, eofValue, isRecursive);
                 }
                 else
                 {
@@ -561,42 +561,42 @@ namespace IxMilia.Lisp
             }
         }
 
-        private void ConsumeWhitespaceTrivia()
+        private void ConsumeWhitespaceTrivia(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
-            if (!TryPeek(out var ws) || !IsWhitespace(ws.Value))
+            if (!TryPeek(errorOnEof, eofValue, isRecursive, out var ws) || !IsWhitespace(ws.Value))
             {
                 return;
             }
 
-            Advance();
-            while (TryPeek(out var c) && IsWhitespace(c.Value))
+            Advance(errorOnEof, eofValue, isRecursive);
+            while (TryPeek(errorOnEof, eofValue, isRecursive, out var c) && IsWhitespace(c.Value))
             {
-                Advance();
+                Advance(errorOnEof, eofValue, isRecursive);
             }
         }
 
-        private void ConsumeNewlineTrivia()
+        private void ConsumeNewlineTrivia(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
-            while (TryPeek(out var c)
+            while (TryPeek(errorOnEof, eofValue, isRecursive, out var c)
                 && IsNewlineLike(c.Value))
             {
                 _line++;
-                _column = 1;
-                Advance();
+                _column = 0; // set to 0 because the next line will increment it
+                Advance(errorOnEof, eofValue, isRecursive);
             }
         }
 
-        private void ConsumeCommentTrivia()
+        private void ConsumeCommentTrivia(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
-            if (!TryPeek(out var semi) || !IsSemi(semi.Value))
+            if (!TryPeek(errorOnEof, eofValue, isRecursive, out var semi) || !IsSemi(semi.Value))
             {
                 return;
             }
 
-            Advance();
-            while (TryPeek(out var c) && c.Value != '\n')
+            Advance(errorOnEof, eofValue, isRecursive);
+            while (TryPeek(errorOnEof, eofValue, isRecursive, out var c) && c.Value != '\n')
             {
-                Advance();
+                Advance(errorOnEof, eofValue, isRecursive);
             }
         }
     }

@@ -19,6 +19,7 @@ namespace IxMilia.Lisp
         private LispObject _eofMarker = new LispSymbol("(EOF)");
         public readonly LispRootStackFrame RootFrame;
 
+        internal LispObjectReader ObjectReader => _objectReader;
         public bool UseTailCalls { get; }
         public LispObject T { get; }
         public LispObject Nil { get; }
@@ -36,7 +37,7 @@ namespace IxMilia.Lisp
             AddContextObject(new LispDefaultContext());
 
             var nullStream = new LispStream("<null>", TextReader.Null, TextWriter.Null);
-            _objectReader = new LispObjectReader(this, false, _eofMarker, false);
+            _objectReader = new LispObjectReader(this);
             _objectReader.SetReaderStream(nullStream);
             if (useInitScript)
             {
@@ -251,7 +252,7 @@ namespace IxMilia.Lisp
         {
             var dribbleStream = RootFrame.DribbleStream;
             RootFrame.DribbleStream = null;
-            var obj = _objectReader.Read();
+            var obj = _objectReader.Read(false, _eofMarker, false);
             RootFrame.DribbleStream = dribbleStream;
             return obj;
         }
