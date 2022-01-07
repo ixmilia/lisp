@@ -49,6 +49,7 @@ namespace IxMilia.Lisp
         {
             _host = host;
 
+            _host.SetValue("STRING-EMPTY", new LispString(string.Empty));
             _host.AddFunction("SET-MACRO-CHARACTER", (__host, executionState, args) =>
             {
                 if (args.Length == 2 &&
@@ -116,6 +117,18 @@ namespace IxMilia.Lisp
                         return trailingCharacter; // probably an error
                 }
             });
+            _host.AddFunction("KERNEL:APPEND-CHAR-TO-STRING", (__host, executionState, args) =>
+            {
+                if (args.Length == 2 &&
+                    args[0] is LispString s &&
+                    args[1] is LispCharacter c)
+                {
+                    var result = s.Value + c.Value;
+                    return new LispString(result);
+                }
+
+                return new LispError("Expected the string so far and the next character");
+            });
         }
 
         public void SetReaderStream(LispStream input)
@@ -157,7 +170,21 @@ namespace IxMilia.Lisp
                 if (_macroFunctions.TryGetValue(c, out var readerFunction))
                 {
                     Advance(errorOnEof, eofValue, isRecursive);
-                    result = LispDefaultContext.FunCall(_host, _host.RootFrame, readerFunction, new LispObject[] { _input, lc });
+                    var originalReader = _input.Input;
+                    try
+                    {
+                        // calls to `(read-char ...)` in the reader function can't be observed, but we _can_ peek at every character that's read and report it back
+                        var mirroringReader = new MirroringTextReader(originalReader, rc =>
+                        {
+                            _incompleteInput?.Append(rc);
+                        });
+                        _input.Input = mirroringReader;
+                        result = LispDefaultContext.FunCall(_host, _host.RootFrame, readerFunction, new LispObject[] { _input, lc });
+                    }
+                    finally
+                    {
+                        _input.Input = originalReader;
+                    }
                 }
                 else if (IsTrivia(c))
                 {
@@ -166,11 +193,6 @@ namespace IxMilia.Lisp
                 else if (IsLeftParen(c))
                 {
                     result = ReadList(errorOnEof, eofValue, isRecursive);
-                }
-                else if (IsDoubleQuote(c))
-                {
-                    Advance(errorOnEof, eofValue, isRecursive);
-                    result = ReadString(errorOnEof, eofValue, isRecursive);
                 }
                 else
                 {
@@ -342,61 +364,6 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        private LispObject ReadString(bool errorOnEof, LispObject eofValue, bool isRecursive)
-        {
-            var builder = new StringBuilder();
-            var isEscape = false;
-            while (TryPeek(errorOnEof, eofValue, isRecursive, out var lc))
-            {
-                var c = lc.Value;
-                if (isEscape)
-                {
-                    isEscape = false;
-                    switch (c)
-                    {
-                        case 'n':
-                            builder.Append('\n');
-                            break;
-                        case 'f':
-                            builder.Append('\f');
-                            break;
-                        case 't':
-                            builder.Append('\t');
-                            break;
-                        case 'v':
-                            builder.Append('\v');
-                            break;
-                        default:
-                            // e.g., \
-                            //       "
-                            builder.Append(c);
-                            break;
-                    }
-                }
-                else
-                {
-                    if (IsDoubleQuote(c))
-                    {
-                        Advance(errorOnEof, eofValue, isRecursive);
-                        break;
-                    }
-                    else if (IsBackslash(c))
-                    {
-                        isEscape = true;
-                    }
-                    else
-                    {
-                        builder.Append(c);
-                    }
-                }
-
-                Advance(errorOnEof, eofValue, isRecursive);
-            }
-
-            var text = builder.ToString();
-            return new LispString(text);
-        }
-
         private LispObject Peek(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             var result = LispDefaultContext.PeekChar(null, _input, errorOnEof, eofValue, isRecursive);
@@ -485,11 +452,6 @@ namespace IxMilia.Lisp
                 || IsSemi(c);
         }
 
-        private static bool IsBackslash(char c)
-        {
-            return c == '\\';
-        }
-
         private static bool IsPeriod(char c)
         {
             return c == '.';
@@ -503,11 +465,6 @@ namespace IxMilia.Lisp
         private static bool IsRightParen(char c)
         {
             return c == ')';
-        }
-
-        private static bool IsDoubleQuote(char c)
-        {
-            return c == '"';
         }
 
         private string ReadUntilCharMatches(bool errorOnEof, LispObject eofValue, bool isRecursive, Func<char, bool> stopCondition)

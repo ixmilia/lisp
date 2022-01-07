@@ -389,5 +389,16 @@ namespace IxMilia.Lisp.Test
             var result = host.Eval("(peek-char #\\b test-stream)").LastResult;
             Assert.Equal(new LispCharacter('b'), result);
         }
+
+        [Fact]
+        public void IncompleteInputIsReturnedWhenReaderMacrosAreActive()
+        {
+            var text = "\"this string is incomplete";
+            var host = new LispHost();
+            var input = new LispStream("", new StringReader(text), TextWriter.Null);
+            host.ObjectReader.SetReaderStream(input);
+            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            Assert.Equal(text, result.IncompleteInput);
+        }
     }
 }

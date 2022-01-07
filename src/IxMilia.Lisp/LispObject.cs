@@ -1520,7 +1520,7 @@ namespace IxMilia.Lisp
     {
         public string Name { get; }
 
-        public TextReader Input { get; }
+        public TextReader Input { get; internal set; }
         public TextWriter Output { get; }
 
         public LispStream(string name, TextReader input, TextWriter output)

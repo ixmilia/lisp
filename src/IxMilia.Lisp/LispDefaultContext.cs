@@ -379,6 +379,19 @@ namespace IxMilia.Lisp
             return new LispError("Expected an integer");
         }
 
+        [LispFunction("CHAR-CODE")]
+        public LispObject CharCode(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 1 &&
+                args[0] is LispCharacter c)
+            {
+                var i = (int)c.Value;
+                return new LispInteger(i);
+            }
+
+            return new LispError("Expected a character");
+        }
+
         [LispFunction("CHAR=")]
         public LispObject CharEquals(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
