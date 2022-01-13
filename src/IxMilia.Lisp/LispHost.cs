@@ -154,7 +154,7 @@ namespace IxMilia.Lisp
                 var evalResult = Eval("init.lisp", content);
                 if (evalResult.ExecutionState?.LastResult != T)
                 {
-                    throw new Exception($"Expected 'T' but found '{evalResult.ExecutionState?.LastResult}' at ({evalResult.ExecutionState?.LastResult.SourceLocation?.Line}, {evalResult.ExecutionState?.LastResult.SourceLocation?.Column}).");
+                    throw new Exception($"Expected 'T' but found '{evalResult.ExecutionState?.LastResult}' at ({evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Line}, {evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Column}).");
                 }
             }
         }

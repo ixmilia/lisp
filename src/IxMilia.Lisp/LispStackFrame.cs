@@ -97,7 +97,7 @@ namespace IxMilia.Lisp
             var filePath = SourceLocation?.FilePath == null
                 ? string.Empty
                 : $" in '{SourceLocation.Value.FilePath}'";
-            return $"  at {FunctionName}{filePath}: ({SourceLocation?.Line}, {SourceLocation?.Column})\n{Parent}";
+            return $"  at {FunctionName}{filePath}: ({SourceLocation?.Start.Line}, {SourceLocation?.Start.Column})\n{Parent}";
         }
     }
 

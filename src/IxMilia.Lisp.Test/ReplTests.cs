@@ -43,8 +43,8 @@ namespace IxMilia.Lisp.Test
             var result = repl.Eval("(+ 1 abcd)(+ 2 3)");
             var error = (LispError)result.LastResult;
             Assert.Equal("Symbol 'ABCD' not found", error.Message);
-            Assert.Equal(1, error.SourceLocation?.Line);
-            Assert.Equal(6, error.SourceLocation?.Column);
+            Assert.Equal(1, error.SourceLocation?.Start.Line);
+            Assert.Equal(6, error.SourceLocation?.Start.Column);
         }
 
         [Fact]

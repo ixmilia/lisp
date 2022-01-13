@@ -69,7 +69,7 @@ namespace IxMilia.Lisp
                     lambdaList.Value is LispSymbol lambdaSymbol &&
                     lambdaSymbol.Value == "LAMBDA")
                 {
-                    var lambdaName = $"(LAMBDA-{lambdaList.SourceLocation?.Line}-{lambdaList.SourceLocation?.Column})"; // surrounded by parens to make it un-utterable
+                    var lambdaName = $"(LAMBDA-{lambdaList.SourceLocation?.Start.Line}-{lambdaList.SourceLocation?.Start.Column})"; // surrounded by parens to make it un-utterable
                     var lambdaItems = new List<LispObject>();
                     lambdaItems.Add(new LispSymbol(lambdaName));
                     lambdaItems.AddRange(lambdaList.ToList().Skip(1));
@@ -230,7 +230,7 @@ namespace IxMilia.Lisp
                             }
                             else
                             {
-                                result = new LispError($"Unexpected character '{c}' at position ({lc.SourceLocation?.Line}, {lc.SourceLocation?.Column})");
+                                result = new LispError($"Unexpected character '{c}' at position ({lc.SourceLocation?.Start.Line}, {lc.SourceLocation?.Start.Column})");
                             }
                         }
                     }
@@ -239,9 +239,10 @@ namespace IxMilia.Lisp
 
             if (result is object &&
                 result.SourceLocation == null &&
-                next is object)
+                next is object &&
+                next.SourceLocation != null)
             {
-                result.SourceLocation = next.SourceLocation;
+                result.SourceLocation = new LispSourceLocation(next.SourceLocation.Value.FilePath, next.SourceLocation.Value.Start, new LispSourcePosition(_line, _column));
             }
 
             var incompleteInput = result is LispError
@@ -289,7 +290,7 @@ namespace IxMilia.Lisp
                 {
                     if (dotLocation.HasValue)
                     {
-                        var error = new LispError($"Unexpected duplicate '.' in list at ({lc.SourceLocation?.Line}, {lc.SourceLocation?.Column}); first '.' at ({dotLocation.Value.Line}, {dotLocation.Value.Column})");
+                        var error = new LispError($"Unexpected duplicate '.' in list at ({lc.SourceLocation?.Start.Line}, {lc.SourceLocation?.Start.Column}); first '.' at ({dotLocation.Value.Start.Line}, {dotLocation.Value.Start.Column})");
                         error.SourceLocation = lc.SourceLocation;
                         return error;
                     }
@@ -320,7 +321,7 @@ namespace IxMilia.Lisp
 
             if (!isListComplete)
             {
-                return new LispError($"Unmatched '(' at ({first.SourceLocation?.Line}, {first.SourceLocation?.Column}) (depth {_leftParenCount})");
+                return new LispError($"Unmatched '(' at ({first.SourceLocation?.Start.Line}, {first.SourceLocation?.Start.Column}) (depth {_leftParenCount})");
             }
 
             LispObject result;
@@ -369,7 +370,7 @@ namespace IxMilia.Lisp
             var result = LispDefaultContext.PeekChar(null, _input, errorOnEof, eofValue, isRecursive);
             if (result.SourceLocation is null)
             {
-                result.SourceLocation = new LispSourceLocation(_input.Name, _line, _column);
+                result.SourceLocation = new LispSourceLocation(_input.Name, new LispSourcePosition(_line, _column), new LispSourcePosition(_line, _column + 1));
             }
 
             return result;

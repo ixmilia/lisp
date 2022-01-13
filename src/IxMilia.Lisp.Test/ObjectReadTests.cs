@@ -52,8 +52,8 @@ namespace IxMilia.Lisp.Test
         public void BadDottedList()
         {
             var error = (LispError)Read("(1 2 . 3 . 4)");
-            Assert.Equal(1, error.SourceLocation?.Line);
-            Assert.Equal(10, error.SourceLocation?.Column);
+            Assert.Equal(1, error.SourceLocation?.Start.Line);
+            Assert.Equal(10, error.SourceLocation?.Start.Column);
             Assert.Equal("Unexpected duplicate '.' in list at (1, 10); first '.' at (1, 6)", error.Message);
         }
 
@@ -62,8 +62,8 @@ namespace IxMilia.Lisp.Test
         {
             var error = (LispError)Read("(1 2 3");
             Assert.Equal("Unmatched '(' at (1, 1) (depth 1)", error.Message);
-            Assert.Equal(1, error.SourceLocation?.Line);
-            Assert.Equal(1, error.SourceLocation?.Column);
+            Assert.Equal(1, error.SourceLocation?.Start.Line);
+            Assert.Equal(1, error.SourceLocation?.Start.Column);
         }
 
         [Fact]
@@ -71,8 +71,8 @@ namespace IxMilia.Lisp.Test
         {
             var error = (LispError)Read(")");
             Assert.Equal("Unexpected character ')' at position (1, 1)", error.Message);
-            Assert.Equal(1, error.SourceLocation?.Line);
-            Assert.Equal(1, error.SourceLocation?.Column);
+            Assert.Equal(1, error.SourceLocation?.Start.Line);
+            Assert.Equal(1, error.SourceLocation?.Start.Column);
         }
 
         [Fact]
@@ -163,33 +163,25 @@ namespace IxMilia.Lisp.Test
         public void SourceLocations()
         {
             var list = (LispList)Read(" ( a b c ( 1 2 3 ) ) ");
-            Assert.Equal(1, list.SourceLocation?.Line);
-            Assert.Equal(2, list.SourceLocation?.Column);
+            Assert.Equal(1, list.SourceLocation?.Start.Line);
+            Assert.Equal(2, list.SourceLocation?.Start.Column);
 
             var listValues = list.ToList();
-            Assert.Equal(1, listValues[0].SourceLocation?.Line);
-            Assert.Equal(4, listValues[0].SourceLocation?.Column);
-            Assert.Equal(1, listValues[1].SourceLocation?.Line);
-            Assert.Equal(6, listValues[1].SourceLocation?.Column);
-            Assert.Equal(1, listValues[2].SourceLocation?.Line);
-            Assert.Equal(8, listValues[2].SourceLocation?.Column);
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 4), new LispSourcePosition(1, 5)), listValues[0].SourceLocation); // a
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 6), new LispSourcePosition(1, 7)), listValues[1].SourceLocation); // b
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 8), new LispSourcePosition(1, 9)), listValues[2].SourceLocation); // c
 
             var innerList = (LispList)listValues[3];
-            Assert.Equal(1, innerList.SourceLocation?.Line);
-            Assert.Equal(10, innerList.SourceLocation?.Column);
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 10), new LispSourcePosition(1, 19)), innerList.SourceLocation); // ( 1 2 3 )
 
             var innerListValues = innerList.ToList();
-            Assert.Equal(1, innerListValues[0].SourceLocation?.Line);
-            Assert.Equal(12, innerListValues[0].SourceLocation?.Column);
-            Assert.Equal(1, innerListValues[1].SourceLocation?.Line);
-            Assert.Equal(14, innerListValues[1].SourceLocation?.Column);
-            Assert.Equal(1, innerListValues[2].SourceLocation?.Line);
-            Assert.Equal(16, innerListValues[2].SourceLocation?.Column);
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 12), new LispSourcePosition(1, 13)), innerListValues[0].SourceLocation); // 1
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 14), new LispSourcePosition(1, 15)), innerListValues[1].SourceLocation); // 2
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 16), new LispSourcePosition(1, 17)), innerListValues[2].SourceLocation); // 3
 
             // after newline
             var symbol = Read("\na");
-            Assert.Equal(2, symbol.SourceLocation?.Line);
-            Assert.Equal(1, symbol.SourceLocation?.Column);
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(2, 1), new LispSourcePosition(2, 2)), symbol.SourceLocation);
         }
 
         [Fact]

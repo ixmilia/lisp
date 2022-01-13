@@ -142,8 +142,8 @@ namespace IxMilia.Lisp.Test
 ");
             var error = (LispError)evalResult.LastResult;
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
-            Assert.Equal(3, error.SourceLocation.Value.Line);
-            Assert.Equal(6, error.SourceLocation.Value.Column);
+            Assert.Equal(3, error.SourceLocation.Value.Start.Line);
+            Assert.Equal(6, error.SourceLocation.Value.Start.Column);
             Assert.Equal("INC", error.StackFrame.FunctionName);
             Assert.Equal("(ROOT)", error.StackFrame.Parent.FunctionName);
             Assert.Equal("Undefined macro/function 'ADD', found '<null>'", error.Message);
@@ -160,8 +160,8 @@ namespace IxMilia.Lisp.Test
 ");
             var error = (LispError)evalResult.LastResult;
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
-            Assert.Equal(4, error.SourceLocation.Value.Line);
-            Assert.Equal(6, error.SourceLocation.Value.Column);
+            Assert.Equal(4, error.SourceLocation.Value.Start.Line);
+            Assert.Equal(6, error.SourceLocation.Value.Start.Column);
             Assert.Equal("(ROOT)", error.StackFrame.FunctionName);
             Assert.Null(error.StackFrame.Parent);
             Assert.Equal("Symbol 'TWO' not found", error.Message);
@@ -179,8 +179,8 @@ namespace IxMilia.Lisp.Test
 ");
             var error = (LispError)evalResult.LastResult;
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
-            Assert.Equal(4, error.SourceLocation.Value.Line);
-            Assert.Equal(4, error.SourceLocation.Value.Column);
+            Assert.Equal(4, error.SourceLocation.Value.Start.Line);
+            Assert.Equal(4, error.SourceLocation.Value.Start.Column);
             Assert.Equal("(ROOT)", error.StackFrame.FunctionName);
             Assert.Null(error.StackFrame.Parent);
             Assert.Equal("Symbol 'ONE' not found", error.Message);
@@ -897,8 +897,8 @@ total
             var evalResult = host.Eval(code);
             var error = (LispError)evalResult.LastResult;
             Assert.Equal("Symbol 'A' not found", error.Message);
-            Assert.Equal(line, error.SourceLocation.Value.Line);
-            Assert.Equal(column, error.SourceLocation.Value.Column);
+            Assert.Equal(line, error.SourceLocation.Value.Start.Line);
+            Assert.Equal(column, error.SourceLocation.Value.Start.Column);
         }
 
         [Fact]

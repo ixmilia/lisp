@@ -6,6 +6,7 @@
 
 using System.Threading.Tasks;
 using IxMilia.Lisp;
+using Microsoft.CodeAnalysis;
 using Microsoft.DotNet.Interactive;
 using Microsoft.DotNet.Interactive.Commands;
 using Microsoft.DotNet.Interactive.Events;
@@ -23,10 +24,27 @@ class LispKernel : Kernel, IKernelCommandHandler<SubmitCode>
     public Task HandleAsync(SubmitCode command, KernelInvocationContext context)
     {
         var result = _repl.Eval(command.Code, consumeIncompleteInput: false);
-        if (result.ExecutionState.LastResult is { } lastResult)
+        switch (result.ExecutionState.LastResult)
         {
-            var formatted = new FormattedValue("text/plain", lastResult.ToString());
-            context.Publish(new ReturnValueProduced(lastResult, command, new[] { formatted }));
+            case LispError err:
+                var start = new LinePosition(0, 0);
+                var end = new LinePosition(0, 0);
+                if (err.SourceLocation.HasValue)
+                {
+                    start = new LinePosition(err.SourceLocation.Value.Start.Line - 1, err.SourceLocation.Value.Start.Column - 1);
+                    end = new LinePosition(err.SourceLocation.Value.End.Line - 1, err.SourceLocation.Value.End.Column - 1);
+                }
+
+                var diag = new Microsoft.DotNet.Interactive.Diagnostic(new LinePositionSpan(start, end), DiagnosticSeverity.Error, "LISP0001", err.Message);
+                var diags = new[] { diag };
+                context.Publish(new DiagnosticsProduced(diags, command));
+                context.Fail(command, null, $"{err.SourceLocation?.Start.Line}, {err.SourceLocation?.Start.Column} - {err.Message}");
+                break;  
+            case LispObject obj:
+                var formatted = new FormattedValue("text/plain", obj.ToString()); // TODO: return strings, ints, etc.
+                context.Publish(new ReturnValueProduced(obj, command, new[] { formatted }));
+                context.Publish(new DiagnosticsProduced(new Microsoft.DotNet.Interactive.Diagnostic[0], command));
+                break;
         }
 
         return Task.CompletedTask;
@@ -38,7 +56,4 @@ class LispKernel : Kernel, IKernelCommandHandler<SubmitCode>
 #!csharp
 
 #!lisp
-(defun add (a b)
-  (+ a b))
-
-(add 1 2)
+(+ 1 2 3 four 5 6)
