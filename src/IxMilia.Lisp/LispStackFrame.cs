@@ -20,7 +20,7 @@ namespace IxMilia.Lisp
 
         public LispObject T => GetValue<LispSymbol>(TString);
         public LispObject Nil => GetValue<LispList>(NilString);
-        public LispStream TerminalIO => GetValue<LispStream>(TerminalIOString);
+        public LispTextStream TerminalIO => GetValue<LispTextStream>(TerminalIOString);
 
         private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
 
@@ -42,6 +42,11 @@ namespace IxMilia.Lisp
             : this(parent)
         {
             FunctionName = functionName;
+        }
+
+        internal LispStackFrame Clone()
+        {
+            return new LispStackFrame(this.Function, this.Parent?.Clone());
         }
 
         internal void CopyLocalsToParentForTailCall(HashSet<string> invocationArgumentNames)
@@ -139,7 +144,7 @@ namespace IxMilia.Lisp
         {
             SetValue(TString, new LispSymbol(TString));
             SetValue(NilString, LispNilList.Instance);
-            SetValue(TerminalIOString, new LispStream(TerminalIOString, input, output));
+            SetValue(TerminalIOString, new LispTextStream(TerminalIOString, input, output));
         }
 
         internal bool OnFunctionEnter(LispStackFrame frame, LispObject[] functionArguments)

@@ -16,6 +16,7 @@ namespace IxMilia.Lisp
                 {
                     // re-queue, because we can never finish
                     executionState.InsertOperation(operation);
+                    error.StackFrame ??= executionState.StackFrame;
                     executionState.StackFrame.Root.OnErrorOccured(error, executionState.StackFrame);
                     return LispEvaluationState.FatalHalt;
                 }
@@ -127,7 +128,6 @@ namespace IxMilia.Lisp
                                             result = finalList;
                                         }
 
-                                        TryApplySourceLocation(result, forwardRef);
                                         executionState.PushArgument(result);
                                     }
                                     break;
@@ -189,7 +189,7 @@ namespace IxMilia.Lisp
                                                 // nothing
                                                 break;
                                             case LispFunction function:
-                                                executionState.InsertOperation(new LispEvaluatorFunctionExit(function, expression.Expression, sList.SourceLocation));
+                                                executionState.InsertOperation(new LispEvaluatorFunctionExit(function, expression.Expression));
                                                 switch (function)
                                                 {
                                                     case LispNativeFunction _:
@@ -220,7 +220,7 @@ namespace IxMilia.Lisp
                                                 throw new NotSupportedException($"Unexpected function/macro object '{invocationObject.GetType().Name}'");
                                         }
 
-                                        executionState.InsertOperation(new LispEvaluatorInvocation(invocationObject, sList.SourceLocation, arguments.Count));
+                                        executionState.InsertOperation(new LispEvaluatorInvocation(invocationObject, arguments.Count));
 
                                         // evaluate/add arguments
                                         switch (invocationObject)
@@ -282,11 +282,6 @@ namespace IxMilia.Lisp
                         break;
                     case LispEvaluatorFunctionExit exit:
                         {
-                            if (executionState.LastResult != null)
-                            {
-                                executionState.LastResult.SourceLocation = exit.SourceLocation;
-                            }
-
                             var halt = executionState.StackFrame.Root.OnFunctionReturn(exit.Function, executionState.StackFrame, executionState.LastResult);
                             if (exit.PopFrame)
                             {
@@ -386,10 +381,6 @@ namespace IxMilia.Lisp
                                             case LispNativeFunction nativeFunction:
                                                 captureValueSetHalt = true;
                                                 var evaluationResult = nativeFunction.Function.Invoke(host, executionState, arguments);
-                                                if (!evaluationResult.SourceLocation.HasValue)
-                                                {
-                                                    evaluationResult.SourceLocation = invocation.SourceLocation;
-                                                }
 
                                                 executionState.PushArgument(evaluationResult);
                                                 break;
@@ -416,14 +407,6 @@ namespace IxMilia.Lisp
             }
 
             return LispEvaluationState.Complete;
-        }
-
-        private static void TryApplySourceLocation(LispObject obj, LispObject parent)
-        {
-            if (!obj.SourceLocation.HasValue)
-            {
-                obj.SourceLocation = parent.SourceLocation;
-            }
         }
     }
 }

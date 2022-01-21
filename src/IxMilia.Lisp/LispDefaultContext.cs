@@ -264,11 +264,6 @@ namespace IxMilia.Lisp
                 var result = host.EvalAtStackFrame(evaluatingFrame, synthesizedFunctionCall);
                 postExecute?.Invoke();
 
-                if (!result.SourceLocation.HasValue)
-                {
-                    result.SourceLocation = functionReference.SourceLocation;
-                }
-
                 return result;
             }
 
@@ -315,8 +310,8 @@ namespace IxMilia.Lisp
 
                 var fullString = inputString.Value.Substring(startIndex, endIndex - startIndex + 1);
                 var input = new StringReader(fullString);
-                var inputStream = new LispStream("", input, TextWriter.Null);
-                return inputStream;
+                var inputTextStream = new LispTextStream("", input, TextWriter.Null);
+                return inputTextStream;
             }
             else
             {
@@ -333,7 +328,7 @@ namespace IxMilia.Lisp
                 var formatArgs = args.Skip(2);
                 if (LispFormatter.TryFormatString(s.Value, formatArgs, out var result))
                 {
-                    LispStream stream;
+                    LispTextStream stream;
                     if (args[0] == host.T)
                     {
                         // write to terminal
@@ -344,7 +339,7 @@ namespace IxMilia.Lisp
                         // return formatted string
                         return new LispString(result);
                     }
-                    else if (args[0] is LispStream suppliedStream)
+                    else if (args[0] is LispTextStream suppliedStream)
                     {
                         stream = suppliedStream;
                     }
@@ -411,7 +406,7 @@ namespace IxMilia.Lisp
         public LispObject PeekChar(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             var peekType = host.Nil;
-            var inputStream = host.TerminalIO;
+            var inputTextStream = host.TerminalIO;
             var errorOnEof = true;
             var eofValue = host.Nil;
             var _isRecursive = false;
@@ -426,9 +421,9 @@ namespace IxMilia.Lisp
                     argumentOffset = 1;
                 }
 
-                if (args[0 + argumentOffset] is LispStream stream)
+                if (args[0 + argumentOffset] is LispTextStream stream)
                 {
-                    inputStream = stream;
+                    inputTextStream = stream;
                 }
                 else
                 {
@@ -456,21 +451,21 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return PeekChar(peekType, inputStream, errorOnEof, eofValue, _isRecursive);
+            return PeekChar(peekType, inputTextStream, errorOnEof, eofValue, _isRecursive);
         }
 
         [LispFunction("READ-CHAR")]
         public LispObject ReadChar(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
-            var inputStream = host.TerminalIO;
+            var inputTextStream = host.TerminalIO;
             var errorOnEof = true;
             var eofValue = host.Nil;
             var _isRecursive = false;
             if (args.Length >= 1)
             {
-                if (args[0] is LispStream stream)
+                if (args[0] is LispTextStream stream)
                 {
-                    inputStream = stream;
+                    inputTextStream = stream;
                 }
                 else
                 {
@@ -498,10 +493,10 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return ReadChar(inputStream, errorOnEof, eofValue, _isRecursive);
+            return ReadChar(inputTextStream, errorOnEof, eofValue, _isRecursive);
         }
 
-        internal static LispObject PeekChar(LispObject peekType, LispStream inputStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        internal static LispObject PeekChar(LispObject peekType, LispTextStream inputTextStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             Func<char, bool> shouldConsumeAndSkip;
             if (peekType == null || peekType.IsNil())
@@ -524,15 +519,22 @@ namespace IxMilia.Lisp
                 return new LispError("Expected `nil`, `t` or character");
             }
 
-            int peeked;
             char peekedChar;
             while (true)
             {
-                peeked = inputStream.Input.Peek();
-                peekedChar = (char)peeked;
-                if (peeked == -1)
+                if (inputTextStream.Peek() is LispCharacter lc)
                 {
-                    // eof
+                    peekedChar = lc.Value;
+                    if (!shouldConsumeAndSkip(peekedChar))
+                    {
+                        break;
+                    }
+
+                    // swallow it
+                    inputTextStream.Read();
+                }
+                else
+                {
                     if (errorOnEof)
                     {
                         return new LispError("EOF");
@@ -542,51 +544,40 @@ namespace IxMilia.Lisp
                         return eofValue;
                     }
                 }
-
-                if (!shouldConsumeAndSkip(peekedChar))
-                {
-                    break;
-                }
-
-                // swallow it
-                inputStream.Input.Read();
             }
 
             return new LispCharacter(peekedChar);
         }
 
-        internal static LispObject ReadChar(LispStream inputStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        internal static LispObject ReadChar(LispTextStream inputTextStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
-            var peeked = inputStream.Input.Peek();
-            if (peeked == -1)
+            if (inputTextStream.Read() is LispCharacter lc)
             {
-                // eof
-                if (errorOnEof)
-                {
-                    return new LispError("EOF");
-                }
-                else
-                {
-                    return eofValue;
-                }
+                return lc;
             }
 
-            var c = (char)inputStream.Input.Read();
-            return new LispCharacter(c);
+            if (errorOnEof)
+            {
+                return new LispError("EOF");
+            }
+            else
+            {
+                return eofValue;
+            }
         }
 
         [LispFunction("READ")]
         public LispObject Read(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
-            var inputStream = host.TerminalIO;
+            var inputTextStream = host.TerminalIO;
             var errorOnEof = true;
             var eofValue = host.Nil;
             var isRecursive = false;
             if (args.Length >= 1)
             {
-                if (args[0] is LispStream stream)
+                if (args[0] is LispTextStream stream)
                 {
-                    inputStream = stream;
+                    inputTextStream = stream;
                 }
                 else
                 {
@@ -615,16 +606,15 @@ namespace IxMilia.Lisp
             }
 
             LispObject result = null;
-            var previousReaderStream = host.ObjectReader.InputStream;
             try
             {
-                host.ObjectReader.SetReaderStream(inputStream);
+                host.ObjectReader.PushReaderStream(inputTextStream);
                 var readerResult = host.ObjectReader.Read(errorOnEof, eofValue, isRecursive);
                 result = readerResult.LastResult;
             }
             finally
             {
-                host.ObjectReader.SetReaderStream(previousReaderStream);
+                host.ObjectReader.PopReaderStream();
             }
 
             return result;

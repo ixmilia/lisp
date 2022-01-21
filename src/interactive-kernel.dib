@@ -18,7 +18,7 @@ class LispKernel : Kernel, IKernelCommandHandler<SubmitCode>
     public LispKernel()
         : base("lisp")
     {
-        _repl = new LispRepl();
+        _repl = new LispRepl(location: "*REPL*");
     }
 
     public Task HandleAsync(SubmitCode command, KernelInvocationContext context)
@@ -27,18 +27,33 @@ class LispKernel : Kernel, IKernelCommandHandler<SubmitCode>
         switch (result.ExecutionState.LastResult)
         {
             case LispError err:
-                var start = new LinePosition(0, 0);
-                var end = new LinePosition(0, 0);
-                if (err.SourceLocation.HasValue)
+                var errorLocation = err.SourceLocation;
+                Console.WriteLine($"stack frame: {err.StackFrame}");
+                var replFrame = err.StackFrame;
+                while (replFrame != null)
                 {
-                    start = new LinePosition(err.SourceLocation.Value.Start.Line - 1, err.SourceLocation.Value.Start.Column - 1);
-                    end = new LinePosition(err.SourceLocation.Value.End.Line - 1, err.SourceLocation.Value.End.Column - 1);
+                    if (replFrame.SourceLocation?.FilePath == "*REPL*")
+                    {
+                        errorLocation = replFrame.SourceLocation;
+                        break;
+                    }
+
+                    replFrame = replFrame.Parent;
                 }
 
-                var diag = new Microsoft.DotNet.Interactive.Diagnostic(new LinePositionSpan(start, end), DiagnosticSeverity.Error, "LISP0001", err.Message);
-                var diags = new[] { diag };
-                context.Publish(new DiagnosticsProduced(diags, command));
-                context.Fail(command, null, $"{err.SourceLocation?.Start.Line}, {err.SourceLocation?.Start.Column} - {err.Message}");
+                if (errorLocation != null)
+                {
+                    var diag = new Microsoft.DotNet.Interactive.Diagnostic(
+                        new LinePositionSpan(
+                            new LinePosition(errorLocation.Value.Start.Line - 1, errorLocation.Value.Start.Column - 1),
+                            new LinePosition(errorLocation.Value.End.Line - 1, errorLocation.Value.End.Column - 1)),
+                        DiagnosticSeverity.Error,
+                        "LISP0001",
+                        err.Message);
+                    context.Publish(new DiagnosticsProduced(new[] { diag }, command));
+                }
+
+                context.Fail(command, null, err.Message);
                 break;  
             case LispObject obj:
                 var formatted = new FormattedValue("text/plain", obj.ToString()); // TODO: return strings, ints, etc.
@@ -56,4 +71,4 @@ class LispKernel : Kernel, IKernelCommandHandler<SubmitCode>
 #!csharp
 
 #!lisp
-(+ 1 2 3 four 5 6)
+(+ 1 "two" 3)

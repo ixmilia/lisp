@@ -125,15 +125,6 @@ namespace IxMilia.Lisp
             StackFrame = stackFrame;
         }
 
-        //internal void TryApplyStackFrame(LispStackFrame frame)
-        //{
-        //    if (StackFrame == null)
-        //    {
-        //        StackFrame = frame;
-        //        SourceLocation = frame.SourceLocation;
-        //    }
-        //}
-
         public override IEnumerable<LispObject> GetChildren()
         {
             yield break;
@@ -1516,18 +1507,76 @@ namespace IxMilia.Lisp
         }
     }
 
-    public class LispStream : LispObject
+    public abstract class LispStream : LispObject
     {
         public string Name { get; }
 
-        public TextReader Input { get; internal set; }
-        public TextWriter Output { get; }
-
-        public LispStream(string name, TextReader input, TextWriter output)
+        protected LispStream(string name)
         {
             Name = name;
-            Input = input;
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
+        public override string ToString()
+        {
+            return $"<stream> {Name}";
+        }
+    }
+
+    public class LispTextStream : LispStream
+    {
+        private ReportingTextReader _input;
+
+        public TextReader Input { get; }
+        public TextWriter Output { get; }
+
+        public LispSourcePosition CurrentPosition => _input.CurrentPosition;
+        public bool IsInputComplete => _input.Peek() == -1;
+
+        public event EventHandler<LispCharacter> CharacterRead;
+
+        public LispTextStream(string name, TextReader input, TextWriter output)
+            : this(name, new ReportingTextReader(input), output)
+        {
+        }
+
+        private LispTextStream(string name, ReportingTextReader input, TextWriter output)
+            : base(name)
+        {
+            _input = input;
             Output = output;
+        }
+
+        public LispCharacter Peek()
+        {
+            var i = _input.Peek();
+            if (i == -1)
+            {
+                return null;
+            }
+
+            var c = (char)i;
+            var lc = new LispCharacter(c);
+            var startPosition = CurrentPosition;
+            lc.SourceLocation = new LispSourceLocation(Name, startPosition, new LispSourcePosition(startPosition.Line, startPosition.Column + 1));
+            return lc;
+        }
+
+        public LispCharacter Read()
+        {
+            var lc = Peek();
+            if (lc is object)
+            {
+                // swallow and advance
+                _input.Read();
+                CharacterRead?.Invoke(this, lc);
+            }
+
+            return lc;
         }
 
         public override IEnumerable<LispObject> GetChildren()
@@ -1537,16 +1586,11 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispStream(Name, Input, Output);
-        }
-
-        public override string ToString()
-        {
-            return $"<stream> {Name}";
+            return new LispTextStream(Name, _input, Output);
         }
     }
 
-    public class LispFileStream : LispStream
+    public class LispFileStream : LispTextStream
     {
         public FileStream FileStream { get; }
 

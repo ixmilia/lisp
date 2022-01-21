@@ -23,7 +23,7 @@ namespace IxMilia.Lisp
         public bool UseTailCalls { get; }
         public LispObject T { get; }
         public LispObject Nil { get; }
-        public LispStream TerminalIO { get; }
+        public LispTextStream TerminalIO { get; }
 
         public LispHost(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false, bool useInitScript = true)
         {
@@ -36,7 +36,7 @@ namespace IxMilia.Lisp
             AddContextObject(new LispSpecialOperatorsContext());
             AddContextObject(new LispDefaultContext());
 
-            var nullStream = new LispStream("<null>", TextReader.Null, TextWriter.Null);
+            var nullStream = new LispTextStream("<null>", TextReader.Null, TextWriter.Null);
             _objectReader = new LispObjectReader(this);
             _objectReader.SetReaderStream(nullStream);
             if (useInitScript)

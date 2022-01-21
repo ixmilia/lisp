@@ -187,21 +187,45 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void SourcePropagationFromHostInit()
+        public void ErrorStackPropagationFromInitScript()
+        {
+            var host = new LispHost();
+            var evalResult = host.Eval("*REPL*", "(+ 1 \"two\" 3)");
+            var error = (LispError)evalResult.LastResult;
+            var errorStackFrame = error.StackFrame;
+
+            Assert.Equal("KERNEL:+/2", errorStackFrame.FunctionName);
+            Assert.Null(errorStackFrame.SourceLocation); // in native code
+            
+            Assert.Equal("REDUCE", errorStackFrame.Parent.FunctionName);
+            Assert.Null(errorStackFrame.Parent.SourceLocation); // in native code
+
+            Assert.Equal("+", errorStackFrame.Parent.Parent.FunctionName);
+            Assert.Equal(new LispSourceLocation("init.lisp", new LispSourcePosition(189, 34), new LispSourcePosition(189, 40)), errorStackFrame.Parent.Parent.SourceLocation);
+
+            Assert.Equal("(ROOT)", errorStackFrame.Parent.Parent.Parent.FunctionName);
+            Assert.Equal(new LispSourceLocation("*REPL*", new LispSourcePosition(1, 12), new LispSourcePosition(1, 13)), errorStackFrame.Parent.Parent.Parent.SourceLocation);
+            // TODO: [(1, 6)-(1, 11)) is better since that argument isn't a number
+
+            Assert.Null(errorStackFrame.Parent.Parent.Parent.Parent);
+        }
+
+        [Fact]
+        public void SourceLocationIsNotPropagatedFromComputedValues1()
         {
             var host = new LispHost("test-file.lisp");
             var result = host.Eval("(+ 1 2)").LastResult;
             Assert.Equal(3, ((LispInteger)result).Value);
-            Assert.Equal("test-file.lisp", result.SourceLocation.Value.FilePath);
+            Assert.Null(result.SourceLocation);
         }
 
         [Fact]
-        public void SourcePropagationFromHostEval()
+        public void SourceLocationIsNotPropagatedFromComputedValues2()
         {
             var host = new LispHost("host.lisp");
             var result = host.Eval("some-other-location.lisp", "(+ 1 2)").LastResult;
             Assert.Equal(3, ((LispInteger)result).Value);
-            Assert.Equal("some-other-location.lisp", result.SourceLocation.Value.FilePath);
+            Assert.Null(result.SourceLocation);
         }
 
         [Fact]
@@ -600,7 +624,7 @@ returned from AVERAGE with 5
         public void FormatToStream()
         {
             var output = new StringWriter();
-            var testStream = new LispStream("TEST-STREAM", TextReader.Null, output);
+            var testStream = new LispTextStream("TEST-STREAM", TextReader.Null, output);
             var host = new LispHost();
             host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval(@"
@@ -628,7 +652,7 @@ returned from AVERAGE with 5
         public void TerPriFunctionWithStream()
         {
             var output = new StringWriter();
-            var testStream = new LispStream("TEST-STREAM", TextReader.Null, output);
+            var testStream = new LispTextStream("TEST-STREAM", TextReader.Null, output);
             var host = new LispHost();
             host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval(@"
@@ -654,7 +678,7 @@ returned from AVERAGE with 5
         public void Prin1FunctionWithStream()
         {
             var output = new StringWriter();
-            var testStream = new LispStream("TEST-STREAM", TextReader.Null, output);
+            var testStream = new LispTextStream("TEST-STREAM", TextReader.Null, output);
             var host = new LispHost();
             host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval(@"
@@ -680,7 +704,7 @@ returned from AVERAGE with 5
         public void PrinCFunctionWithStream()
         {
             var output = new StringWriter();
-            var testStream = new LispStream("TEST-STREAM", TextReader.Null, output);
+            var testStream = new LispTextStream("TEST-STREAM", TextReader.Null, output);
             var host = new LispHost();
             host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval(@"
@@ -706,7 +730,7 @@ returned from AVERAGE with 5
         public void PrintFunctionWithStream()
         {
             var output = new StringWriter();
-            var testStream = new LispStream("TEST-STREAM", TextReader.Null, output);
+            var testStream = new LispTextStream("TEST-STREAM", TextReader.Null, output);
             var host = new LispHost();
             host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval(@"

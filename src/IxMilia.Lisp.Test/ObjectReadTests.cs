@@ -9,7 +9,7 @@ namespace IxMilia.Lisp.Test
         private LispObject Read(string text)
         {
             var host = new LispHost();
-            var input = new LispStream("", new StringReader(text), TextWriter.Null);
+            var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
             host.ObjectReader.SetReaderStream(input);
             var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
             return result.LastResult;
@@ -216,7 +216,7 @@ namespace IxMilia.Lisp.Test
         public void ReadStreamObjectsThenDefaultEofMarker()
         {
             var input = new StringReader("(abc 2)\n14");
-            var stream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var stream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
             host.ObjectReader.SetReaderStream(stream);
 
@@ -236,7 +236,7 @@ namespace IxMilia.Lisp.Test
         public void ReadStreamObjectsThenCustomEofMarker()
         {
             var input = new StringReader("14");
-            var stream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var stream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
             host.ObjectReader.SetReaderStream(stream);
 
@@ -251,7 +251,7 @@ namespace IxMilia.Lisp.Test
         public void ReadFunctionDefaultEofMarker()
         {
             var input = new StringReader("14");
-            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
 
             host.SetValue("TEST-STREAM", testStream);
@@ -263,7 +263,7 @@ namespace IxMilia.Lisp.Test
         public void ReadFunctionCustomEofMarker()
         {
             var input = new StringReader("14");
-            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
             host.SetValue("TEST-STREAM", testStream);
             var result = host.Eval("(list (read test-stream) (read test-stream nil -54))").LastResult;
@@ -326,7 +326,7 @@ namespace IxMilia.Lisp.Test
         public void PeekCharPeekTypeIsNotGiven()
         {
             var input = new StringReader(" ab ");
-            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
 
             host.SetValue("TEST-STREAM", testStream);
@@ -338,7 +338,7 @@ namespace IxMilia.Lisp.Test
         public void PeekCharPeekTypeIsNil()
         {
             var input = new StringReader(" ab ");
-            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
 
             host.SetValue("TEST-STREAM", testStream);
@@ -350,7 +350,7 @@ namespace IxMilia.Lisp.Test
         public void PeekCharPeekTypeIsTThenSymbol()
         {
             var input = new StringReader(" ab ");
-            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
 
             host.SetValue("TEST-STREAM", testStream);
@@ -362,7 +362,7 @@ namespace IxMilia.Lisp.Test
         public void PeekCharPeekTypeIsTThenComment()
         {
             var input = new StringReader(" ;ab ");
-            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
 
             host.SetValue("TEST-STREAM", testStream);
@@ -374,7 +374,7 @@ namespace IxMilia.Lisp.Test
         public void PeekCharPeekTypeIsCharacter()
         {
             var input = new StringReader(" ab ");
-            var testStream = new LispStream("TEST-STREAM", input, TextWriter.Null);
+            var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = new LispHost();
 
             host.SetValue("TEST-STREAM", testStream);
@@ -383,11 +383,58 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void ObjectsFromReaderMacrosHaveProperSourceSpansSet1()
+        {
+            var text = "\"some string\"";
+            var host = new LispHost();
+            var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
+            host.ObjectReader.SetReaderStream(input);
+            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 1), new LispSourcePosition(1, 14)), result.LastResult.SourceLocation);
+        }
+
+        [Fact]
+        public void ObjectsFromReaderMacrosHaveProperSourceSpansSet2()
+        {
+            var text = "#'asdf";
+            var host = new LispHost();
+            var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
+            host.ObjectReader.SetReaderStream(input);
+            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            Assert.Equal("#'ASDF", result.LastResult.ToString());
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 1), new LispSourcePosition(1, 7)), result.LastResult.SourceLocation);
+        }
+
+        [Fact]
+        public void ObjectsAfterReaderMacroHaveProperSourceSpansSet1()
+        {
+            var text = "\"some string\" 42";
+            var host = new LispHost();
+            var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
+            host.ObjectReader.SetReaderStream(input);
+            var _ = host.ObjectReader.Read(false, new LispError("EOF"), false); // swallow the string
+            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 15), new LispSourcePosition(1, 17)), result.LastResult.SourceLocation);
+        }
+
+        [Fact]
+        public void ObjectsAfterReaderMacroHaveProperSourceSpansSet2()
+        {
+            var text = "#'asdf 42";
+            var host = new LispHost();
+            var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
+            host.ObjectReader.SetReaderStream(input);
+            var _ = host.ObjectReader.Read(false, new LispError("EOF"), false); // swallow the string
+            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 8), new LispSourcePosition(1, 10)), result.LastResult.SourceLocation);
+        }
+
+        [Fact]
         public void IncompleteInputIsReturnedWhenReaderMacrosAreActive()
         {
             var text = "\"this string is incomplete";
             var host = new LispHost();
-            var input = new LispStream("", new StringReader(text), TextWriter.Null);
+            var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
             host.ObjectReader.SetReaderStream(input);
             var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
             Assert.Equal(text, result.IncompleteInput);

@@ -8,21 +8,19 @@ namespace IxMilia.Lisp
     {
         private Stack<LispObject> _argumentStack = new Stack<LispObject>();
         private List<ILispEvaluatorOperation> _operationQueue;
-        private ReportingStringReader _codeReader;
-        internal LispStream CodeInputStream;
+        internal LispTextStream CodeInputStream;
         internal LispStackFrame StackFrame { get; set; }
         internal bool UseTailCalls { get; }
         internal bool AllowHalting { get; }
 
         public LispObject LastResult => _argumentStack.Count > 0 ? _argumentStack.Peek() : null;
 
-        public bool IsExecutionComplete => _operationQueue.Count == 0 && _codeReader.IsComplete;
+        public bool IsExecutionComplete => _operationQueue.Count == 0 && CodeInputStream.IsInputComplete;
 
-        private LispExecutionState(LispStackFrame stackFrame, string inputName, ReportingStringReader codeReader, bool useTailCalls, bool allowHalting)
+        private LispExecutionState(LispStackFrame stackFrame, string inputName, TextReader codeReader, bool useTailCalls, bool allowHalting)
         {
             _operationQueue = new List<ILispEvaluatorOperation>();
-            _codeReader = codeReader;
-            CodeInputStream = new LispStream(inputName, _codeReader, TextWriter.Null);
+            CodeInputStream = new LispTextStream(inputName, codeReader, TextWriter.Null);
             StackFrame = stackFrame;
             UseTailCalls = useTailCalls;
             AllowHalting = allowHalting;
@@ -112,7 +110,7 @@ namespace IxMilia.Lisp
 
         internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, string inputName, string code, bool useTailCalls, bool allowHalting)
         {
-            var reader = new ReportingStringReader(code);
+            var reader = new StringReader(code);
             var executionState = new LispExecutionState(stackFrame, inputName, reader, useTailCalls, allowHalting);
             return executionState;
         }

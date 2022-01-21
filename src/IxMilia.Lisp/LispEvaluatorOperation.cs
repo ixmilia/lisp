@@ -10,19 +10,17 @@ namespace IxMilia.Lisp
     internal class LispEvaluatorInvocation : ILispEvaluatorOperation
     {
         public LispInvocableObject InvocationObject { get; }
-        public LispSourceLocation? SourceLocation { get; }
         public int ArgumentCount { get; }
 
-        public LispEvaluatorInvocation(LispInvocableObject invocationObject, LispSourceLocation? sourceLocation, int argumentCount)
+        public LispEvaluatorInvocation(LispInvocableObject invocationObject, int argumentCount)
         {
             InvocationObject = invocationObject;
-            SourceLocation = sourceLocation;
             ArgumentCount = argumentCount;
         }
 
         public override string ToString()
         {
-            return $"i: {InvocationObject.Name}/{ArgumentCount}{(SourceLocation.HasValue ? $" at {SourceLocation}" : "")}";
+            return $"i: {InvocationObject.Name}/{ArgumentCount}";
         }
     }
 
@@ -30,20 +28,18 @@ namespace IxMilia.Lisp
     {
         public LispFunction Function { get; }
         public LispObject InvocationExpression { get; }
-        public LispSourceLocation? SourceLocation { get; }
         public bool PopFrame { get; }
 
-        public LispEvaluatorFunctionExit(LispFunction function, LispObject invocationExpression, LispSourceLocation? sourceLocation, bool popFrame = true)
+        public LispEvaluatorFunctionExit(LispFunction function, LispObject invocationExpression, bool popFrame = true)
         {
             Function = function;
             InvocationExpression = invocationExpression;
-            SourceLocation = sourceLocation;
             PopFrame = popFrame;
         }
 
         public LispEvaluatorFunctionExit WithoutFramePop()
         {
-            return new LispEvaluatorFunctionExit(Function, InvocationExpression, SourceLocation, popFrame: false);
+            return new LispEvaluatorFunctionExit(Function, InvocationExpression, popFrame: false);
         }
 
         public override string ToString()
