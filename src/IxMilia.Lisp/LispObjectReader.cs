@@ -48,7 +48,6 @@ namespace IxMilia.Lisp
         {
             _host = host;
 
-            _host.SetValue("STRING-EMPTY", new LispString(string.Empty));
             _host.AddFunction("SET-MACRO-CHARACTER", (__host, executionState, args) =>
             {
                 if (args.Length == 2 &&
@@ -114,18 +113,6 @@ namespace IxMilia.Lisp
                     default:
                         return new LispError($"Unexpected character '{trailingCharacter}'");
                 }
-            });
-            _host.AddFunction("KERNEL:APPEND-CHAR-TO-STRING", (__host, executionState, args) =>
-            {
-                if (args.Length == 2 &&
-                    args[0] is LispString s &&
-                    args[1] is LispCharacter c)
-                {
-                    var result = s.Value + c.Value;
-                    return new LispString(result);
-                }
-
-                return new LispError("Expected the string so far and the next character");
             });
         }
 

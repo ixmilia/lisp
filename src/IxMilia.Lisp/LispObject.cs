@@ -1530,9 +1530,10 @@ namespace IxMilia.Lisp
     public class LispTextStream : LispStream
     {
         private ReportingTextReader _input;
+        private ReportingTextWriter _output;
 
-        public TextReader Input { get; }
-        public TextWriter Output { get; }
+        public TextReader Input => _input;
+        public TextWriter Output => _output;
 
         public LispSourcePosition CurrentPosition => _input.CurrentPosition;
         public bool IsInputComplete => _input.Peek() == -1;
@@ -1540,15 +1541,15 @@ namespace IxMilia.Lisp
         public event EventHandler<LispCharacter> CharacterRead;
 
         public LispTextStream(string name, TextReader input, TextWriter output)
-            : this(name, new ReportingTextReader(input), output)
+            : this(name, new ReportingTextReader(input), new ReportingTextWriter(output))
         {
         }
 
-        private LispTextStream(string name, ReportingTextReader input, TextWriter output)
+        private LispTextStream(string name, ReportingTextReader input, ReportingTextWriter output)
             : base(name)
         {
             _input = input;
-            Output = output;
+            _output = output;
         }
 
         public LispCharacter Peek()
@@ -1579,6 +1580,8 @@ namespace IxMilia.Lisp
             return lc;
         }
 
+        public string GetOutputContents() => _output.GetContents();
+
         public override IEnumerable<LispObject> GetChildren()
         {
             yield break;
@@ -1586,7 +1589,7 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispTextStream(Name, _input, Output);
+            return new LispTextStream(Name, _input, _output);
         }
     }
 

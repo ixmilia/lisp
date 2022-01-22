@@ -319,6 +319,28 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("MAKE-STRING-OUTPUT-STREAM")]
+        public LispObject MakeStringOutputStream(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            // TODO: actually honor this
+            var _elementType = GetKeywordArgument(args, ":ELEMENT-TYPE");
+            var outputTextStream = new LispTextStream("", TextReader.Null, TextWriter.Null);
+            return outputTextStream;
+        }
+
+        [LispFunction("GET-OUTPUT-STREAM-STRING")]
+        public LispObject GetOutputStreamString(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 1 &&
+                args[0] is LispTextStream outputStream)
+            {
+                var result = outputStream.GetOutputContents();
+                return new LispString(result);
+            }
+
+            return new LispError("Expected exactly one text stream");
+        }
+
         [LispFunction("FORMAT")]
         public LispObject Format(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
@@ -564,6 +586,26 @@ namespace IxMilia.Lisp
             {
                 return eofValue;
             }
+        }
+
+        [LispFunction("WRITE-CHAR")]
+        public LispObject WriteChar(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length >= 1 &&
+                args[0] is LispCharacter lc)
+            {
+                var outputTextStream = host.TerminalIO;
+                if (args.Length == 2 &&
+                    args[1] is LispTextStream output)
+                {
+                    outputTextStream = output;
+                }
+
+                outputTextStream.Output.Write(lc.Value);
+                return lc;
+            }
+
+            return new LispError("Expected a character and an optional stream");
         }
 
         [LispFunction("READ")]

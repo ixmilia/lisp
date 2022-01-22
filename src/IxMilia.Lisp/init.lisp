@@ -8,13 +8,15 @@
 (setf *backslash-character*     (code-char 92)) ; \
 
 ;; read double-quoted strings
-(defun build-double-quoted-string (stream string-so-far)
+(defun build-double-quoted-string (stream output-stream)
     (let ((next-char (read-char stream t nil t)))
-        (cond ((char= next-char *double-quote-character*)   string-so-far) ; done; return what we have
-              ((char= next-char *backslash-character*)      (build-double-quoted-string stream (kernel:append-char-to-string string-so-far (read-char stream t nil t)))) ; swallow the backslash and continue reading
-              (t                                            (build-double-quoted-string stream (kernel:append-char-to-string string-so-far next-char)))))) ; continue reading
+        (cond ((char= next-char *double-quote-character*)   (get-output-stream-string output-stream)) ; done; return what we have
+              ((char= next-char *backslash-character*)      (progn (write-char (read-char stream t nil t) output-stream) ; append the next character
+                                                                   (build-double-quoted-string stream output-stream))) ; continue reading
+              (t                                            (progn (write-char next-char output-stream) ; append the read character
+                                                                   (build-double-quoted-string stream output-stream)))))) ; continue reading
 (defun double-quote-reader (stream char)
-    (build-double-quoted-string stream string-empty))
+    (build-double-quoted-string stream (make-string-output-stream)))
 (set-macro-character *double-quote-character* (function double-quote-reader))
 
 ;;; from here on forward we can use double-quoted string literals like `"this is a string"`, etc.

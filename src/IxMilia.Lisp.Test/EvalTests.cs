@@ -200,8 +200,11 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("REDUCE", errorStackFrame.Parent.FunctionName);
             Assert.Null(errorStackFrame.Parent.SourceLocation); // in native code
 
+            // this function can move around, but the body is one line below the definition
+            var plusFunction = host.GetValue<LispFunction>("+");
+            var plusFunctionLocation = plusFunction.SourceLocation.Value;
             Assert.Equal("+", errorStackFrame.Parent.Parent.FunctionName);
-            Assert.Equal(new LispSourceLocation("init.lisp", new LispSourcePosition(189, 34), new LispSourcePosition(189, 40)), errorStackFrame.Parent.Parent.SourceLocation);
+            Assert.Equal(new LispSourceLocation("init.lisp", new LispSourcePosition(plusFunctionLocation.Start.Line + 1, 34), new LispSourcePosition(plusFunctionLocation.Start.Line + 1, 40)), errorStackFrame.Parent.Parent.SourceLocation);
 
             Assert.Equal("(ROOT)", errorStackFrame.Parent.Parent.Parent.FunctionName);
             Assert.Equal(new LispSourceLocation("*REPL*", new LispSourcePosition(1, 12), new LispSourcePosition(1, 13)), errorStackFrame.Parent.Parent.Parent.SourceLocation);
