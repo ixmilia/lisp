@@ -86,6 +86,10 @@ namespace IxMilia.Lisp
             return containingObject?.GetNarrowestChild(position);
         }
 
+        public LispObject GetValue(string name) => Host.GetValue(name);
+
+        public TObject GetValue<TObject>(string name) where TObject : LispObject => Host.GetValue<TObject>(name);
+
         public LispReplResult Eval(string code, bool consumeIncompleteInput = true)
         {
             var unconsumedCode = consumeIncompleteInput && !string.IsNullOrEmpty(_incompleteInput)
