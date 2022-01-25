@@ -16,6 +16,11 @@ namespace IxMilia.Lisp
             End = end;
         }
 
+        public bool ContainsPosition(LispSourcePosition position)
+        {
+            return position >= Start && position < End;
+        }
+
         public static bool operator==(LispSourceLocation a, LispSourceLocation b)
         {
             return a.FilePath == b.FilePath && a.Start == b.Start && a.End == b.End;

@@ -23,6 +23,26 @@ namespace IxMilia.Lisp
             return !(a == b);
         }
 
+        public static bool operator <(LispSourcePosition a, LispSourcePosition b)
+        {
+            return (a.Line < b.Line) || ((a.Line == b.Line) && (a.Column < b.Column));
+        }
+
+        public static bool operator >(LispSourcePosition a, LispSourcePosition b)
+        {
+            return (a.Line > b.Line) || ((a.Line == b.Line) && (a.Column > b.Column));
+        }
+
+        public static bool operator <=(LispSourcePosition a, LispSourcePosition b)
+        {
+            return (a < b) || (a == b);
+        }
+
+        public static bool operator >=(LispSourcePosition a, LispSourcePosition b)
+        {
+            return (a > b) || (a == b);
+        }
+
         public override string ToString()
         {
             return $"({Line}, {Column})";

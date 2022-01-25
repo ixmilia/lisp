@@ -919,13 +919,12 @@ total
     ;         ^ ---- error occurs here
     (+ a b))
 ";
-            GetCodeAndPosition(rawCode, out var code, out var line, out var column);
+            GetCodeAndPosition(rawCode, out var code, out var position);
             var host = new LispHost();
             var evalResult = host.Eval(code);
             var error = (LispError)evalResult.LastResult;
             Assert.Equal("Symbol 'A' not found", error.Message);
-            Assert.Equal(line, error.SourceLocation.Value.Start.Line);
-            Assert.Equal(column, error.SourceLocation.Value.Start.Column);
+            Assert.Equal(position, error.SourceLocation.Value.Start);
         }
 
         [Fact]

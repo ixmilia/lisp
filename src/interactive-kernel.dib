@@ -11,7 +11,7 @@ using Microsoft.DotNet.Interactive;
 using Microsoft.DotNet.Interactive.Commands;
 using Microsoft.DotNet.Interactive.Events;
 
-class LispKernel : Kernel, IKernelCommandHandler<SubmitCode>
+class LispKernel : Kernel, IKernelCommandHandler<RequestHoverText>, IKernelCommandHandler<SubmitCode>
 {
     private LispRepl _repl;
 
@@ -19,6 +19,25 @@ class LispKernel : Kernel, IKernelCommandHandler<SubmitCode>
         : base("lisp")
     {
         _repl = new LispRepl(location: "*REPL*");
+    }
+
+    public Task HandleAsync(RequestHoverText command, KernelInvocationContext context)
+    {
+        var obj = _repl.GetObjectAtLocation(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
+        if (obj != null)
+        {
+            var formatted = new FormattedValue("text/plain", obj.ToString()); // TODO: get symbol value
+            LinePositionSpan span = null;
+            if (obj.SourceLocation.HasValue)
+            {
+                span = new LinePositionSpan(
+                    new LinePosition(obj.SourceLocation.Value.Start.Line - 1, obj.SourceLocation.Value.Start.Column - 1),
+                    new LinePosition(obj.SourceLocation.Value.End.Line - 1, obj.SourceLocation.Value.End.Column - 1)
+                );
+            }
+            context.Publish(new HoverTextProduced(command, new[] { formatted }, span));
+        }
+        return Task.CompletedTask;
     }
 
     public Task HandleAsync(SubmitCode command, KernelInvocationContext context)
@@ -71,4 +90,5 @@ class LispKernel : Kernel, IKernelCommandHandler<SubmitCode>
 #!csharp
 
 #!lisp
-(+ 1 "two" 3)
+(setf x 42)
+(+ 1 3)

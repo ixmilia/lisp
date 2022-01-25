@@ -60,6 +60,32 @@ namespace IxMilia.Lisp
             _traceWriter.Flush();
         }
 
+        public LispObject GetObjectAtLocation(string code, LispSourcePosition position)
+        {
+            LispObject containingObject = null;
+            var eofValue = new LispError("EOF");
+            var textReader = new StringReader(code);
+            var textStream = new LispTextStream("", textReader, TextWriter.Null);
+            Host.ObjectReader.SetReaderStream(textStream);
+            while (true)
+            {
+                var result = Host.ObjectReader.Read(false, eofValue, true);
+                if (ReferenceEquals(result.LastResult, eofValue))
+                {
+                    break;
+                }
+
+                if (result.LastResult.SourceLocation.HasValue &&
+                    result.LastResult.SourceLocation.Value.ContainsPosition(position))
+                {
+                    containingObject = result.LastResult;
+                    break;
+                }
+            }
+
+            return containingObject?.GetNarrowestChild(position);
+        }
+
         public LispReplResult Eval(string code, bool consumeIncompleteInput = true)
         {
             var unconsumedCode = consumeIncompleteInput && !string.IsNullOrEmpty(_incompleteInput)

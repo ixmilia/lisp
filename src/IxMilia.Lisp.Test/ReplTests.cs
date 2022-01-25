@@ -107,5 +107,49 @@ Finished recording in file {tempFile.FilePath}
                 Assert.Equal(expectedLogContents, logContents);
             }
         }
+
+        [Fact]
+        public void GetObjectAtLocationGetsNarrowestObject()
+        {
+            var markedCode = @"
+(+ 1 2)
+(+ (* 12 3$$4) (/ 56 78))
+(- 1 2)
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var repl = new LispRepl();
+            var child = repl.GetObjectAtLocation(code, position);
+            Assert.IsType<LispInteger>(child);
+            Assert.Equal(34, ((LispInteger)child).Value);
+        }
+
+        [Fact]
+        public void GetObjectAtLocationGetsParentObjectIfNoNarrowChildExists()
+        {
+            var markedCode = @"
+(+ 1 2)
+(+ (* 12 34) $$ (/ 56 78))
+(- 1 2)
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var repl = new LispRepl();
+            var child = repl.GetObjectAtLocation(code, position);
+            Assert.IsType<LispList>(child);
+            Assert.Equal("(+ (* 12 34) (/ 56 78))", child.ToString());
+        }
+
+        [Fact]
+        public void GetObjectAtLocationReturnsNullIfNothingIsAvailable()
+        {
+            var markedCode = @"
+(+ 1 2)
+$$
+(- 1 2)
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var repl = new LispRepl();
+            var child = repl.GetObjectAtLocation(code, position);
+            Assert.Null(child);
+        }
     }
 }

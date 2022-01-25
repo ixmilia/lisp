@@ -41,5 +41,34 @@ namespace IxMilia.Lisp
             var result = new LispList(new LispSymbol("PROGN"), bodyList);
             return result;
         }
+
+        public static LispObject GetNarrowestChild(this LispObject obj, LispSourcePosition position)
+        {
+            if (!obj.SourceLocation.HasValue ||
+                !obj.SourceLocation.Value.ContainsPosition(position))
+            {
+                return null;
+            }
+
+            var children = obj.GetChildren().ToList();
+            if (children.Count == 0)
+            {
+                // can't delve any deeper
+                return obj;
+            }
+
+            // otherwise try to find the child that contains the position and recurse
+            foreach (var child in children)
+            {
+                if (child.SourceLocation.HasValue &&
+                    child.SourceLocation.Value.ContainsPosition(position))
+                {
+                    return child.GetNarrowestChild(position);
+                }
+            }
+
+            // no child was more specific, just return this
+            return obj;
+        }
     }
 }

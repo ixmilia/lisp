@@ -30,7 +30,7 @@ namespace IxMilia.Lisp.Test
             return value.Replace("\r", "");
         }
 
-        protected static void GetCodeAndPosition(string code, out string resultCode, out int line, out int column)
+        protected static void GetCodeAndPosition(string code, out string resultCode, out LispSourcePosition position)
         {
             var markerIndex = code.IndexOf("$$");
             if (markerIndex < 0)
@@ -42,8 +42,8 @@ namespace IxMilia.Lisp.Test
             sb.Append(code.Substring(0, markerIndex));
             sb.Append(code.Substring(markerIndex + 2));
             resultCode = sb.ToString();
-            line = 1;
-            column = 1;
+            var line = 1;
+            var column = 1;
             for (int i = 0; i < markerIndex; i++)
             {
                 var c = code[i];
@@ -58,6 +58,8 @@ namespace IxMilia.Lisp.Test
                         break;
                 }
             }
+
+            position = new LispSourcePosition(line, column);
         }
     }
 }
