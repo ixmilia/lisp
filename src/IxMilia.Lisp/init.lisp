@@ -5,7 +5,9 @@
 (setf *single-quote-character*  (code-char 39)) ; '
 (setf *digit-zero-character*    (code-char 48)) ; 0
 (setf *digit-nine-character*    (code-char 57)) ; 9
+(setf *upper-case-c*            (code-char 67)) ; C
 (setf *backslash-character*     (code-char 92)) ; \
+(setf *lower-case-c*            (code-char 99)) ; c
 
 ;; read double-quoted strings
 (defun build-double-quoted-string (stream output-stream)
@@ -27,17 +29,35 @@
           ((and (listp item)
                 (eql (car item) (quote lambda)))    (kernel:make-lambda-function item)) ; #'(lambda ...); `kernel:make-lambda-function` is defined internally
           (t                                        (error "Expected function reference or lambda"))))
+(defun process-complex-number (number-list)
+    (cond ((and (listp number-list)
+                (= (length number-list) 2))         (complex (car number-list) (car (cdr number-list))))
+          (t                                        (error "Expected exactly two numbers"))))
 (defun single-hash-reader (stream char)
     (let ((next-char (peek-char nil stream t nil t)))
-        (cond ((char= next-char *backslash-character*)      (progn (read-char stream t nil t) ; swallow backslash
+        (cond
+              ;; prepare reader for:
+              ;;   #\A
+              ((char= next-char *backslash-character*)      (progn (read-char stream t nil t) ; swallow backslash
                                                                    (read-char stream t nil t))) ; keep next raw character
                                                                    ; TODO: handle `#\SPACE`, etc.
+              ;; prepare reader for:
+              ;;   #'some-function-reference
+              ;;   #(lambda ...)
               ((char= next-char *single-quote-character*)   (progn (read-char stream t nil t) ; swallow single quote (code 39 = ')
                                                                    (process-function-reference (read stream t nil t))))
+              ;; prepare reader for:
+              ;;   #C(1 2)
+              ((or (char= next-char *upper-case-c*)
+                   (char= next-char *lower-case-c*))        (progn (read-char stream t nil t) ; swallow 'c'
+                                                                   (process-complex-number (read stream t nil t))))
+              ;; prepare reader for:
+              ;;   #1=(1 2 #1#)
               ((and (>= (char-code next-char) (char-code *digit-zero-character*))
                     (<= (char-code next-char) (char-code *digit-nine-character*)))
                                                             (kernel:process-list-forward-reference)) ; `kernel:process-list-forward-reference` is defined internally
-              (t                                            (error "Expected back slash, single quote, or digit")))))
+              ;; not a supported character
+              (t                                            (error "Expected back slash, single quote, 'c', or digit")))))
 (set-macro-character *hash-character* (function single-hash-reader)) ; code 35 = #
 
 ;;; from here on forward we can do things like `#\X`, `#'function-ref`, etc.

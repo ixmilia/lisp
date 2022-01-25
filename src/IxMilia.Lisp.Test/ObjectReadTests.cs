@@ -119,6 +119,14 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(value, number.Value);
         }
 
+        [Fact]
+        public void ComplexNumbers()
+        {
+            Assert.Equal(new LispComplexNumber(new LispInteger(1), new LispInteger(2)), Read("#c(1 2)"));
+            Assert.Equal(new LispComplexNumber(new LispInteger(3), new LispInteger(4)), Read("#C(3 4)"));
+            Assert.Equal(new LispInteger(5), Read("#c(5 0)"));
+        }
+
         [Theory]
         [InlineData(@"#\a", 'a')]
         [InlineData(@"#\/", '/')]

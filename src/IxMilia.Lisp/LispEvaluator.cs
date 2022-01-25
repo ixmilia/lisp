@@ -85,9 +85,7 @@ namespace IxMilia.Lisp
                             switch (expression.Expression)
                             {
                                 case LispError _:
-                                case LispInteger _:
-                                case LispFloat _:
-                                case LispRatio _:
+                                case LispNumber _:
                                 case LispCharacter _:
                                 case LispString _:
                                 case LispKeyword _:

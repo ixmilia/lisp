@@ -52,6 +52,20 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void LogicalFoldingWithAnd()
+        {
+            var host = new LispHost();
+            Assert.Equal(host.Nil, host.Eval("(and t nil)").LastResult);
+        }
+
+        [Fact]
+        public void LogicalFoldingWithOr()
+        {
+            var host = new LispHost();
+            Assert.Equal(host.Nil, host.Eval("(or nil nil)").LastResult);
+        }
+
+        [Fact]
         public void IntegerNumericFolding()
         {
             var host = new LispHost();

@@ -242,191 +242,12 @@ namespace IxMilia.Lisp
         Integer = 0,
         Float = 1,
         Ratio = 2,
+        Complex = 3,
     }
 
     public abstract class LispNumber : LispObject
     {
         public abstract LispNumberType Type { get; }
-
-        internal static LispNumber Add(LispNumber a, LispNumber b)
-        {
-            switch (a)
-            {
-                case LispInteger ia:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return ia + ib;
-                        case LispFloat fb:
-                            return ia + fb;
-                        case LispRatio rb:
-                            return ia + rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                case LispFloat fa:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return fa + ib;
-                        case LispFloat fb:
-                            return fa + fb;
-                        case LispRatio rb:
-                            return fa + rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                case LispRatio ra:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return ra + ib;
-                        case LispFloat fb:
-                            return ra + fb;
-                        case LispRatio rb:
-                            return ra + rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                default:
-                    throw new InvalidOperationException("Not possible, expected a number.");
-            }
-        }
-
-        internal static LispNumber Sub(LispNumber a, LispNumber b)
-        {
-            switch (a)
-            {
-                case LispInteger ia:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return ia - ib;
-                        case LispFloat fb:
-                            return ia - fb;
-                        case LispRatio rb:
-                            return ia - rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                case LispFloat fa:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return fa - ib;
-                        case LispFloat fb:
-                            return fa - fb;
-                        case LispRatio rb:
-                            return fa - rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                case LispRatio ra:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return ra - ib;
-                        case LispFloat fb:
-                            return ra - fb;
-                        case LispRatio rb:
-                            return ra - rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                default:
-                    throw new InvalidOperationException("Not possible, expected a number.");
-            }
-        }
-
-        internal static LispNumber Mul(LispNumber a, LispNumber b)
-        {
-            switch (a)
-            {
-                case LispInteger ia:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return ia * ib;
-                        case LispFloat fb:
-                            return ia * fb;
-                        case LispRatio rb:
-                            return ia * rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                case LispFloat fa:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return fa * ib;
-                        case LispFloat fb:
-                            return fa * fb;
-                        case LispRatio rb:
-                            return fa * rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                case LispRatio ra:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return ra * ib;
-                        case LispFloat fb:
-                            return ra * fb;
-                        case LispRatio rb:
-                            return ra * rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                default:
-                    throw new InvalidOperationException("Not possible, expected a number.");
-            }
-        }
-
-        internal static LispNumber Div(LispNumber a, LispNumber b)
-        {
-            switch (a)
-            {
-                case LispInteger ia:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return (LispRatio)ia / ib;
-                        case LispFloat fb:
-                            return ia / fb;
-                        case LispRatio rb:
-                            return ia / rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                case LispFloat fa:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return fa / ib;
-                        case LispFloat fb:
-                            return fa / fb;
-                        case LispRatio rb:
-                            return fa / rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                case LispRatio ra:
-                    switch (b)
-                    {
-                        case LispInteger ib:
-                            return ra / ib;
-                        case LispFloat fb:
-                            return ra / fb;
-                        case LispRatio rb:
-                            return ra / rb;
-                        default:
-                            throw new InvalidOperationException("Not possible, expected a number.");
-                    }
-                default:
-                    throw new InvalidOperationException("Not possible, expected a number.");
-            }
-        }
 
         internal static bool Equal(LispNumber a, LispNumber b)
         {
@@ -473,9 +294,258 @@ namespace IxMilia.Lisp
                 default: throw new InvalidOperationException("Not possible, expected a number.");
             }
         }
+
+        internal static LispNumber Add(LispNumber a, LispNumber b)
+        {
+            switch (a)
+            {
+                case LispInteger ia:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ia + ib;
+                        case LispFloat fb:
+                            return ia + fb;
+                        case LispRatio rb:
+                            return ia + rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.AddComplex(ia.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispFloat fa:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return fa + ib;
+                        case LispFloat fb:
+                            return fa + fb;
+                        case LispRatio rb:
+                            return fa + rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.AddComplex(fa.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispRatio ra:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ra + ib;
+                        case LispFloat fb:
+                            return ra + fb;
+                        case LispRatio rb:
+                            return ra + rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.AddComplex(ra.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispComplexNumber ca:
+                    switch (b)
+                    {
+                        case LispSimpleNumber sb:
+                            return LispComplexNumber.AddComplex(ca, sb.AsComplex());
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.AddComplex(ca, cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                default:
+                    throw new InvalidOperationException("Not possible, expected a number.");
+            }
+        }
+
+        internal static LispNumber Sub(LispNumber a, LispNumber b)
+        {
+            switch (a)
+            {
+                case LispInteger ia:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ia - ib;
+                        case LispFloat fb:
+                            return ia - fb;
+                        case LispRatio rb:
+                            return ia - rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.SubComplex(ia.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispFloat fa:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return fa - ib;
+                        case LispFloat fb:
+                            return fa - fb;
+                        case LispRatio rb:
+                            return fa - rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.SubComplex(fa.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispRatio ra:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ra - ib;
+                        case LispFloat fb:
+                            return ra - fb;
+                        case LispRatio rb:
+                            return ra - rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.SubComplex(ra.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispComplexNumber ca:
+                    switch (b)
+                    {
+                        case LispSimpleNumber sb:
+                            return LispComplexNumber.SubComplex(ca, sb.AsComplex());
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.SubComplex(ca, cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                default:
+                    throw new InvalidOperationException("Not possible, expected a number.");
+            }
+        }
+
+        internal static LispNumber Mul(LispNumber a, LispNumber b)
+        {
+            switch (a)
+            {
+                case LispInteger ia:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ia * ib;
+                        case LispFloat fb:
+                            return ia * fb;
+                        case LispRatio rb:
+                            return ia * rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.MulComplex(ia.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispFloat fa:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return fa * ib;
+                        case LispFloat fb:
+                            return fa * fb;
+                        case LispRatio rb:
+                            return fa * rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.MulComplex(fa.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispRatio ra:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ra * ib;
+                        case LispFloat fb:
+                            return ra * fb;
+                        case LispRatio rb:
+                            return ra * rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.MulComplex(ra.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispComplexNumber ca:
+                    switch (b)
+                    {
+                        case LispSimpleNumber sb:
+                            return LispComplexNumber.MulComplex(ca, sb.AsComplex());
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.MulComplex(ca, cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                default:
+                    throw new InvalidOperationException("Not possible, expected a number.");
+            }
+        }
+
+        internal static LispNumber Div(LispNumber a, LispNumber b)
+        {
+            switch (a)
+            {
+                case LispInteger ia:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return (LispRatio)ia / ib;
+                        case LispFloat fb:
+                            return ia / fb;
+                        case LispRatio rb:
+                            return ia / rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.DivComplex(ia.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispFloat fa:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return fa / ib;
+                        case LispFloat fb:
+                            return fa / fb;
+                        case LispRatio rb:
+                            return fa / rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.DivComplex(fa.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispRatio ra:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ra / ib;
+                        case LispFloat fb:
+                            return ra / fb;
+                        case LispRatio rb:
+                            return ra / rb;
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.DivComplex(ra.AsComplex(), cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                case LispComplexNumber ca:
+                    switch (b)
+                    {
+                        case LispSimpleNumber sb:
+                            return LispComplexNumber.DivComplex(ca, sb.AsComplex());
+                        case LispComplexNumber cb:
+                            return LispComplexNumber.DivComplex(ca, cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number.");
+                    }
+                default:
+                    throw new InvalidOperationException("Not possible, expected a number.");
+            }
+        }
     }
 
-    public class LispInteger : LispNumber
+    public abstract class LispSimpleNumber : LispNumber
+    {
+        public LispComplexNumber AsComplex() => new LispComplexNumber(this, LispInteger.Zero);
+    }
+
+    public class LispInteger : LispSimpleNumber
     {
         public override LispNumberType Type => LispNumberType.Integer;
 
@@ -549,7 +619,7 @@ namespace IxMilia.Lisp
         }
     }
 
-    public class LispFloat : LispNumber
+    public class LispFloat : LispSimpleNumber
     {
         public override LispNumberType Type => LispNumberType.Float;
 
@@ -625,7 +695,7 @@ namespace IxMilia.Lisp
         }
     }
 
-    public class LispRatio : LispNumber
+    public class LispRatio : LispSimpleNumber
     {
         public override LispNumberType Type => LispNumberType.Ratio;
 
@@ -642,7 +712,7 @@ namespace IxMilia.Lisp
         public bool IsEven => false;
         public bool IsOdd => false;
 
-        public LispNumber Reduce()
+        public LispSimpleNumber Reduce()
         {
             Reduce(Numerator, Denominator, out var num, out var denom);
 
@@ -725,22 +795,22 @@ namespace IxMilia.Lisp
             return !(a == b);
         }
 
-        public static LispNumber operator +(LispRatio a, LispRatio b)
+        public static LispSimpleNumber operator +(LispRatio a, LispRatio b)
         {
             return new LispRatio(a.Numerator * b.Denominator + b.Numerator * a.Denominator, a.Denominator * b.Denominator).Reduce();
         }
 
-        public static LispNumber operator -(LispRatio a, LispRatio b)
+        public static LispSimpleNumber operator -(LispRatio a, LispRatio b)
         {
             return new LispRatio(a.Numerator * b.Denominator - b.Numerator * a.Denominator, a.Denominator * b.Denominator).Reduce();
         }
 
-        public static LispNumber operator *(LispRatio a, LispRatio b)
+        public static LispSimpleNumber operator *(LispRatio a, LispRatio b)
         {
             return new LispRatio(a.Numerator * b.Numerator, a.Denominator * b.Denominator).Reduce();
         }
 
-        public static LispNumber operator /(LispRatio a, LispRatio b)
+        public static LispSimpleNumber operator /(LispRatio a, LispRatio b)
         {
             return new LispRatio(a.Numerator * b.Denominator, a.Denominator * b.Numerator).Reduce();
         }
@@ -753,6 +823,117 @@ namespace IxMilia.Lisp
         public override int GetHashCode()
         {
             return (Numerator.GetHashCode() << 13) | Denominator.GetHashCode();
+        }
+    }
+
+    public class LispComplexNumber : LispNumber, IEquatable<LispComplexNumber>
+    {
+        public override LispNumberType Type => LispNumberType.Complex;
+
+        public LispSimpleNumber RealPart { get; }
+        public LispSimpleNumber ImaginaryPart { get; }
+
+        public LispComplexNumber(LispSimpleNumber realPart, LispSimpleNumber imaginaryPart)
+        {
+            RealPart = realPart;
+            ImaginaryPart = imaginaryPart;
+        }
+
+        public LispNumber Reduce()
+        {
+            switch (ImaginaryPart)
+            {
+                case LispInteger i when i.IsZero:
+                case LispFloat f when f.IsZero:
+                case LispRatio r when r.IsZero:
+                    return RealPart;
+                default:
+                    return this;
+            }
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield return RealPart;
+            yield return ImaginaryPart;
+        }
+
+        protected override LispObject CloneProtected()
+        {
+            return new LispComplexNumber(RealPart, ImaginaryPart);
+        }
+
+        public override string ToString()
+        {
+            return $"#C({RealPart} {ImaginaryPart})";
+        }
+
+        public static bool operator ==(LispComplexNumber a, LispComplexNumber b)
+        {
+            return a?.RealPart == b?.RealPart && a?.ImaginaryPart == b?.ImaginaryPart;
+        }
+
+        public static bool operator !=(LispComplexNumber a, LispComplexNumber b)
+        {
+            return !(a == b);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is LispComplexNumber c)
+            {
+                return this == c;
+            }
+
+            return false;
+        }
+
+        internal static LispNumber AddComplex(LispComplexNumber a, LispComplexNumber b)
+        {
+            var real = (LispSimpleNumber)Add(a.RealPart, b.RealPart);
+            var img = (LispSimpleNumber)Add(a.ImaginaryPart, b.ImaginaryPart);
+            var result = new LispComplexNumber(real, img).Reduce();
+            return result;
+        }
+
+        internal static LispNumber SubComplex(LispComplexNumber a, LispComplexNumber b)
+        {
+            var real = (LispSimpleNumber)Sub(a.RealPart, b.RealPart);
+            var img = (LispSimpleNumber)Sub(a.ImaginaryPart, b.ImaginaryPart);
+            var result = new LispComplexNumber(real, img).Reduce();
+            return result;
+        }
+
+        internal static LispNumber MulComplex(LispComplexNumber a, LispComplexNumber b)
+        {
+            var real = (LispSimpleNumber)Sub(Mul(a.RealPart, b.RealPart), Mul(a.ImaginaryPart, b.ImaginaryPart));
+            var img = (LispSimpleNumber)Add(Mul(a.RealPart, b.ImaginaryPart), Mul(a.ImaginaryPart, b.RealPart));
+            var result = new LispComplexNumber(real, img).Reduce();
+            return result;
+        }
+
+        internal static LispNumber DivComplex(LispComplexNumber a, LispComplexNumber b)
+        {
+            var denom = Add(Mul(b.RealPart, b.RealPart), Mul(b.ImaginaryPart, b.ImaginaryPart));
+            var real = (LispSimpleNumber)Div(Add(Mul(a.RealPart, b.RealPart), Mul(a.ImaginaryPart, b.ImaginaryPart)), denom);
+            var img = (LispSimpleNumber)Div(Sub(Mul(a.ImaginaryPart, b.RealPart), Mul(a.RealPart, b.ImaginaryPart)), denom);
+            var result = new LispComplexNumber(real, img).Reduce();
+            return result;
+        }
+
+        public bool Equals(LispComplexNumber other)
+        {
+            return other != null &&
+                   EqualityComparer<LispSimpleNumber>.Default.Equals(RealPart, other.RealPart) &&
+                   EqualityComparer<LispSimpleNumber>.Default.Equals(ImaginaryPart, other.ImaginaryPart);
+        }
+
+        public override int GetHashCode()
+        {
+            int hashCode = 1382181547;
+            hashCode = hashCode * -1521134295 + EqualityComparer<LispSimpleNumber>.Default.GetHashCode(RealPart);
+            hashCode = hashCode * -1521134295 + EqualityComparer<LispSimpleNumber>.Default.GetHashCode(ImaginaryPart);
+            return hashCode;
         }
     }
 

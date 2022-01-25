@@ -1470,6 +1470,19 @@ namespace IxMilia.Lisp
             return new LispError("Expected function reference and list");
         }
 
+        [LispFunction("COMPLEX")]
+        public LispObject Complex(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 2 &&
+                args[0] is LispSimpleNumber real &&
+                args[1] is LispSimpleNumber img)
+            {
+                return new LispComplexNumber(real, img).Reduce();
+            }
+
+            return new LispError("Expected exactly 2 simple numbers");
+        }
+
         [LispFunction("<")]
         public LispObject LessThan(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
@@ -1586,7 +1599,7 @@ namespace IxMilia.Lisp
         [LispMacro("OR")]
         public LispObject Or(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
-            return FoldBoolean(host, executionState.StackFrame, args, true, true, (a, b) => a || b);
+            return FoldBoolean(host, executionState.StackFrame, args, false, true, (a, b) => a || b);
         }
 
         [LispMacro("COND")]

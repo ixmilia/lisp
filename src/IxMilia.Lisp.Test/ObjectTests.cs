@@ -88,5 +88,14 @@ namespace IxMilia.Lisp.Test
             Assert.True(new LispCodeMacro("function", LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsTLike());
             Assert.True(new LispNativeMacro("function", null).IsTLike());
         }
+
+        [Fact]
+        public void ComplexMath()
+        {
+            Assert.Equal(new LispComplexNumber(new LispInteger(4), new LispInteger(6)), LispNumber.Add(new LispComplexNumber(new LispInteger(1), new LispInteger(2)), new LispComplexNumber(new LispInteger(3), new LispInteger(4))));
+            Assert.Equal(new LispComplexNumber(new LispInteger(-2), new LispInteger(-2)), LispNumber.Sub(new LispComplexNumber(new LispInteger(1), new LispInteger(2)), new LispComplexNumber(new LispInteger(3), new LispInteger(4))));
+            Assert.Equal(new LispComplexNumber(new LispInteger(-5), new LispInteger(10)), LispNumber.Mul(new LispComplexNumber(new LispInteger(1), new LispInteger(2)), new LispComplexNumber(new LispInteger(3), new LispInteger(4))));
+            Assert.Equal(new LispComplexNumber(new LispInteger(-1), new LispInteger(-1)), LispNumber.Div(new LispComplexNumber(new LispInteger(1), new LispInteger(-3)), new LispComplexNumber(new LispInteger(1), new LispInteger(2))));
+        }
     }
 }
