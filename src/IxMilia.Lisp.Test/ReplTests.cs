@@ -151,5 +151,32 @@ $$
             var child = repl.GetObjectAtLocation(code, position);
             Assert.Null(child);
         }
+
+        [Fact]
+        public void GetMarkdownDisplayFromFunctionSourceObject()
+        {
+            var markedCode = @"
+(add-2-num$$bers 3 5)
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var repl = new LispRepl();
+            repl.Eval("(defun add-2-numbers (a b) \"Adds 2 numbers.\" (+ a b))");
+            var obj = repl.GetObjectAtLocation(code, position);
+            var markdown = repl.GetMarkdownDisplayFromSourceObject(obj);
+            Assert.Equal("`(DEFUN ADD-2-NUMBERS (A B) ...)`\n\nAdds 2 numbers.", markdown);
+        }
+
+        [Fact]
+        public void GetMarkdownDisplayFromNumberSourceObject()
+        {
+            var markedCode = @"
+3.14$$159
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var repl = new LispRepl();
+            var obj = repl.GetObjectAtLocation(code, position);
+            var markdown = repl.GetMarkdownDisplayFromSourceObject(obj);
+            Assert.Equal("3.14159", markdown);
+        }
     }
 }

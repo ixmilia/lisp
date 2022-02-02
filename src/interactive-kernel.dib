@@ -26,9 +26,7 @@ class LispKernel : Kernel, IKernelCommandHandler<RequestHoverText>, IKernelComma
         var obj = _repl.GetObjectAtLocation(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
         if (obj != null)
         {
-            var formatted = obj is LispSymbol symbol
-                ? new FormattedValue("text/plain", $"{symbol.Value}: {_repl.GetValue(symbol.Value)}")
-                : new FormattedValue("text/plain", obj.ToString());
+            var formatted = new FormattedValue("text/markdown", _repl.GetMarkdownDisplayFromSourceObject(obj));
             LinePositionSpan span = null;
             if (obj.SourceLocation.HasValue)
             {
@@ -93,6 +91,7 @@ class LispKernel : Kernel, IKernelCommandHandler<RequestHoverText>, IKernelComma
 
 #!lisp
 (defun add (a b)
+    "Adds two numbers."
     (+ a b))
 (setf sum (add 1 2))
 (setf l (list 1 2 3))

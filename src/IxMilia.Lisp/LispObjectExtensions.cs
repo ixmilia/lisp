@@ -70,5 +70,20 @@ namespace IxMilia.Lisp
             // no child was more specific, just return this
             return obj;
         }
+
+        public static string GetMarkdownDisplay(this LispObject obj, LispRepl repl)
+        {
+            switch (obj)
+            {
+                case LispCodeFunction codeFunction:
+                    return $"`(DEFUN {codeFunction.Name} ({codeFunction.ArgumentCollection}) ...)`\n\n{codeFunction.Documentation}";
+                case LispFunction function:
+                    return $"`(DEFUN {function.Name} (...) ...)`\n\n{function.Documentation}";
+                case LispSymbol symbol:
+                    return $"`{symbol.Value}`: {repl.GetValue(symbol.Value)}";
+                default:
+                    return obj.ToString();
+            }
+        }
     }
 }

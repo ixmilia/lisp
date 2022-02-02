@@ -107,6 +107,14 @@ namespace IxMilia.Lisp
             Host.EvalContinue(executionState);
         }
 
+        public string GetMarkdownDisplayFromSourceObject(LispObject obj)
+        {
+            var baseObject = obj is LispSymbol symbol
+                ? GetValue(symbol.Value)
+                : obj;
+            return baseObject.GetMarkdownDisplay(this);
+        }
+
         internal LispObject Trace(LispObject[] args)
         {
             if (args.Length == 0)
