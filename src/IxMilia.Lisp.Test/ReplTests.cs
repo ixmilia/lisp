@@ -162,8 +162,16 @@ $$
             var repl = new LispRepl();
             repl.Eval("(defun add-2-numbers (a b) \"Adds 2 numbers.\" (+ a b))");
             var obj = repl.GetObjectAtLocation(code, position);
-            var markdown = repl.GetMarkdownDisplayFromSourceObject(obj);
-            Assert.Equal("`(DEFUN ADD-2-NUMBERS (A B) ...)`\n\nAdds 2 numbers.", markdown);
+            var markdown = repl.GetMarkdownDisplayFromSourceObject(obj).Replace("\r", "");
+            var expected = @"
+``` lisp
+; <in module COMMON-LISP-USER>
+(DEFUN ADD-2-NUMBERS (A B) ...)
+```
+
+Adds 2 numbers.
+".Trim().Replace("\r", "");
+            Assert.Equal(expected, markdown);
         }
 
         [Fact]

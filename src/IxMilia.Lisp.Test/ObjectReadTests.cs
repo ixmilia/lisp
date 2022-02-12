@@ -36,7 +36,7 @@ namespace IxMilia.Lisp.Test
             var list = (LispForwardListReference)Read("#1=(1 2 #1#)");
             Assert.True(list.List.IsProperList);
             Assert.Equal(3, list.List.Length);
-            Assert.Equal("#1=(1 2 #1#)", list.ToString());
+            Assert.Equal("COMMON-LISP-USER:#1=(1 2 COMMON-LISP-USER:#1#)", list.ToString());
         }
 
         [Fact]
@@ -140,31 +140,31 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public void Keywords()
         {
-            Assert.Equal(":ABC", ((LispKeyword)Read(" :abc ")).Keyword);
+            Assert.Equal(":ABC", ((LispResolvedSymbol)Read(" :abc ")).Value);
             Assert.Equal("&REST", ((LispLambdaListKeyword)Read(" &rest ")).Keyword);
         }
 
         [Fact]
         public void QuotedNamedFunctions()
         {
-            Assert.Equal("READ", ((LispQuotedNamedFunctionReference)Read("#'read")).Name);
+            Assert.Equal("COMMON-LISP:READ", ((LispQuotedNamedFunctionReference)Read("#'read")).Name);
         }
 
         [Fact]
         public void Symbols()
         {
-            Assert.Equal("+", ((LispSymbol)Read("+")).Value);
-            Assert.Equal(">>", ((LispSymbol)Read(">>")).Value);
-            Assert.Equal("SOME:SYMBOL", ((LispSymbol)Read("some:symbol")).Value);
+            Assert.Equal("+", ((LispSymbol)Read("+")).LocalName);
+            Assert.Equal(">>", ((LispSymbol)Read(">>")).LocalName);
+            Assert.Equal("SOME:SYMBOL", ((LispResolvedSymbol)Read("some:symbol")).Value);
         }
 
         [Fact]
         public void Quoted()
         {
-            Assert.Equal(new LispSymbol("A"), Read("a"));
-            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A")), Read("'a"));
-            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A"))), Read("''a"));
-            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), new LispList(new LispInteger(1))), Read("'(1)"));
+            Assert.Equal(new LispUnresolvedSymbol("A"), Read("a"));
+            Assert.Equal(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), new LispUnresolvedSymbol("A")), Read("'a"));
+            Assert.Equal(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), new LispUnresolvedSymbol("A"))), Read("''a"));
+            Assert.Equal(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), new LispList(new LispInteger(1))), Read("'(1)"));
         }
 
         [Fact]
@@ -230,7 +230,7 @@ namespace IxMilia.Lisp.Test
 
             var list = ((LispList)host.ObjectReader.Read(false, new LispError("EOF"), false).LastResult).ToList();
             Assert.Equal(2, list.Count);
-            Assert.Equal("ABC", ((LispSymbol)list[0]).Value);
+            Assert.Equal("ABC", ((LispSymbol)list[0]).LocalName);
             Assert.Equal(2, ((LispInteger)list[1]).Value);
 
             var number = (LispInteger)host.ObjectReader.Read(false, new LispError("EOF"), false).LastResult;
@@ -292,7 +292,7 @@ namespace IxMilia.Lisp.Test
     (format t ""evaluated: ~S~%"" (eval (read file-stream)))
 )
 ");
-            Assert.IsNotType<LispError>(result);
+            Assert.IsNotType<LispError>(result.LastResult);
             Assert.Equal("read: \"just a string\"\nevaluated: 5\n", NormalizeNewlines(output.ToString()));
             Assert.Null(host.GetValue("FILE-STREAM"));
         }
@@ -309,7 +309,7 @@ namespace IxMilia.Lisp.Test
     (format file-stream ""wrote: ~S~%"" '(+ 2 3))
 )
 ");
-                Assert.IsNotType<LispError>(result);
+                Assert.IsNotType<LispError>(result.LastResult);
                 var actual = NormalizeNewlines(File.ReadAllText(outputFile.FilePath));
                 Assert.Equal("wrote: \"just-a-string\"\nwrote: (+ 2 3)\n", actual);
                 Assert.Null(host.GetValue("FILE-STREAM"));
@@ -409,7 +409,7 @@ namespace IxMilia.Lisp.Test
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
             host.ObjectReader.SetReaderStream(input);
             var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
-            Assert.Equal("#'ASDF", result.LastResult.ToString());
+            Assert.Equal("#'COMMON-LISP-USER:ASDF", result.LastResult.ToString());
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 1), new LispSourcePosition(1, 7)), result.LastResult.SourceLocation);
         }
 

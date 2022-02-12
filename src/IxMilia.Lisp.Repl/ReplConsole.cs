@@ -52,7 +52,7 @@ namespace IxMilia.Lisp.Repl
             var result = _repl.Eval(line, consumeIncompleteInput);
             if (result.LastResult != null)
             {
-                Output.WriteLine(result.LastResult.ToString());
+                Output.WriteLine(result.LastResult.ToDisplayString(_repl.Host.CurrentPackage));
             }
 
             return result;

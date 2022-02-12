@@ -94,11 +94,11 @@ namespace IxMilia.Lisp
             for (; argumentValueIndex < argumentValues.Length; argumentValueIndex++)
             {
                 var argumentValue = argumentValues[argumentValueIndex];
-                if (argumentValue is LispKeyword keyword)
+                if (argumentValue is LispResolvedSymbol symbol && symbol.IsKeyword)
                 {
                     if (argumentValueIndex < argumentValues.Length - 1)
                     {
-                        var keywordArgumentName = keyword.Keyword.Substring(1);
+                        var keywordArgumentName = symbol.Value.Substring(1);
                         if (KeywordArguments.TryGetValue(keywordArgumentName, out var keywordArgument))
                         {
                             if (!boundArguments.Add(keywordArgumentName))
@@ -113,7 +113,7 @@ namespace IxMilia.Lisp
                     }
                     else
                     {
-                        error = new LispError($"Missing value for keyword argument {keyword.Keyword}");
+                        error = new LispError($"Missing value for keyword argument {symbol.Value}");
                         return false;
                     }
                 }
@@ -278,9 +278,9 @@ namespace IxMilia.Lisp
                                         j = argumentList.Length;
                                         break;
                                     case LispSymbol argWithNilDefault:
-                                        if (!seenArguments.Add(argWithNilDefault.Value))
+                                        if (!seenArguments.Add(argWithNilDefault.LocalName))
                                         {
-                                            error = new LispError($"Duplicate argument declaration for {argWithNilDefault.Value}");
+                                            error = new LispError($"Duplicate argument declaration for {argWithNilDefault.LocalName}");
                                             return false;
                                         }
 
@@ -291,9 +291,9 @@ namespace IxMilia.Lisp
                                             argWithCustomDefault.Value is LispSymbol defaultArgName &&
                                             argWithCustomDefault.Next is LispList defaultValue)
                                         {
-                                            if (!seenArguments.Add(defaultArgName.Value))
+                                            if (!seenArguments.Add(defaultArgName.LocalName))
                                             {
-                                                error = new LispError($"Duplicate argument declaration for {defaultArgName.Value}");
+                                                error = new LispError($"Duplicate argument declaration for {defaultArgName.LocalName}");
                                                 return false;
                                             }
 

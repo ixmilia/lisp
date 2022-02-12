@@ -2,13 +2,13 @@
 {
     public class LispValueSetEventArgs : LispExecutionEventArgs
     {
-        public string Name { get; }
+        public LispResolvedSymbol Symbol { get; }
         public LispObject Value { get; }
         public LispStackFrame StackFrame { get; }
 
-        public LispValueSetEventArgs(string name, LispObject value, LispStackFrame stackFrame)
+        public LispValueSetEventArgs(LispResolvedSymbol symbol, LispObject value, LispStackFrame stackFrame)
         {
-            Name = name;
+            Symbol = symbol;
             Value = value;
             StackFrame = stackFrame;
         }

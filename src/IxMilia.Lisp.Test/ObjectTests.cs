@@ -49,44 +49,42 @@ namespace IxMilia.Lisp.Test
         public void IsNil()
         {
             Assert.True(LispNilList.Instance.IsNil());
-            Assert.False(LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A")).IsNil());
-            Assert.False(LispList.FromItems(new LispSymbol("QUOTE"), LispNilList.Instance).IsNil());
+            Assert.False(LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), LispSymbol.CreateFromString("A")).IsNil());
+            Assert.False(LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), LispNilList.Instance).IsNil());
             Assert.False(new LispError("e").IsNil());
-            Assert.False(new LispSymbol("a").IsNil());
-            Assert.False(new LispKeyword("a").IsNil());
+            Assert.False(LispSymbol.CreateFromString("a").IsNil());
             Assert.False(new LispInteger(0).IsNil());
             Assert.False(new LispFloat(0.0).IsNil());
             Assert.False(new LispRatio(1, 2).IsNil());
             Assert.False(new LispString("a").IsNil());
             Assert.False(LispList.FromItems(new LispInteger(0)).IsNil());
-            Assert.False(new LispCodeFunction("function", null, LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsNil());
-            Assert.False(new LispNativeFunction("function", null, null).IsNil());
+            Assert.False(new LispCodeFunction(new LispResolvedSymbol("some-module", "function", true), null, LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsNil());
+            Assert.False(new LispNativeFunction(new LispResolvedSymbol("some-module", "function", true), null, null).IsNil());
             Assert.False(new LispQuotedNamedFunctionReference("function").IsNil());
-            Assert.False(new LispQuotedLambdaFunctionReference(new LispCodeFunction("function", null, new LispArgumentCollection(Array.Empty<LispRegularInvocationArgument>(), Array.Empty<LispOptionalInvocationArgument>(), Array.Empty<LispKeywordInvocationArgument>(), Array.Empty<LispAuxiliaryInvocationArgument>(), null), Enumerable.Empty<LispObject>())).IsNil());
-            Assert.False(new LispCodeMacro("function", LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsNil());
-            Assert.False(new LispNativeMacro("function", null).IsNil());
+            Assert.False(new LispQuotedLambdaFunctionReference(new LispCodeFunction(new LispResolvedSymbol("some-module", "function", true), null, new LispArgumentCollection(Array.Empty<LispRegularInvocationArgument>(), Array.Empty<LispOptionalInvocationArgument>(), Array.Empty<LispKeywordInvocationArgument>(), Array.Empty<LispAuxiliaryInvocationArgument>(), null), Enumerable.Empty<LispObject>())).IsNil());
+            Assert.False(new LispCodeMacro(new LispResolvedSymbol("some-module", "function", true), LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsNil());
+            Assert.False(new LispNativeMacro(new LispResolvedSymbol("some-module", "function", true), null).IsNil());
         }
 
         [Fact]
         public void IsTLike()
         {
             Assert.False(LispNilList.Instance.IsTLike());
-            Assert.True(LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A")).IsTLike());
-            Assert.True(LispList.FromItems(new LispSymbol("QUOTE"), LispNilList.Instance).IsTLike());
+            Assert.True(LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), LispSymbol.CreateFromString("A")).IsTLike());
+            Assert.True(LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), LispNilList.Instance).IsTLike());
             Assert.True(new LispError("e").IsTLike());
-            Assert.True(new LispSymbol("a").IsTLike());
-            Assert.True(new LispKeyword("a").IsTLike());
+            Assert.True(LispSymbol.CreateFromString("a").IsTLike());
             Assert.True(new LispInteger(0).IsTLike());
             Assert.True(new LispFloat(0.0).IsTLike());
             Assert.True(new LispRatio(1, 2).IsTLike());
             Assert.True(new LispString("a").IsTLike());
             Assert.True(LispList.FromItems(new LispInteger(0)).IsTLike());
-            Assert.True(new LispCodeFunction("function", null, LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsTLike());
-            Assert.True(new LispNativeFunction("function", null, null).IsTLike());
+            Assert.True(new LispCodeFunction(new LispResolvedSymbol("some-module", "function", true), null, LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsTLike());
+            Assert.True(new LispNativeFunction(new LispResolvedSymbol("some-module", "function", true), null, null).IsTLike());
             Assert.True(new LispQuotedNamedFunctionReference("function").IsTLike());
-            Assert.True(new LispQuotedLambdaFunctionReference(new LispCodeFunction("function", null, new LispArgumentCollection(Array.Empty<LispRegularInvocationArgument>(), Array.Empty<LispOptionalInvocationArgument>(), Array.Empty<LispKeywordInvocationArgument>(), Array.Empty<LispAuxiliaryInvocationArgument>(), null), Enumerable.Empty<LispObject>())).IsTLike());
-            Assert.True(new LispCodeMacro("function", LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsTLike());
-            Assert.True(new LispNativeMacro("function", null).IsTLike());
+            Assert.True(new LispQuotedLambdaFunctionReference(new LispCodeFunction(new LispResolvedSymbol("some-module", "function", true), null, new LispArgumentCollection(Array.Empty<LispRegularInvocationArgument>(), Array.Empty<LispOptionalInvocationArgument>(), Array.Empty<LispKeywordInvocationArgument>(), Array.Empty<LispAuxiliaryInvocationArgument>(), null), Enumerable.Empty<LispObject>())).IsTLike());
+            Assert.True(new LispCodeMacro(new LispResolvedSymbol("some-module", "function", true), LispArgumentCollection.Empty, Enumerable.Empty<LispObject>()).IsTLike());
+            Assert.True(new LispNativeMacro(new LispResolvedSymbol("some-module", "function", true), null).IsTLike());
         }
 
         [Fact]
@@ -96,6 +94,16 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(new LispComplexNumber(new LispInteger(-2), new LispInteger(-2)), LispNumber.Sub(new LispComplexNumber(new LispInteger(1), new LispInteger(2)), new LispComplexNumber(new LispInteger(3), new LispInteger(4))));
             Assert.Equal(new LispComplexNumber(new LispInteger(-5), new LispInteger(10)), LispNumber.Mul(new LispComplexNumber(new LispInteger(1), new LispInteger(2)), new LispComplexNumber(new LispInteger(3), new LispInteger(4))));
             Assert.Equal(new LispComplexNumber(new LispInteger(-1), new LispInteger(-1)), LispNumber.Div(new LispComplexNumber(new LispInteger(1), new LispInteger(-3)), new LispComplexNumber(new LispInteger(1), new LispInteger(2))));
+        }
+
+        [Fact]
+        public void PackageAndSymbolNameSplitting()
+        {
+            Assert.Equal(Tuple.Create((string)null, "SOME-SYMBOL", true), LispSymbol.SplitPackageAndSymbolName("SOME-SYMBOL"));
+            Assert.Equal(Tuple.Create("SOME-PACKAGE", "SOME-SYMBOL", true), LispSymbol.SplitPackageAndSymbolName("SOME-PACKAGE:SOME-SYMBOL"));
+            Assert.Equal(Tuple.Create("SOME-PACKAGE", "SOME-SYMBOL", false), LispSymbol.SplitPackageAndSymbolName("SOME-PACKAGE::SOME-SYMBOL"));
+            Assert.Equal(Tuple.Create("KEYWORD", "SOME-SYMBOL", true), LispSymbol.SplitPackageAndSymbolName(":SOME-SYMBOL"));
+            Assert.Equal(Tuple.Create("KEYWORD", "SOME-SYMBOL", false), LispSymbol.SplitPackageAndSymbolName("::SOME-SYMBOL"));
         }
     }
 }

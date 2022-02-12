@@ -15,14 +15,14 @@ namespace IxMilia.Lisp
         public LispObject Trace(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             var tracedList = _repl.Trace(args);
-            return LispList.FromItems(new LispSymbol("QUOTE"), tracedList);
+            return LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), tracedList);
         }
 
         [LispMacro("UNTRACE")]
         public LispObject Untrace(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             var untracedList = _repl.Untrace(args);
-            return LispList.FromItems(new LispSymbol("QUOTE"), untracedList);
+            return LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), untracedList);
         }
     }
 }

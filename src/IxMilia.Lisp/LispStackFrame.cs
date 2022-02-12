@@ -11,85 +11,26 @@ namespace IxMilia.Lisp
         protected const string TerminalIOString = "*TERMINAL-IO*";
 
         public LispInvocableObject Function { get; }
-        public string FunctionName { get; }
+        public LispResolvedSymbol FunctionSymbol { get; }
         public LispStackFrame Parent { get; }
         public LispSourceLocation? SourceLocation { get; private set; }
 
-        public virtual LispRootStackFrame Root { get; }
+        public virtual LispRootStackFrame Root => Parent.Root;
         public virtual int Depth { get; }
-
-        public LispObject T => GetValue<LispSymbol>(TString);
-        public LispObject Nil => GetValue<LispList>(NilString);
-        public LispTextStream TerminalIO => GetValue<LispTextStream>(TerminalIOString);
 
         private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
 
-        private LispStackFrame(LispStackFrame parent)
+        protected LispStackFrame(LispResolvedSymbol functionSymbol, LispStackFrame parent)
         {
+            FunctionSymbol = functionSymbol;
             Parent = parent;
-            Root = Parent?.Root;
             Depth = (Parent?.Depth ?? LispRootStackFrame.RootStackDepth) + 1;
         }
 
         internal LispStackFrame(LispInvocableObject function, LispStackFrame parent)
-            : this(parent)
+            : this(function.NameSymbol, parent)
         {
             Function = function;
-            FunctionName = function.Name;
-        }
-
-        protected LispStackFrame(string functionName, LispStackFrame parent)
-            : this(parent)
-        {
-            FunctionName = functionName;
-        }
-
-        internal LispStackFrame Clone()
-        {
-            return new LispStackFrame(this.Function, this.Parent?.Clone());
-        }
-
-        internal void CopyLocalsToParentForTailCall(HashSet<string> invocationArgumentNames)
-        {
-            foreach (var valuePair in _values)
-            {
-                if (invocationArgumentNames.Contains(valuePair.Key))
-                {
-                    Parent?.SetValue(valuePair.Key, valuePair.Value);
-                }
-            }
-        }
-
-        public void SetValue(string name, LispObject value)
-        {
-            _values[name] = value;
-            Root.OnValueSet(name, value, this);
-        }
-
-        internal void SetValueInParentScope(string name, LispObject value)
-        {
-            var target = Parent ?? this;
-            target.SetValue(name, value);
-        }
-
-        public LispObject GetValue(string name)
-        {
-            if (_values.TryGetValue(name, out var value))
-            {
-                return value;
-            }
-
-            return Parent?.GetValue(name);
-        }
-
-        public TObject GetValue<TObject>(string name) where TObject : LispObject
-        {
-            return (TObject)GetValue(name);
-        }
-
-        public void DeleteValue(string name)
-        {
-            _values.Remove(name);
         }
 
         internal void UpdateCallStackLocation(LispSourceLocation? sourceLocation)
@@ -97,17 +38,61 @@ namespace IxMilia.Lisp
             SourceLocation = sourceLocation;
         }
 
+        internal virtual void CopyLocalsToParentForTailCall(LispPackage currentPackage, HashSet<string> invocationArgumentNames)
+        {
+            foreach (var valuePair in _values)
+            {
+                if (invocationArgumentNames.Contains(valuePair.Key))
+                {
+                    Parent?.SetValue(LispSymbol.CreateFromString(valuePair.Key).Resolve(currentPackage), valuePair.Value);
+                }
+            }
+        }
+
+        internal void SetValueInParentScope(LispResolvedSymbol symbol, LispObject value)
+        {
+            var target = Parent ?? this;
+            target.SetValue(symbol, value);
+        }
+
+        public virtual void SetValue(LispResolvedSymbol symbol, LispObject value)
+        {
+            _values[symbol.Value] = value;
+            Root.OnValueSet(symbol, value, this);
+        }
+
+        public virtual LispObject GetValue(LispResolvedSymbol symbol)
+        {
+            if (_values.TryGetValue(symbol.Value, out var value))
+            {
+                return value;
+            }
+
+            return Parent?.GetValue(symbol);
+        }
+
+        public TObject GetValue<TObject>(LispResolvedSymbol symbol) where TObject : LispObject
+        {
+            return (TObject)GetValue(symbol);
+        }
+
+        public virtual void DeleteValue(LispResolvedSymbol symbol)
+        {
+            _values.Remove(symbol.Value);
+        }
+
         public override string ToString()
         {
             var filePath = SourceLocation?.FilePath == null
                 ? string.Empty
                 : $" in '{SourceLocation.Value.FilePath}'";
-            return $"  at {FunctionName}{filePath}: ({SourceLocation?.Start.Line}, {SourceLocation?.Start.Column})\n{Parent}";
+            return $"  at {FunctionSymbol.LocalName}{filePath}: ({SourceLocation?.Start.Line}, {SourceLocation?.Start.Column})\n{Parent}";
         }
     }
 
     public class LispRootStackFrame : LispStackFrame
     {
+        public const string CommonLispPackageName = "COMMON-LISP";
         private const string DribbleStreamString = "(DRIBBLE-STREAM)"; // should be un-utterable
         internal const int RootStackDepth = 0;
 
@@ -120,18 +105,22 @@ namespace IxMilia.Lisp
         public event EventHandler<LispErrorOccuredEventArgs> ErrorOccured;
         public event EventHandler<LispEvaluationHaltedEventArgs> EvaluationHalted;
 
+        private Dictionary<string, LispPackage> _packages = new Dictionary<string, LispPackage>();
+        private LispPackage _commonLispPackage;
+        private LispPackage _keywordPackage;
+
         internal LispFileStream DribbleStream
         {
-            get => GetValue<LispFileStream>(DribbleStreamString);
+            get => _commonLispPackage.GetValue<LispFileStream>(DribbleStreamString);
             set
             {
                 if (value is null)
                 {
-                    DeleteValue(DribbleStreamString);
+                    _commonLispPackage.DeleteValue(DribbleStreamString);
                 }
                 else
                 {
-                    SetValue(DribbleStreamString, value);
+                    _commonLispPackage.SetValue(DribbleStreamString, value);
                 }
             }
         }
@@ -139,12 +128,86 @@ namespace IxMilia.Lisp
         public override LispRootStackFrame Root => this;
         public override int Depth => RootStackDepth;
 
+        public LispObject T => _commonLispPackage.GetValue<LispSymbol>(TString);
+        public LispObject Nil => _commonLispPackage.GetValue<LispNilList>(NilString);
+        public LispTextStream TerminalIO => _commonLispPackage.GetValue<LispTextStream>(TerminalIOString);
+
         internal LispRootStackFrame(TextReader input, TextWriter output)
-            : base("(ROOT)", null)
+            : base(new LispResolvedSymbol("(ROOT)", "(ROOT)", isPublic: true), null)
         {
-            SetValue(TString, new LispSymbol(TString));
-            SetValue(NilString, LispNilList.Instance);
-            SetValue(TerminalIOString, new LispTextStream(TerminalIOString, input, output));
+            _commonLispPackage = AddPackage(CommonLispPackageName);
+            _keywordPackage = new LispKeywordPackage();
+            _packages.Add(_keywordPackage.Name, _keywordPackage);
+
+            var tSymbol = new LispResolvedSymbol(CommonLispPackageName, TString, isPublic: true);
+            SetValue(tSymbol, tSymbol);
+
+            var nilSymbol = new LispResolvedSymbol(CommonLispPackageName, NilString, isPublic: true);
+            SetValue(nilSymbol, LispNilList.Instance);
+
+            var terminalIoSymbol = new LispResolvedSymbol(CommonLispPackageName, TerminalIOString, isPublic: true);
+            var terminalIoStream = new LispTextStream(TerminalIOString, input, output);
+            SetValue(terminalIoSymbol, terminalIoStream);
+        }
+
+        public LispPackage AddPackage(string packageName, IEnumerable<LispPackage> inheritedPackages = null)
+        {
+            var package = new LispPackage(packageName, inheritedPackages);
+            _packages.Add(packageName, package);
+            return package;
+        }
+
+        public LispPackage GetPackage(string packageName)
+        {
+            if (_packages.TryGetValue(packageName, out var package))
+            {
+                return package;
+            }
+
+            return null;
+        }
+
+        public override void SetValue(LispResolvedSymbol symbol, LispObject value)
+        {
+            SetValue(symbol, value, createPackage: false);
+        }
+
+        internal LispObject SetValue(LispResolvedSymbol symbol, LispObject value, bool createPackage)
+        {
+            if (!_packages.TryGetValue(symbol.PackageName, out var package))
+            {
+                if (createPackage)
+                {
+                    package = AddPackage(symbol.PackageName);
+                }
+                else
+                {
+                    throw new Exception("asdf");
+                    //return new LispError($"Package {packageName} not defined.");
+                }
+            }
+
+            package.SetValue(symbol.LocalName, value);
+            OnValueSet(symbol, value, this);
+            return value;
+        }
+
+        public override LispObject GetValue(LispResolvedSymbol symbol)
+        {
+            if (!_packages.TryGetValue(symbol.PackageName, out var package))
+            {
+                return null;
+            }
+
+            return package.GetValue(symbol.LocalName);
+        }
+
+        public override void DeleteValue(LispResolvedSymbol symbol)
+        {
+            if (_packages.TryGetValue(symbol.PackageName, out var package))
+            {
+                package.DeleteValue(symbol.LocalName);
+            }
         }
 
         internal bool OnFunctionEnter(LispStackFrame frame, LispObject[] functionArguments)
@@ -182,9 +245,9 @@ namespace IxMilia.Lisp
             return args.HaltExecution;
         }
 
-        internal void OnValueSet(string name, LispObject value, LispStackFrame frame)
+        internal void OnValueSet(LispResolvedSymbol symbol, LispObject value, LispStackFrame frame)
         {
-            var args = new LispValueSetEventArgs(name, value, frame);
+            var args = new LispValueSetEventArgs(symbol, value, frame);
             ValueSet?.Invoke(this, args);
         }
 

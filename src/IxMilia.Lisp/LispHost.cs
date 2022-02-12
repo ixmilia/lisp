@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -12,23 +13,42 @@ namespace IxMilia.Lisp
 
     public class LispHost
     {
+        private const string PackageString = "*PACKAGE*";
         private const string TerminalIOString = "*TERMINAL-IO*";
 
         private string _initialFilePath;
         private LispObjectReader _objectReader;
-        private LispObject _eofMarker = new LispSymbol("(EOF)");
+        private LispObject _eofMarker = new LispResolvedSymbol("(EOF-PACKAGE)", "(EOF)", isPublic: true);
         public readonly LispRootStackFrame RootFrame;
+        private LispPackage _currentPackage;
 
         internal LispObjectReader ObjectReader => _objectReader;
         public bool UseTailCalls { get; }
         public LispObject T { get; }
         public LispObject Nil { get; }
         public LispTextStream TerminalIO { get; }
+        public LispPackage CurrentPackage
+        {
+            get => _currentPackage;
+            set
+            {
+                var packageToSet = RootFrame.GetPackage(value.Name);
+                if (!ReferenceEquals(packageToSet, value))
+                {
+                    throw new ArgumentException("The package is not part of the host");
+                }
+
+                _currentPackage = packageToSet;
+                SetValue($"{LispRootStackFrame.CommonLispPackageName}:{PackageString}", packageToSet);
+            }
+        }
 
         public LispHost(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false, bool useInitScript = true)
         {
             _initialFilePath = filePath;
             RootFrame = new LispRootStackFrame(input ?? TextReader.Null, output ?? TextWriter.Null);
+            var commonLispPackage = RootFrame.GetPackage(LispRootStackFrame.CommonLispPackageName);
+            CurrentPackage = commonLispPackage;
             UseTailCalls = useTailCalls;
             T = RootFrame.T;
             Nil = RootFrame.Nil;
@@ -45,27 +65,33 @@ namespace IxMilia.Lisp
             }
         }
 
-        public void AddSpecialOperator(string name, LispSpecialOperatorDelegate del)
+        public LispPackage AddPackage(string packageName, IEnumerable<LispPackage> inheritedPackages = null) => RootFrame.AddPackage(packageName, inheritedPackages);
+
+        public void AddSpecialOperator(LispSymbol symbol, LispSpecialOperatorDelegate del)
         {
-            var op = new LispSpecialOperator(name, del);
-            SetValue(name, op);
+            var resolvedSymbol = symbol.Resolve(CurrentPackage);
+            var op = new LispSpecialOperator(resolvedSymbol, del);
+            SetValue(resolvedSymbol.Value, op, createPackage: true);
         }
 
-        public void AddMacro(string name, LispMacroDelegate del)
+        public void AddMacro(string name, LispMacroDelegate del) => AddMacro(LispSymbol.CreateFromString(name), del);
+
+        public void AddMacro(LispSymbol symbol, LispMacroDelegate del)
         {
-            var macro = new LispNativeMacro(name, del);
-            SetValue(name, macro);
+            var resolvedSymbol = symbol.Resolve(CurrentPackage);
+            var macro = new LispNativeMacro(resolvedSymbol, del);
+            SetValue(resolvedSymbol.Value, macro, createPackage: true);
         }
 
-        public void AddFunction(string name, LispFunctionDelegate del)
-        {
-            AddFunction(name, null, del);
-        }
+        public void AddFunction(string name, LispFunctionDelegate del) => AddFunction(LispSymbol.CreateFromString(name), del);
 
-        public void AddFunction(string name, string documentation, LispFunctionDelegate del)
+        public void AddFunction(LispSymbol symbol, LispFunctionDelegate del) => AddFunction(symbol, null, del);
+
+        public void AddFunction(LispSymbol symbol, string documentation, LispFunctionDelegate del)
         {
-            var function = new LispNativeFunction(name, documentation, del);
-            SetValue(name, function);
+            var resolvedSymbol = symbol.Resolve(CurrentPackage);
+            var function = new LispNativeFunction(resolvedSymbol, documentation, del);
+            SetValue(resolvedSymbol.Value, function, createPackage: true);
         }
 
         public void AddContextObject(object context)
@@ -93,7 +119,8 @@ namespace IxMilia.Lisp
                             var del = (LispSpecialOperatorDelegate)methodInfo.CreateDelegate(typeof(LispSpecialOperatorDelegate), context);
                             foreach (var name in operatorNames)
                             {
-                                AddSpecialOperator(name, del);
+                                var symbol = LispSymbol.CreateFromString(name);
+                                AddSpecialOperator(symbol, del);
                             }
                         }
                         else
@@ -111,7 +138,8 @@ namespace IxMilia.Lisp
                             var del = (LispMacroDelegate)methodInfo.CreateDelegate(typeof(LispMacroDelegate), context);
                             foreach (var name in macroNames)
                             {
-                                AddMacro(name, del);
+                                var symbol = LispSymbol.CreateFromString(name);
+                                AddMacro(symbol, del);
                             }
                         }
                         else
@@ -129,7 +157,8 @@ namespace IxMilia.Lisp
                             var del = (LispFunctionDelegate)methodInfo.CreateDelegate(typeof(LispFunctionDelegate), context);
                             foreach (var name in functionNames)
                             {
-                                AddFunction(name, del);
+                                var symbol = LispSymbol.CreateFromString(name);
+                                AddFunction(symbol, del);
                             }
                         }
                         else
@@ -154,36 +183,35 @@ namespace IxMilia.Lisp
                 var evalResult = Eval("init.lisp", content);
                 if (evalResult.ExecutionState?.LastResult != T)
                 {
-                    throw new Exception($"Expected 'T' but found '{evalResult.ExecutionState?.LastResult}' at ({evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Line}, {evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Column}).");
+                    var message = $"Expected 'T' but found '{evalResult.ExecutionState?.LastResult}' at ({evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Line}, {evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Column}).";
+                    if (evalResult.ReadError != null)
+                    {
+                        message += "\nRead error:\n" + evalResult.ReadError.ToString();
+                    }
+
+                    throw new Exception(message);
                 }
             }
         }
 
-        public void SetValue(string name, LispObject value)
-        {
-            RootFrame.SetValue(name, value);
-        }
+        public void SetValue(string name, LispObject value) => SetValue(name, value, createPackage: false);
 
-        public void SetValueInParentScope(string name, LispObject value)
+        private void SetValue(string name, LispObject value, bool createPackage)
         {
-            if (RootFrame.Parent is object)
-            {
-                RootFrame.Parent.SetValue(name, value);
-            }
-            else
-            {
-                SetValue(name, value);
-            }
+            var symbol = LispSymbol.CreateFromString(name).Resolve(CurrentPackage);
+            RootFrame.SetValue(symbol, value, createPackage);
         }
 
         public LispObject GetValue(string name)
         {
-            return RootFrame.GetValue(name);
+            var symbol = LispSymbol.CreateFromString(name).Resolve(CurrentPackage);
+            return RootFrame.GetValue(symbol);
         }
 
         public TObject GetValue<TObject>(string name) where TObject: LispObject
         {
-            return RootFrame.GetValue<TObject>(name);
+            var result = GetValue(name);
+            return (TObject)result;
         }
 
         public LispEvalResult Eval(string code)

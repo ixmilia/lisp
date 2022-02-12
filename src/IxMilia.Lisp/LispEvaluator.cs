@@ -62,7 +62,7 @@ namespace IxMilia.Lisp
                                 // restore the tail call operation and pop the stack
                                 executionState.InsertOperation(concreteInvocationExit.WithoutFramePop());
                                 executionState.InsertOperation(tailCallExpression);
-                                executionState.StackFrame.CopyLocalsToParentForTailCall(new HashSet<string>(tailPop.InvocationArgumentNames));
+                                executionState.StackFrame.CopyLocalsToParentForTailCall(host.CurrentPackage, new HashSet<string>(tailPop.InvocationArgumentNames));
                                 executionState.StackFrame = executionState.StackFrame.Parent;
                             }
                             else
@@ -88,10 +88,10 @@ namespace IxMilia.Lisp
                                 case LispNumber _:
                                 case LispCharacter _:
                                 case LispString _:
-                                case LispKeyword _:
                                 case LispLambdaListKeyword _:
                                 case LispCodeFunction _:
                                 case LispQuotedNamedFunctionReference _:
+                                case LispPackage _:
                                 case LispStream _:
                                     executionState.PushArgument(expression.Expression);
                                     break;
@@ -131,10 +131,11 @@ namespace IxMilia.Lisp
                                     break;
                                 case LispSymbol symbol:
                                     {
-                                        var value = executionState.StackFrame.GetValue(symbol.Value);
+                                        var resolvedSymbol = symbol.Resolve(host.CurrentPackage);
+                                        var value = executionState.StackFrame.GetValue(resolvedSymbol);
                                         if (value is null)
                                         {
-                                            executionState.ReportError(new LispError($"Symbol '{symbol.Value}' not found"), symbol);
+                                            executionState.ReportError(new LispError($"Symbol '{resolvedSymbol.LocalName}' not found"), symbol);
                                             break;
                                         }
                                         else
@@ -151,14 +152,15 @@ namespace IxMilia.Lisp
                                         LispInvocableObject invocationObject;
                                         if (sList.Value is LispSymbol invocationSymbol)
                                         {
-                                            var candidateInvocationObject = executionState.StackFrame.GetValue(invocationSymbol.Value);
+                                            var resolvedInvocationSymbol = invocationSymbol.Resolve(host.CurrentPackage);
+                                            var candidateInvocationObject = executionState.StackFrame.GetValue(resolvedInvocationSymbol);
                                             if (candidateInvocationObject is LispInvocableObject invokable)
                                             {
                                                 invocationObject = invokable;
                                             }
                                             else if (candidateInvocationObject is null)
                                             {
-                                                executionState.ReportError(new LispError($"Undefined macro/function '{invocationSymbol.Value}', found '<null>'"), sList.Value);
+                                                executionState.ReportError(new LispError($"Undefined macro/function '{invocationSymbol.LocalName}', found '<null>'"), sList.Value);
                                                 break;
                                             }
                                             else
@@ -206,7 +208,8 @@ namespace IxMilia.Lisp
                                                             if (executionState.UseTailCalls && isTailCallCandidate)
                                                             {
                                                                 // the previously inserted operation is a candidate for a tail call
-                                                                executionState.InsertOperation(new LispEvaluatorPopForTailCall(invocationObject, codeFunction.ArgumentCollection.ArgumentNames));
+                                                                var tailCallArgumentNames = codeFunction.ArgumentCollection.ArgumentNames.Select(a => LispSymbol.CreateFromString(a).Resolve(host.CurrentPackage).Value).ToList();
+                                                                executionState.InsertOperation(new LispEvaluatorPopForTailCall(invocationObject, tailCallArgumentNames));
                                                             }
                                                         }
                                                         break;
@@ -309,7 +312,7 @@ namespace IxMilia.Lisp
                             {
                                 if (!executionState.TryPopArgument(out arguments[i]))
                                 {
-                                    executionState.ReportError(new LispError($"Insufficient arguments for function '{invocation.InvocationObject.Name}'.  Expected {invocation.ArgumentCount} arguments but only found {foundArgumentCount}"), invocation.InvocationObject);
+                                    executionState.ReportError(new LispError($"Insufficient arguments for function '{invocation.InvocationObject.NameSymbol.LocalName}'.  Expected {invocation.ArgumentCount} arguments but only found {foundArgumentCount}"), invocation.InvocationObject);
                                 }
 
                                 foundArgumentCount++;
@@ -336,10 +339,11 @@ namespace IxMilia.Lisp
                                                 var replacements = new Dictionary<string, LispObject>();
                                                 foreach (var matchedArgument in matchedArguments)
                                                 {
-                                                    replacements[matchedArgument.Item1.Name] = matchedArgument.Item2;
+                                                    var resolvedSymbol = LispSymbol.CreateFromString(matchedArgument.Item1.Name).Resolve(host.CurrentPackage);
+                                                    replacements[resolvedSymbol.Value] = matchedArgument.Item2;
                                                 }
 
-                                                result = codeMacro.Body.PerformMacroReplacements(replacements);
+                                                result = codeMacro.Body.PerformMacroReplacements(host.CurrentPackage, replacements);
                                                 break;
                                             case LispNativeMacro nativeMacro:
                                                 captureValueSetHalt = true;

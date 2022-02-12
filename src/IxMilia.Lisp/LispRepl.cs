@@ -33,15 +33,15 @@ namespace IxMilia.Lisp
 
         private void FunctionEntered(object sender, LispFunctionEnteredEventArgs e)
         {
-            if (TracedFunctions.Contains(e.Frame.FunctionName))
+            if (TracedFunctions.Contains(e.Frame.FunctionSymbol.Value))
             {
-                WriteTraceLine($"{CreateTracePrefix(e.Frame, isFunctionEnter: true)}: ({e.Frame.FunctionName}{(e.FunctionArguments.Length > 0 ? " " + string.Join<LispObject>(" ", e.FunctionArguments) : "")})");
+                WriteTraceLine($"{CreateTracePrefix(e.Frame, isFunctionEnter: true)}: ({e.Frame.FunctionSymbol.LocalName}{(e.FunctionArguments.Length > 0 ? " " + string.Join<LispObject>(" ", e.FunctionArguments) : "")})");
             }
         }
 
         private void FunctionReturned(object sender, LispFunctionReturnedEventArgs e)
         {
-            if (TracedFunctions.Contains(e.Frame.FunctionName))
+            if (TracedFunctions.Contains(e.Frame.FunctionSymbol.Value))
             {
                 WriteTraceLine($"{CreateTracePrefix(e.Frame, isFunctionEnter: false)}: returned {e.ReturnValue}");
             }
@@ -110,7 +110,7 @@ namespace IxMilia.Lisp
         public string GetMarkdownDisplayFromSourceObject(LispObject obj)
         {
             var baseObject = obj is LispSymbol symbol
-                ? GetValue(symbol.Value)
+                ? GetValue(symbol.Resolve(Host.CurrentPackage).Value)
                 : obj;
             return baseObject.GetMarkdownDisplay(this);
         }
@@ -119,7 +119,7 @@ namespace IxMilia.Lisp
         {
             if (args.Length == 0)
             {
-                return LispList.FromEnumerable(TracedFunctions.Select(f => new LispSymbol(f)));
+                return LispList.FromEnumerable(TracedFunctions.Select(f => LispSymbol.CreateFromString(f)));
             }
             else
             {
@@ -129,8 +129,9 @@ namespace IxMilia.Lisp
                 {
                     if (arg is LispSymbol symbol)
                     {
-                        TracedFunctions.Add(symbol.Value);
-                        addedFunctions.Add(symbol.Value);
+                        var resolvedSymbol = symbol.Resolve(Host.CurrentPackage);
+                        TracedFunctions.Add(resolvedSymbol.Value);
+                        addedFunctions.Add(resolvedSymbol.Value);
                     }
                     else
                     {
@@ -144,7 +145,7 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return LispList.FromEnumerable(addedFunctions.Select(f => new LispSymbol(f)));
+                    return LispList.FromEnumerable(addedFunctions.Select(f => LispSymbol.CreateFromString(f)));
                 }
             }
         }
@@ -153,7 +154,7 @@ namespace IxMilia.Lisp
         {
             if (args.Length == 0)
             {
-                var result = LispList.FromEnumerable(TracedFunctions.Select(f => new LispSymbol(f)));
+                var result = LispList.FromEnumerable(TracedFunctions.Select(f => LispSymbol.CreateFromString(f)));
                 TracedFunctions.Clear();
                 return result;
             }
@@ -165,9 +166,10 @@ namespace IxMilia.Lisp
                 {
                     if (arg is LispSymbol symbol)
                     {
-                        if (TracedFunctions.Remove(symbol.Value))
+                        var resolvedSymbol = symbol.Resolve(Host.CurrentPackage);
+                        if (TracedFunctions.Remove(resolvedSymbol.Value))
                         {
-                            removedFunctions.Add(symbol.Value);
+                            removedFunctions.Add(resolvedSymbol.Value);
                         }
                     }
                     else
@@ -182,7 +184,7 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return LispList.FromEnumerable(removedFunctions.Select(f => new LispSymbol(f)));
+                    return LispList.FromEnumerable(removedFunctions.Select(f => LispSymbol.CreateFromString(f)));
                 }
             }
         }

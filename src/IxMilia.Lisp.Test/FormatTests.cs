@@ -39,8 +39,8 @@ namespace IxMilia.Lisp.Test
             TestFormat(
                 "A: a, B: (b), C: 5",
                 "A: ~s, B: ~s, C: ~s",
-                new LispSymbol("a"),
-                new LispList(new LispSymbol("b")),
+                LispSymbol.CreateFromString("a"),
+                new LispList(LispSymbol.CreateFromString("b")),
                 new LispInteger(5));
         }
 

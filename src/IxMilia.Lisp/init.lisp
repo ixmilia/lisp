@@ -223,5 +223,9 @@
           ((equal 1 (length values))    (/ 1 (car values)))
           (t                            (reduce #'kernel://2 values))))
 
+(defpackage :common-lisp-user
+    (:use :common-lisp))
+(in-package :common-lisp-user)
+
 ; just to ensure the script was properly loaded
 t

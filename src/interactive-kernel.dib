@@ -93,5 +93,6 @@ class LispKernel : Kernel, IKernelCommandHandler<RequestHoverText>, IKernelComma
 (defun add (a b)
     "Adds two numbers."
     (+ a b))
+(format t "hello")
 (setf sum (add 1 2))
-(setf l (list 1 2 3))
+sum

@@ -24,6 +24,7 @@ namespace IxMilia.Lisp
         public LispObject Clone()
         {
             var result = CloneProtected();
+            result.Parent = Parent;
             result.SourceLocation = SourceLocation;
             return result;
         }
@@ -33,14 +34,17 @@ namespace IxMilia.Lisp
             return ToString();
         }
 
-        public LispObject PerformMacroReplacements(IDictionary<string, LispObject> replacements)
+        public virtual string ToDisplayString(LispPackage currentPackage) => ToString();
+
+        public LispObject PerformMacroReplacements(LispPackage currentPackage, IDictionary<string, LispObject> replacements)
         {
             LispObject result;
             switch (this)
             {
                 // this is the only real replacement possibility
                 case LispSymbol symbol:
-                    if (!replacements.TryGetValue(symbol.Value, out result))
+                    var resolvedSymbol = symbol.Resolve(currentPackage);
+                    if (!replacements.TryGetValue(resolvedSymbol.Value, out result))
                     {
                         result = this;
                     }
@@ -49,14 +53,14 @@ namespace IxMilia.Lisp
                 // these go into the definitions
                 // TODO: replace in arguments?
                 case LispCodeMacro codeMacro:
-                    result = new LispCodeMacro(codeMacro.Name, codeMacro.ArgumentCollection, codeMacro.Body.PerformMacroReplacements(replacements).ToList());
+                    result = new LispCodeMacro(codeMacro.NameSymbol, codeMacro.ArgumentCollection, codeMacro.Body.PerformMacroReplacements(currentPackage, replacements).ToList());
                     break;
                 case LispCodeFunction codeFunction:
-                    result = new LispCodeFunction(codeFunction.Name, codeFunction.Documentation, codeFunction.ArgumentCollection, codeFunction.Commands.PerformMacroReplacements(replacements).ToList());
+                    result = new LispCodeFunction(codeFunction.NameSymbol, codeFunction.Documentation, codeFunction.ArgumentCollection, codeFunction.Commands.PerformMacroReplacements(currentPackage, replacements).ToList());
                     break;
 
                 case LispQuotedLambdaFunctionReference lambdaFunction:
-                    result = new LispQuotedLambdaFunctionReference((LispCodeFunction)lambdaFunction.Definition.PerformMacroReplacements(replacements));
+                    result = new LispQuotedLambdaFunctionReference((LispCodeFunction)lambdaFunction.Definition.PerformMacroReplacements(currentPackage, replacements));
                     break;
                 case LispQuotedNamedFunctionReference quotedFunction:
                     if (!replacements.TryGetValue(quotedFunction.Name, out result))
@@ -67,7 +71,6 @@ namespace IxMilia.Lisp
 
                 // these get no replacement
                 case LispError _:
-                case LispKeyword _:
                 case LispNumber _:
                 case LispString _:
                 case LispNativeMacro _:
@@ -80,10 +83,10 @@ namespace IxMilia.Lisp
 
                 // recurse into these
                 case LispForwardListReference forwardList:
-                    result = new LispForwardListReference(forwardList.SymbolReference, (LispList)forwardList.List.PerformMacroReplacements(replacements));
+                    result = new LispForwardListReference(forwardList.SymbolReference, (LispList)forwardList.List.PerformMacroReplacements(currentPackage, replacements));
                     break;
                 case LispList list:
-                    result = new LispList(list.Value.PerformMacroReplacements(replacements), list.Next.PerformMacroReplacements(replacements));
+                    result = new LispList(list.Value.PerformMacroReplacements(currentPackage, replacements), list.Next.PerformMacroReplacements(currentPackage, replacements));
                     break;
 
                 // error
@@ -142,13 +145,13 @@ namespace IxMilia.Lisp
         }
     }
 
-    public class LispSymbol : LispObject
+    public abstract class LispSymbol : LispObject
     {
-        public string Value { get; set; }
+        public string LocalName { get; }
 
-        public LispSymbol(string value)
+        protected LispSymbol(string localName)
         {
-            Value = value;
+            LocalName = localName;
         }
 
         public override IEnumerable<LispObject> GetChildren()
@@ -156,59 +159,157 @@ namespace IxMilia.Lisp
             yield break;
         }
 
+        public LispResolvedSymbol Resolve(LispPackage currentPackage)
+        {
+            switch (this)
+            {
+                case LispUnresolvedSymbol unresolvedSymbol:
+                    return currentPackage.ResolveSymbol(unresolvedSymbol);
+                case LispResolvedSymbol resolvedSymbol:
+                    return resolvedSymbol;
+                default:
+                    throw new NotSupportedException("Not a supported symbol type");
+            }
+        }
+
+        public static LispSymbol CreateFromString(string name, string defaultPackageName = null)
+        {
+            var nameParts = SplitPackageAndSymbolName(name);
+            if (nameParts.Item1 == null && defaultPackageName == null)
+            {
+                return new LispUnresolvedSymbol(nameParts.Item2);
+            }
+            else
+            {
+                return new LispResolvedSymbol(nameParts.Item1 ?? defaultPackageName, nameParts.Item2, nameParts.Item3);
+            }
+        }
+
+        /// <summary>
+        /// Splits a name into a 3-part tuple of (packageName, localName, isPrivate).
+        /// </summary>
+        public static Tuple<string, string, bool> SplitPackageAndSymbolName(string name)
+        {
+            var colonIndex = name.IndexOf(':');
+            string packageName = null;
+            string localName;
+            var isPublic = true;
+            if (colonIndex >= 0)
+            {
+                packageName = name.Substring(0, colonIndex);
+                if (string.IsNullOrEmpty(packageName))
+                {
+                    packageName = "KEYWORD";
+                }
+
+                // double colon = private symbol
+                if (name.Substring(colonIndex + 1, 1) == ":")
+                {
+                    isPublic = false;
+                    colonIndex++;
+                }
+
+                localName = name.Substring(colonIndex + 1);
+            }
+            else
+            {
+                localName = name;
+            }
+
+            return Tuple.Create(packageName, localName, isPublic);
+        }
+    }
+
+    public class LispUnresolvedSymbol : LispSymbol, IEquatable<LispUnresolvedSymbol>
+    {
+        public LispUnresolvedSymbol(string name)
+            : base(name)
+        {
+        }
+
         protected override LispObject CloneProtected()
         {
-            return new LispSymbol(Value);
+            return new LispUnresolvedSymbol(LocalName);
         }
 
-        public override string ToString()
+        public override string ToString() => LocalName;
+
+        public override bool Equals(object obj)
         {
-            return Value;
+            return Equals(obj as LispUnresolvedSymbol);
         }
 
-        public static bool operator ==(LispSymbol a, LispSymbol b)
+        public bool Equals(LispUnresolvedSymbol other)
+        {
+            return other != null &&
+                   LocalName == other.LocalName;
+        }
+
+        public override int GetHashCode()
+        {
+            return LocalName.GetHashCode();
+        }
+
+        public static bool operator==(LispUnresolvedSymbol a, LispUnresolvedSymbol b)
+        {
+            return a?.LocalName == b?.LocalName;
+        }
+
+        public static bool operator!=(LispUnresolvedSymbol a, LispUnresolvedSymbol b)
+        {
+            return !(a == b);
+        }
+    }
+
+    public class LispResolvedSymbol : LispSymbol, IEquatable<LispResolvedSymbol>
+    {
+        public string PackageName { get; }
+        public bool IsPublic { get; }
+
+        public string Value => IsKeyword ? string.Concat(":", LocalName) : string.Concat(PackageName, IsPublic ? ":" : "::", LocalName);
+
+        public bool IsKeyword => PackageName == "KEYWORD";
+
+        public LispResolvedSymbol(string packageName, string localName, bool isPublic)
+            : base(localName)
+        {
+            PackageName = packageName;
+            IsPublic = isPublic;
+        }
+
+        protected override LispObject CloneProtected()
+        {
+            return new LispResolvedSymbol(PackageName, LocalName, IsPublic);
+        }
+
+        public override string ToString() => Value;
+
+        public override string ToDisplayString(LispPackage currentPackage) => currentPackage.HasSymbolWithName(LocalName) ? LocalName : Value;
+
+        public static bool operator ==(LispResolvedSymbol a, LispResolvedSymbol b)
         {
             return a?.Value == b?.Value;
         }
 
-        public static bool operator !=(LispSymbol a, LispSymbol b)
+        public static bool operator !=(LispResolvedSymbol a, LispResolvedSymbol b)
         {
             return !(a == b);
         }
 
         public override bool Equals(object obj)
         {
-            return obj is LispSymbol && this == (LispSymbol)obj;
+            return obj is LispResolvedSymbol other && this == other;
+        }
+
+        public bool Equals(LispResolvedSymbol other)
+        {
+            return other != null &&
+                   Value == other.Value;
         }
 
         public override int GetHashCode()
         {
             return Value.GetHashCode();
-        }
-    }
-
-    public class LispKeyword : LispObject
-    {
-        public string Keyword { get; }
-
-        public LispKeyword(string keyword)
-        {
-            Keyword = keyword;
-        }
-
-        public override IEnumerable<LispObject> GetChildren()
-        {
-            yield break;
-        }
-
-        protected override LispObject CloneProtected()
-        {
-            return new LispKeyword(Keyword);
-        }
-
-        public override string ToString()
-        {
-            return Keyword;
         }
     }
 
@@ -1066,10 +1167,10 @@ namespace IxMilia.Lisp
 
     internal class LispForwardListReference : LispObject
     {
-        public string SymbolReference { get; }
+        public LispResolvedSymbol SymbolReference { get; }
         public LispList List { get; }
 
-        public LispForwardListReference(string symbolReference, LispList list)
+        public LispForwardListReference(LispResolvedSymbol symbolReference, LispList list)
         {
             SymbolReference = symbolReference;
             List = list;
@@ -1087,8 +1188,16 @@ namespace IxMilia.Lisp
 
         public override string ToString()
         {
-            var leadingText = SymbolReference.Substring(0, SymbolReference.Length - 1) + "=";
+            var symbolName = SymbolReference.Value;
+            var leadingText = symbolName.Substring(0, symbolName.Length - 1) + "=";
             return string.Concat(leadingText, List.ToString());
+        }
+
+        public override string ToDisplayString(LispPackage currentPackage)
+        {
+            var symbolName = SymbolReference.ToDisplayString(currentPackage);
+            var leadingText = symbolName.Substring(0, symbolName.Length - 1) + "=";
+            return String.Concat(leadingText, List.ToDisplayString(currentPackage));
         }
     }
 
@@ -1233,6 +1342,31 @@ namespace IxMilia.Lisp
             return nextString;
         }
 
+        public override string ToDisplayString(LispPackage currentPackage)
+        {
+            return $"({Value.ToDisplayString(currentPackage)}{NextToDisplayString(currentPackage)}";
+        }
+
+        protected virtual string ToDisplayStringTail(LispPackage currentPackage)
+        {
+            return $" {Value.ToDisplayString(currentPackage)}{NextToDisplayString(currentPackage)}";
+        }
+
+        private string NextToDisplayString(LispPackage currentPackage)
+        {
+            string nextString;
+            if (Next is LispList list)
+            {
+                nextString = list.ToDisplayStringTail(currentPackage);
+            }
+            else
+            {
+                nextString = $" . {Next.ToDisplayString(currentPackage)}";
+            }
+
+            return nextString;
+        }
+
         public static bool operator ==(LispList a, LispList b)
         {
             if ((object)a == null && (object)b == null)
@@ -1331,7 +1465,11 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        public override string ToString()
+        public override string ToString() => ToString(null);
+
+        public override string ToDisplayString(LispPackage currentPackage) => ToString(currentPackage);
+
+        private string ToString(LispPackage currentOrNullPackage)
         {
             var isFirstInvocation = _refNumber == 1;
             var thisRefNumber = _refNumber++;
@@ -1367,7 +1505,7 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    values.Add(currentValue.ToString());
+                    values.Add(currentOrNullPackage == null ? currentValue.ToString() : currentValue.ToDisplayString(currentOrNullPackage));
                 }
 
                 current = next;
@@ -1375,7 +1513,7 @@ namespace IxMilia.Lisp
 
             if (selfWrittenIndices.Count > 1 && !ReferenceEquals(this, Value))
             {
-                values[selfWrittenIndices[0]] = Value.ToString();
+                values[selfWrittenIndices[0]] = currentOrNullPackage == null ? Value.ToString() : Value.ToDisplayString(currentOrNullPackage);
             }
 
             if (!IsProperList && values.Count >= 2)
@@ -1438,11 +1576,11 @@ namespace IxMilia.Lisp
 
     public abstract class LispInvocableObject : LispObject
     {
-        public string Name { get; }
+        public LispResolvedSymbol NameSymbol { get; }
 
-        protected LispInvocableObject(string name)
+        protected LispInvocableObject(LispResolvedSymbol nameSymbol)
         {
-            Name = name;
+            NameSymbol = nameSymbol;
         }
     }
 
@@ -1450,8 +1588,8 @@ namespace IxMilia.Lisp
     {
         public string Documentation { get; }
 
-        public LispFunction(string name, string documentation)
-            : base(name)
+        public LispFunction(LispResolvedSymbol nameSymbol, string documentation)
+            : base(nameSymbol)
         {
             Documentation = documentation;
         }
@@ -1463,8 +1601,8 @@ namespace IxMilia.Lisp
         public LispArgumentCollection ArgumentCollection { get; }
         public LispObject[] Commands { get; internal set; }
 
-        public LispCodeFunction(string name, string documentation, LispArgumentCollection argumentCollection, IEnumerable<LispObject> commands)
-            : base(name, documentation)
+        public LispCodeFunction(LispResolvedSymbol nameSymbol, string documentation, LispArgumentCollection argumentCollection, IEnumerable<LispObject> commands)
+            : base(nameSymbol, documentation)
         {
             ArgumentCollection = argumentCollection;
             Commands = commands.ToArray();
@@ -1477,13 +1615,12 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispCodeFunction(Name, Documentation, ArgumentCollection, Commands);
+            return new LispCodeFunction(NameSymbol, Documentation, ArgumentCollection, Commands);
         }
 
-        public override string ToString()
-        {
-            return $"{Name} ({ArgumentCollection})";
-        }
+        public override string ToString() => $"{NameSymbol.LocalName} ({ArgumentCollection})";
+
+        public override string ToDisplayString(LispPackage currentPackage) => $"{NameSymbol.ToDisplayString(currentPackage)} ({ArgumentCollection})";
 
         public bool TryBindArguments(LispObject[] args, LispHost host, LispStackFrame frame, out LispError error)
         {
@@ -1512,7 +1649,8 @@ namespace IxMilia.Lisp
                     return false;
                 }
 
-                frame.SetValue(argumentName, argumentValue);
+                var resolvedArgument = LispSymbol.CreateFromString(argumentName).Resolve(host.CurrentPackage);
+                frame.SetValue(resolvedArgument, argumentValue);
             }
 
             return true;
@@ -1523,8 +1661,8 @@ namespace IxMilia.Lisp
     {
         public LispFunctionDelegate Function { get; }
 
-        public LispNativeFunction(string name, string documentation, LispFunctionDelegate function)
-            : base(name, documentation)
+        public LispNativeFunction(LispResolvedSymbol nameSymbol, string documentation, LispFunctionDelegate function)
+            : base(nameSymbol, documentation)
         {
             Function = function;
         }
@@ -1536,13 +1674,12 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispNativeFunction(Name, Documentation, Function);
+            return new LispNativeFunction(NameSymbol, Documentation, Function);
         }
 
-        public override string ToString()
-        {
-            return $"{Name} <native>";
-        }
+        public override string ToString() => $"{NameSymbol.LocalName} <native>";
+
+        public override string ToDisplayString(LispPackage currentPackage) => $"{NameSymbol.ToDisplayString(currentPackage)} <native>";
     }
 
     public abstract class LispFunctionReference : LispObject
@@ -1594,18 +1731,17 @@ namespace IxMilia.Lisp
             return new LispQuotedLambdaFunctionReference((LispCodeFunction)Definition.Clone());
         }
 
-        public override string ToString()
-        {
-            return Definition.ToString();
-        }
+        public override string ToString() => Definition.ToString();
+
+        public override string ToDisplayString(LispPackage currentPackage) => Definition.ToDisplayString(currentPackage);
     }
 
     public class LispSpecialOperator : LispInvocableObject
     {
         public LispSpecialOperatorDelegate Delegate { get; }
 
-        public LispSpecialOperator(string name, LispSpecialOperatorDelegate del)
-            : base(name)
+        public LispSpecialOperator(LispResolvedSymbol nameSymbol, LispSpecialOperatorDelegate del)
+            : base(nameSymbol)
         {
             Delegate = del;
         }
@@ -1617,19 +1753,18 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispSpecialOperator(Name, Delegate);
+            return new LispSpecialOperator(NameSymbol, Delegate);
         }
 
-        public override string ToString()
-        {
-            return $"{Name} <native-special-op>";
-        }
+        public override string ToString() => $"{NameSymbol.LocalName} <native-special-op>";
+
+        public override string ToDisplayString(LispPackage currentPackage) => $"{NameSymbol.ToDisplayString(currentPackage)} <native-special-op>";
     }
 
     public abstract class LispMacro : LispInvocableObject
     {
-        public LispMacro(string name)
-            : base(name)
+        public LispMacro(LispResolvedSymbol nameSymbol)
+            : base(nameSymbol)
         {
         }
     }
@@ -1639,8 +1774,8 @@ namespace IxMilia.Lisp
         public LispArgumentCollection ArgumentCollection { get; }
         public LispObject[] Body { get; }
 
-        public LispCodeMacro(string name, LispArgumentCollection argumentCollection, IEnumerable<LispObject> body)
-            : base(name)
+        public LispCodeMacro(LispResolvedSymbol nameSymbol, LispArgumentCollection argumentCollection, IEnumerable<LispObject> body)
+            : base(nameSymbol)
         {
             ArgumentCollection = argumentCollection;
             Body = body.ToArray();
@@ -1653,21 +1788,20 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispCodeMacro(Name, ArgumentCollection, Body);
+            return new LispCodeMacro(NameSymbol, ArgumentCollection, Body);
         }
 
-        public override string ToString()
-        {
-            return $"{Name} ({ArgumentCollection})";
-        }
+        public override string ToString() => $"{NameSymbol.LocalName} ({ArgumentCollection})";
+
+        public override string ToDisplayString(LispPackage currentPackage) => $"{NameSymbol.ToDisplayString(currentPackage)} ({ArgumentCollection})";
     }
 
     public class LispNativeMacro : LispMacro
     {
         public LispMacroDelegate Macro { get; }
 
-        public LispNativeMacro(string name, LispMacroDelegate macro)
-            : base(name)
+        public LispNativeMacro(LispResolvedSymbol nameSymbol, LispMacroDelegate macro)
+            : base(nameSymbol)
         {
             Macro = macro;
         }
@@ -1679,13 +1813,12 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispNativeMacro(Name, Macro);
+            return new LispNativeMacro(NameSymbol, Macro);
         }
 
-        public override string ToString()
-        {
-            return $"{Name} <native>";
-        }
+        public override string ToString() => $"{NameSymbol} <native>";
+
+        public override string ToDisplayString(LispPackage currentPackage) => $"{NameSymbol.ToDisplayString(currentPackage)} <native>";
     }
 
     public abstract class LispStream : LispObject
@@ -1702,10 +1835,7 @@ namespace IxMilia.Lisp
             yield break;
         }
 
-        public override string ToString()
-        {
-            return $"<stream> {Name}";
-        }
+        public override string ToString() => $"<stream> {Name}";
     }
 
     public class LispTextStream : LispStream

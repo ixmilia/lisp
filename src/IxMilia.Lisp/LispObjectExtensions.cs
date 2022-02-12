@@ -29,16 +29,16 @@ namespace IxMilia.Lisp
             }
         }
 
-        public static LispList PerformMacroReplacements(this IEnumerable<LispObject> body, IDictionary<string, LispObject> replacements)
+        public static LispList PerformMacroReplacements(this IEnumerable<LispObject> body, LispPackage currentPackage, IDictionary<string, LispObject> replacements)
         {
             if (replacements is null)
             {
                 throw new ArgumentNullException(nameof(replacements));
             }
 
-            var itemReplacements = body.Select(item => item.PerformMacroReplacements(replacements)).ToList();
+            var itemReplacements = body.Select(item => item.PerformMacroReplacements(currentPackage, replacements)).ToList();
             var bodyList = LispList.FromEnumerable(itemReplacements);
-            var result = new LispList(new LispSymbol("PROGN"), bodyList);
+            var result = new LispList(LispSymbol.CreateFromString("COMMON-LISP:PROGN"), bodyList);
             return result;
         }
 
@@ -76,10 +76,24 @@ namespace IxMilia.Lisp
             switch (obj)
             {
                 case LispCodeFunction codeFunction:
-                    return $"`(DEFUN {codeFunction.Name} ({codeFunction.ArgumentCollection}) ...)`\n\n{codeFunction.Documentation}";
+                    return $@"
+``` lisp
+; <in module {codeFunction.NameSymbol.PackageName}>
+(DEFUN {codeFunction.NameSymbol.ToDisplayString(repl.Host.CurrentPackage)} ({codeFunction.ArgumentCollection}) ...)
+```
+
+{codeFunction.Documentation}".Trim();
                 case LispFunction function:
-                    return $"`(DEFUN {function.Name} (...) ...)`\n\n{function.Documentation}";
-                case LispSymbol symbol:
+                    return $@"
+``` lisp
+; <native function>
+; <in module {function.NameSymbol.PackageName}>
+(DEFUN {function.NameSymbol.ToDisplayString(repl.Host.CurrentPackage)} (...) ...)
+```
+
+{function.Documentation}".Trim();
+                case LispResolvedSymbol symbol:
+                    // TODO: don't display current package qualifier
                     return $"`{symbol.Value}`: {repl.GetValue(symbol.Value)}";
                 default:
                     return obj.ToString();

@@ -10,7 +10,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.RootFrame.FunctionEntered += (s, e) =>
             {
-                if (e.Frame.FunctionName == "INNER-FUNCTION")
+                if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:INNER-FUNCTION")
                 {
                     e.HaltExecution = true;
                 }
@@ -42,7 +42,7 @@ namespace IxMilia.Lisp.Test
             LispObject capturedReturnValue = null;
             host.RootFrame.FunctionReturned += (s, e) =>
             {
-                if (e.Frame.FunctionName == "INNER-FUNCTION")
+                if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:INNER-FUNCTION")
                 {
                     e.HaltExecution = true;
                     capturedReturnValue = e.ReturnValue;
@@ -76,7 +76,7 @@ namespace IxMilia.Lisp.Test
             });
             host.RootFrame.MacroExpanded += (s, e) =>
             {
-                if (e.Macro.Name == "FOURTY-TWO")
+                if (e.Macro.NameSymbol.LocalName == "FOURTY-TWO")
                 {
                     e.HaltExecution = true;
                 }
@@ -109,7 +109,7 @@ namespace IxMilia.Lisp.Test
                 if (!hitBreakpoint &&
                     e.Expression is LispList list &&
                     list.Value is LispSymbol symbol &&
-                    symbol.Value == "+")
+                    symbol.LocalName == "+")
                 {
                     hitBreakpoint = true;
                     e.HaltExecution = true;
@@ -211,7 +211,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.AddFunction("NATIVE-FUNCTION", (host, executionState, args) =>
             {
-                var result = host.EvalAtStackFrame(executionState.StackFrame, LispList.FromEnumerable(new LispObject[] { new LispSymbol("*"), new LispInteger(2), new LispInteger(2) }));
+                var result = host.EvalAtStackFrame(executionState.StackFrame, LispList.FromEnumerable(new LispObject[] { LispSymbol.CreateFromString("*"), new LispInteger(2), new LispInteger(2) }));
                 return result;
             });
             var hitBreakpoint = false;
@@ -237,7 +237,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.AddMacro("NATIVE-FUNCTION", (host, executionState, args) =>
             {
-                var result = host.EvalAtStackFrame(executionState.StackFrame, LispList.FromEnumerable(new LispObject[] { new LispSymbol("*"), new LispInteger(2), new LispInteger(2) }));
+                var result = host.EvalAtStackFrame(executionState.StackFrame, LispList.FromEnumerable(new LispObject[] { LispSymbol.CreateFromString("*"), new LispInteger(2), new LispInteger(2) }));
                 return result;
             });
             var hitBreakpoint = false;
@@ -263,7 +263,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.RootFrame.ValueSet += (s, e) =>
             {
-                if (e.Name == "THE-ANSWER" &&
+                if (e.Symbol.Value == "COMMON-LISP-USER:THE-ANSWER" &&
                     e.Value is LispInteger i &&
                     i.Value == 42)
                 {
@@ -376,7 +376,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.RootFrame.FunctionReturned += (s, e) =>
             {
-                if (e.Frame.FunctionName == "TEST-METHOD")
+                if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:TEST-METHOD")
                 {
                     e.HaltExecution = true;
                 }
@@ -443,7 +443,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.RootFrame.FunctionReturned += (s, e) =>
             {
-                if (e.Frame.FunctionName == "TEST-METHOD")
+                if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:TEST-METHOD")
                 {
                     e.HaltExecution = true;
                 }
@@ -508,7 +508,7 @@ namespace IxMilia.Lisp.Test
             var host = new LispHost();
             host.RootFrame.FunctionReturned += (s, e) =>
             {
-                if (e.Frame.FunctionName == "TEST-METHOD")
+                if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:TEST-METHOD")
                 {
                     e.HaltExecution = true;
                 }

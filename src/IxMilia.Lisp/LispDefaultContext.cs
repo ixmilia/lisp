@@ -64,8 +64,7 @@ namespace IxMilia.Lisp
         public LispObject DefineMacro(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             // TODO: validate arg types and count
-            var macroNameSymbol = (LispSymbol)args[0];
-            var macroName = macroNameSymbol.Value;
+            var macroNameSymbol = ((LispSymbol)args[0]).Resolve(host.CurrentPackage);
             var macroArgs = ((LispList)args[1]).ToList();
             if (!LispArgumentCollection.TryBuildArgumentCollection(macroArgs.ToArray(), out var argumentCollection, out var error))
             {
@@ -74,33 +73,33 @@ namespace IxMilia.Lisp
 
             // TODO: allow docstring
             var macroBody = args.Skip(2);
-            var macro = new LispCodeMacro(macroName, argumentCollection, macroBody)
+            var macro = new LispCodeMacro(macroNameSymbol, argumentCollection, macroBody)
             {
                 SourceLocation = macroNameSymbol.SourceLocation,
             };
-            executionState.StackFrame.SetValueInParentScope(macroName, macro);
+            executionState.StackFrame.SetValueInParentScope(macroNameSymbol, macro);
             return host.Nil;
         }
 
         [LispMacro("DEFUN")]
         public LispObject DefineFunction(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
-            if (!TryGetCodeFunctionFromItems(args, out var codeFunction, out var error))
+            if (!TryGetCodeFunctionFromItems(args, host.CurrentPackage, out var codeFunction, out var error))
             {
                 return error;
             }
 
             codeFunction.SourceLocation = executionState.StackFrame.SourceLocation;
-            executionState.StackFrame.SetValueInParentScope(codeFunction.Name, codeFunction);
+            executionState.StackFrame.SetValueInParentScope(codeFunction.NameSymbol, codeFunction);
             return host.Nil;
         }
 
-        internal static bool TryGetCodeFunctionFromItems(LispObject[] items, out LispCodeFunction codeFunction, out LispError error)
+        internal static bool TryGetCodeFunctionFromItems(LispObject[] items, LispPackage currentPackage, out LispCodeFunction codeFunction, out LispError error)
         {
             codeFunction = default;
 
             // TODO: properly validate types and arg counts
-            var name = ((LispSymbol)items[0]).Value;
+            var name = ((LispSymbol)items[0]).Resolve(currentPackage).Value;
             var argumentList = ((LispList)items[1]).ToList();
             if (!LispArgumentCollection.TryBuildArgumentCollection(argumentList.ToArray(), out var argumentCollection, out error))
             {
@@ -115,7 +114,8 @@ namespace IxMilia.Lisp
                 commands.RemoveAt(0);
             }
 
-            codeFunction = new LispCodeFunction(name, documentation, argumentCollection, commands);
+            var nameSymbol = LispSymbol.CreateFromString(name).Resolve(currentPackage);
+            codeFunction = new LispCodeFunction(nameSymbol, documentation, argumentCollection, commands);
             return true;
         }
 
@@ -123,9 +123,8 @@ namespace IxMilia.Lisp
         public LispObject DefineVariable(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             // TODO: properly validage single symbol argument
-            var symbol = (LispSymbol)args[0];
-            var name = symbol.Value;
-            executionState.StackFrame.SetValueInParentScope(name, symbol);
+            var symbol = ((LispSymbol)args[0]).Resolve(host.CurrentPackage);
+            executionState.StackFrame.SetValueInParentScope(symbol, symbol);
             return symbol;
         }
 
@@ -151,10 +150,10 @@ namespace IxMilia.Lisp
             {
                 // TODO: validate shape
                 var valuePairList = (LispList)valuePair;
-                var varName = ((LispSymbol)valuePairList.Value).Value;
+                var varName = ((LispSymbol)valuePairList.Value).Resolve(host.CurrentPackage).Value;
                 var varRawValue = ((LispList)valuePairList.Next).Value;
                 var replacedRawValue = bindSequentially
-                    ? varRawValue.PerformMacroReplacements(replacements)
+                    ? varRawValue.PerformMacroReplacements(host.CurrentPackage, replacements)
                     : varRawValue;
                 var varValue = host.EvalAtStackFrame(frame, replacedRawValue);
                 if (varValue is LispError error)
@@ -163,10 +162,10 @@ namespace IxMilia.Lisp
                 }
 
                 // quoted because lists shouldn't get force-evaluated
-                replacements[varName] = LispList.FromItems(new LispSymbol("QUOTE"), varValue);
+                replacements[varName] = LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), varValue);
             }
 
-            var result = body.PerformMacroReplacements(replacements);
+            var result = body.PerformMacroReplacements(host.CurrentPackage, replacements);
             return result;
         }
 
@@ -181,25 +180,120 @@ namespace IxMilia.Lisp
             {
                 // TODO: validate shape
                 var functionDefinition = ((LispList)functionDefinitionSet).ToList();
-                if (!TryGetCodeFunctionFromItems(functionDefinition.ToArray(), out var codeFunction, out var error))
+                if (!TryGetCodeFunctionFromItems(functionDefinition.ToArray(), host.CurrentPackage, out var codeFunction, out var error))
                 {
                     return error;
                 }
 
-                var replacedCodeFunction = (LispCodeFunction)codeFunction.PerformMacroReplacements(replacements);
+                var replacedCodeFunction = (LispCodeFunction)codeFunction.PerformMacroReplacements(host.CurrentPackage, replacements);
                 replacedCodeFunction.SourceLocation = functionDefinitionSet.SourceLocation;
-                replacements[codeFunction.Name] = replacedCodeFunction;
+                replacements[codeFunction.NameSymbol.Value] = replacedCodeFunction;
 
                 // ensure recursive function calls get updated
                 var selfReplacement = new Dictionary<string, LispObject>()
                 {
-                    { replacedCodeFunction.Name, replacedCodeFunction }
+                    { replacedCodeFunction.NameSymbol.Value, replacedCodeFunction }
                 };
-                replacedCodeFunction.Commands = replacedCodeFunction.Commands.PerformMacroReplacements(selfReplacement).ToList().ToArray();
+                replacedCodeFunction.Commands = replacedCodeFunction.Commands.PerformMacroReplacements(host.CurrentPackage, selfReplacement).ToList().ToArray();
             }
 
-            var result = body.PerformMacroReplacements(replacements);
+            var result = body.PerformMacroReplacements(host.CurrentPackage, replacements);
             return result;
+        }
+
+        [LispMacro("DEFPACKAGE")]
+        public LispObject DefPackage(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length >= 1)
+            {
+                var packageName = PackageNameFromValue(args[0]);
+                if (packageName != null)
+                {
+                    var inheritedPackageNames = new List<string>()
+                    {
+                        "COMMON-LISP"
+                    };
+                    foreach (var arg in args.Skip(1))
+                    {
+                        if (arg is LispList list)
+                        {
+                            switch (list.Value)
+                            {
+                                case LispResolvedSymbol s when s.IsKeyword:
+                                    switch (s.LocalName)
+                                    {
+                                        case "USE":
+                                            foreach (var candidatePackageName in list.ToList().Skip(1))
+                                            {
+                                                var inheritedPackageName = PackageNameFromValue(candidatePackageName);
+                                                if (inheritedPackageName == null)
+                                                {
+                                                    return new LispError("Expected either a string or a keyword symbol")
+                                                    {
+                                                        SourceLocation = candidatePackageName.SourceLocation
+                                                    };
+                                                }
+
+                                                inheritedPackageNames.Add(inheritedPackageName);
+                                            }
+                                            break;
+                                        default:
+                                            return new LispError($"Unexpected keyword directive {s.LocalName}")
+                                            {
+                                                SourceLocation = s.SourceLocation
+                                            };
+                                    }
+                                    break;
+                                default:
+                                    return new LispError("Expected a keyword")
+                                    {
+                                        SourceLocation = list.Value.SourceLocation
+                                    };
+                            }
+                        }
+                        else
+                        {
+                            return new LispError("Expected a keyword directive list")
+                            {
+                                SourceLocation = arg.SourceLocation
+                            };
+                        }
+                    }
+
+                    var inheritedPackages = inheritedPackageNames.Select(p => host.RootFrame.GetPackage(p)).ToList();
+                    var package = host.RootFrame.AddPackage(packageName, inheritedPackages);
+                    return package;
+                }
+            }
+
+            return new LispError("Expected either a string or a keyword symbol");
+        }
+
+        [LispFunction("IN-PACKAGE")]
+        public LispObject InPackage(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 1)
+            {
+                var packageName = PackageNameFromValue(args[0]);
+                if (packageName != null)
+                {
+                    var package = host.RootFrame.GetPackage(packageName);
+                    host.CurrentPackage = package;
+                    return package;
+                }
+            }
+
+            return new LispError("Expected either a string or a keyword symbol.");
+        }
+
+        private static string PackageNameFromValue(LispObject obj)
+        {
+            return obj switch
+            {
+                LispString s => s.Value,
+                LispResolvedSymbol s when s.IsKeyword => s.LocalName,
+                _ => null
+            };
         }
 
         [LispMacro("EVAL")]
@@ -244,15 +338,15 @@ namespace IxMilia.Lisp
             }
             else if (functionReference is LispQuotedLambdaFunctionReference lambdaFunction)
             {
-                synthesizedFunctionName = lambdaFunction.Definition.Name;
+                synthesizedFunctionName = lambdaFunction.Definition.NameSymbol.Value;
                 evaluatingFrame = lambdaFunction.StackFrame;
-                preExecute = () => evaluatingFrame.SetValue(lambdaFunction.Definition.Name, lambdaFunction.Definition);
-                postExecute = () => evaluatingFrame.DeleteValue(lambdaFunction.Definition.Name);
+                preExecute = () => evaluatingFrame.SetValue(lambdaFunction.Definition.NameSymbol, lambdaFunction.Definition);
+                postExecute = () => evaluatingFrame.DeleteValue(lambdaFunction.Definition.NameSymbol);
             }
 
             if (synthesizedFunctionName != null)
             {
-                var synthesizedSymbol = new LispSymbol(synthesizedFunctionName);
+                var synthesizedSymbol = LispSymbol.CreateFromString(synthesizedFunctionName);
                 synthesizedSymbol.SourceLocation = functionReference.SourceLocation;
                 var synthesizedFunctionItems = new List<LispObject>();
                 synthesizedFunctionItems.Add(synthesizedSymbol);
@@ -284,7 +378,7 @@ namespace IxMilia.Lisp
             }
 
             // the evalutated result is the result of the `funcall` macro, so it has to be quoted to allow it to pass through
-            var quotedResult = LispList.FromItems(new LispSymbol("QUOTE"), result);
+            var quotedResult = LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), result);
             return quotedResult;
         }
 
@@ -674,19 +768,20 @@ namespace IxMilia.Lisp
             {
                 var openArgumentsList = openArguments.ToList();
                 var directionArgument = GetKeywordArgument(openArgumentsList.Skip(2), ":DIRECTION");
-                var fileMode = directionArgument is LispKeyword directionKeyword && directionKeyword.Keyword == ":OUTPUT"
+                var fileMode = directionArgument is LispResolvedSymbol symbol && symbol.IsKeyword && symbol.Value == ":OUTPUT"
                     ? FileMode.OpenOrCreate
                     : FileMode.Open;
 
                 var candidateFilePath = host.EvalAtStackFrame(executionState.StackFrame, filePathList.Value);
                 if (candidateFilePath is LispString filePath)
                 {
+                    var resolvedStreamName = streamName.Resolve(host.CurrentPackage);
                     var fileStream = new FileStream(filePath.Value, fileMode);
                     var streamObject = new LispFileStream(filePath.Value, fileStream);
                     var body = args.Skip(1);
-                    var result = body.PerformMacroReplacements(new Dictionary<string, LispObject>() { { streamName.Value, streamObject } });
-                    var closeExpression = LispList.FromEnumerable(new LispObject[] { new LispSymbol("CLOSE"), streamObject }); // (close fileStream)
-                    var finalResult = new LispList(new LispSymbol("PROGN"), new LispList(result, new LispList(closeExpression)));
+                    var result = body.PerformMacroReplacements(host.CurrentPackage, new Dictionary<string, LispObject>() { { resolvedStreamName.Value, streamObject } });
+                    var closeExpression = LispList.FromEnumerable(new LispObject[] { LispSymbol.CreateFromString("COMMON-LISP:CLOSE"), streamObject }); // (close fileStream)
+                    var finalResult = new LispList(LispSymbol.CreateFromString("COMMON-LISP:PROGN"), new LispList(result, new LispList(closeExpression)));
                     return finalResult;
                 }
                 else
@@ -776,8 +871,8 @@ namespace IxMilia.Lisp
                 var value = host.EvalAtStackFrame(executionState.StackFrame, rawValue);
                 if (destination is LispSymbol symbol)
                 {
-                    var name = symbol.Value;
-                    executionState.StackFrame.SetValueInParentScope(name, value);
+                    var resolvedSymbol = symbol.Resolve(host.CurrentPackage);
+                    executionState.StackFrame.SetValueInParentScope(resolvedSymbol, value);
                 }
                 else
                 {
@@ -796,7 +891,7 @@ namespace IxMilia.Lisp
                 last = value;
             }
 
-            return LispList.FromItems(new LispSymbol("QUOTE"), last);
+            return LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), last);
         }
 
         [LispFunction("NUMBERP")]
@@ -833,7 +928,7 @@ namespace IxMilia.Lisp
             // TODO: validate argument count
             switch (args[0])
             {
-                case LispKeyword _:
+                case LispResolvedSymbol symbol when symbol.IsKeyword:
                     return host.T;
                 default:
                     return host.Nil;
@@ -846,7 +941,6 @@ namespace IxMilia.Lisp
             // TODO: validate argument count
             switch (args[0])
             {
-                case LispKeyword _:
                 case LispSymbol _:
                     return host.T;
                 default:
@@ -954,7 +1048,8 @@ namespace IxMilia.Lisp
             // TODO: validate argument count
             if (args[0] is LispSymbol symbol)
             {
-                return new LispQuotedNamedFunctionReference(symbol.Value);
+                var resolvedSymbol = symbol.Resolve(host.CurrentPackage);
+                return new LispQuotedNamedFunctionReference(resolvedSymbol.Value);
             }
             else
             {
@@ -1056,19 +1151,19 @@ namespace IxMilia.Lisp
                 var a1 = evalResult.LastResult;
 
                 // lastResult = (append a1 a2)
-                var simulatedFunctionCall1 = LispList.FromItems(new LispSymbol("APPEND"), LispList.FromItems(new LispSymbol("QUOTE"), a1), a2);
+                var simulatedFunctionCall1 = LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:APPEND"), LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), a1), a2);
                 lastResult = host.EvalAtStackFrame(executionState.StackFrame, simulatedFunctionCall1);
                 if (lastResult is LispError error)
                 {
                     return error;
                 }
 
-                lastResult = LispList.FromItems(new LispSymbol("QUOTE"), lastResult);
+                lastResult = LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), lastResult);
 
                 // a1 = lastResult
                 if (!a1.IsNil())
                 {
-                    var simulatedFunctionCall2 = LispList.FromItems(new LispSymbol("SETF"), a1Raw, lastResult);
+                    var simulatedFunctionCall2 = LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:SETF"), a1Raw, lastResult);
                     host.EvalAtStackFrame(executionState.StackFrame, simulatedFunctionCall2);
                 }
             }
@@ -1252,7 +1347,7 @@ namespace IxMilia.Lisp
                     // quote the arguments so they can be safely evaluated
                     var functionArguments = new LispObject[]
                     {
-                        LispList.FromItems(new LispSymbol("QUOTE"), item)
+                        LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), item)
                     };
                     var result = FunCall(host, executionState.StackFrame, functionReference, functionArguments);
                     if (result is LispError)
@@ -1382,7 +1477,7 @@ namespace IxMilia.Lisp
                     var arg2 = items[fromEnd ? 0 : 1];
                     items.RemoveAt(0);
                     items.RemoveAt(0);
-                    var result = FunCall(host, executionState.StackFrame, functionReference, new LispObject[] { LispList.FromItems(new LispSymbol("QUOTE"), arg1), LispList.FromItems(new LispSymbol("QUOTE"), arg2) });
+                    var result = FunCall(host, executionState.StackFrame, functionReference, new LispObject[] { LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), arg1), LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), arg2) });
                     if (result is LispError)
                     {
                         return result;
@@ -1564,14 +1659,11 @@ namespace IxMilia.Lisp
                     return true;
                 }
 
-                if (a is LispKeyword ka && b is LispKeyword kb && ka.Keyword == kb.Keyword)
+                if (a is LispSymbol ssa && b is LispSymbol ssb)
                 {
-                    return true;
-                }
-
-                if (a is LispSymbol ssa && b is LispSymbol ssb && ssa.Value == ssb.Value)
-                {
-                    return true;
+                    var resolvedA = ssa.Resolve(host.CurrentPackage);
+                    var resolvedB = ssb.Resolve(host.CurrentPackage);
+                    return resolvedA.Value == resolvedB.Value;
                 }
 
                 if (a is LispNilList && b is LispNilList)
@@ -1792,11 +1884,11 @@ namespace IxMilia.Lisp
                 result &= operation(args[i], args[i + 1]);
                 if (!result)
                 {
-                    return frame.Nil;
+                    return frame.Root.Nil;
                 }
             }
 
-            return frame.T;
+            return frame.Root.T;
         }
 
         private static LispObject FoldComparison(LispStackFrame frame, LispObject[] args, Func<LispNumber, LispNumber, bool> operation)
@@ -1843,13 +1935,13 @@ namespace IxMilia.Lisp
                 var result = operation(lastValue, nextValue);
                 if (!result)
                 {
-                    return frame.Nil;
+                    return frame.Root.Nil;
                 }
 
                 lastValue = nextValue;
             }
 
-            return frame.T;
+            return frame.Root.T;
         }
 
         private static LispObject GetKeywordArgument(IEnumerable<LispObject> args, string keyword)
@@ -1858,7 +1950,7 @@ namespace IxMilia.Lisp
             var enumerator = args.GetEnumerator();
             while (enumerator.MoveNext())
             {
-                if (enumerator.Current is LispKeyword keywordSpecifier && keywordSpecifier.Keyword == keyword)
+                if (enumerator.Current is LispResolvedSymbol symbol && symbol.IsKeyword && symbol.Value == keyword)
                 {
                     if (enumerator.MoveNext())
                     {

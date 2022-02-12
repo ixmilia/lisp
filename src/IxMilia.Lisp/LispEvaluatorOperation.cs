@@ -20,7 +20,7 @@ namespace IxMilia.Lisp
 
         public override string ToString()
         {
-            return $"i: {InvocationObject.Name}/{ArgumentCount}";
+            return $"i: {InvocationObject.NameSymbol.LocalName}/{ArgumentCount}";
         }
     }
 
@@ -44,7 +44,7 @@ namespace IxMilia.Lisp
 
         public override string ToString()
         {
-            return $"r: {Function.Name} {(PopFrame ? "with" : "without")} pop";
+            return $"r: {Function.NameSymbol.LocalName} {(PopFrame ? "with" : "without")} pop";
         }
     }
 

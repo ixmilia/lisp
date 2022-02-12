@@ -64,15 +64,15 @@ namespace IxMilia.Lisp
             {
                 if (args.Length == 1 &&
                     args[0] is LispList lambdaList &&
-                    lambdaList.Value is LispSymbol lambdaSymbol &&
-                    lambdaSymbol.Value == "LAMBDA")
+                    lambdaList.Value is LispUnresolvedSymbol lambdaSymbol &&
+                    lambdaSymbol.LocalName == "LAMBDA")
                 {
                     var lambdaName = $"(LAMBDA-{lambdaList.SourceLocation?.Start.Line}-{lambdaList.SourceLocation?.Start.Column})"; // surrounded by parens to make it un-utterable
                     var lambdaItems = new List<LispObject>();
-                    lambdaItems.Add(new LispSymbol(lambdaName));
+                    lambdaItems.Add(new LispResolvedSymbol(_host.CurrentPackage.Name, lambdaName, isPublic: true));
                     lambdaItems.AddRange(lambdaList.ToList().Skip(1));
 
-                    if (!LispDefaultContext.TryGetCodeFunctionFromItems(lambdaItems.ToArray(), out var lambdaFunction, out var error))
+                    if (!LispDefaultContext.TryGetCodeFunctionFromItems(lambdaItems.ToArray(), _host.CurrentPackage, out var lambdaFunction, out var error))
                     {
                         return error;
                     }
@@ -97,14 +97,14 @@ namespace IxMilia.Lisp
                 switch (trailingCharacter.Value)
                 {
                     case '#':
-                        return new LispSymbol(symbolReference);
+                        return new LispResolvedSymbol(_host.CurrentPackage.Name, symbolReference, isPublic: true);
                     case '=':
                         var candidateInnerListReaderResult = Read(true, null, true);
                         var candidateInnerList = candidateInnerListReaderResult.LastResult;
                         switch (candidateInnerList)
                         {
                             case LispList innerList:
-                                return new LispForwardListReference(symbolReference, innerList);
+                                return new LispForwardListReference(new LispResolvedSymbol(_host.CurrentPackage.Name, symbolReference, isPublic: true), innerList);
                             case LispError error:
                                 return error;
                             default:
@@ -175,11 +175,7 @@ namespace IxMilia.Lisp
                 else
                 {
                     var text = ReadUntilTriviaOrListMarker();
-                    if (text.StartsWith(":"))
-                    {
-                        result = new LispKeyword(text.ToUpperInvariant());
-                    }
-                    else if (text.StartsWith("&"))
+                    if (text.StartsWith("&"))
                     {
                         result = new LispLambdaListKeyword(text.ToUpperInvariant());
                     }
@@ -204,7 +200,8 @@ namespace IxMilia.Lisp
                         {
                             if (!IsRightParen(lc.Value))
                             {
-                                result = new LispSymbol(text.ToUpperInvariant());
+                                var symbolName = text.ToUpperInvariant();
+                                result = LispSymbol.CreateFromString(symbolName);
                             }
                             else
                             {

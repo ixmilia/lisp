@@ -12,9 +12,12 @@ namespace IxMilia.Lisp.Test
         public void SimpleEvalNoInit()
         {
             var host = new LispHost(useInitScript: false);
-            var result = host.Eval(@"(defmacro if (pred tv fv)
+            var result = host.Eval(@"
+(defmacro if (pred tv fv)
     (cond (pred tv)
-          (t fv)))  (if (> 1 2) ""one"" ""two"")").LastResult;
+          (t fv)))
+(if (> 1 2) 11 22)");
+            Assert.Equal(new LispInteger(22), result.LastResult);
         }
 
         [Fact]
@@ -38,8 +41,8 @@ namespace IxMilia.Lisp.Test
         public void Quoted()
         {
             var host = new LispHost();
-            Assert.Equal(new LispSymbol("A"), host.Eval("'a").LastResult);
-            Assert.Equal(LispList.FromItems(new LispSymbol("QUOTE"), new LispSymbol("A")), host.Eval("''a").LastResult);
+            Assert.Equal(LispSymbol.CreateFromString("A"), host.Eval("'a").LastResult);
+            Assert.Equal(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), LispSymbol.CreateFromString("A")), host.Eval("''a").LastResult);
             Assert.Equal(LispList.FromItems(new LispInteger(1)), host.Eval("'(1)").LastResult);
             Assert.Equal("(QUOTE A)", host.Eval("(eval '''a)").LastResult.ToString());
         }
@@ -158,8 +161,8 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
             Assert.Equal(3, error.SourceLocation.Value.Start.Line);
             Assert.Equal(6, error.SourceLocation.Value.Start.Column);
-            Assert.Equal("INC", error.StackFrame.FunctionName);
-            Assert.Equal("(ROOT)", error.StackFrame.Parent.FunctionName);
+            Assert.Equal("INC", error.StackFrame.FunctionSymbol.LocalName);
+            Assert.Equal("(ROOT)", error.StackFrame.Parent.FunctionSymbol.LocalName);
             Assert.Equal("Undefined macro/function 'ADD', found '<null>'", error.Message);
         }
 
@@ -176,7 +179,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
             Assert.Equal(4, error.SourceLocation.Value.Start.Line);
             Assert.Equal(6, error.SourceLocation.Value.Start.Column);
-            Assert.Equal("(ROOT)", error.StackFrame.FunctionName);
+            Assert.Equal("(ROOT)", error.StackFrame.FunctionSymbol.LocalName);
             Assert.Null(error.StackFrame.Parent);
             Assert.Equal("Symbol 'TWO' not found", error.Message);
         }
@@ -195,7 +198,7 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("test-file.lisp", error.SourceLocation.Value.FilePath);
             Assert.Equal(4, error.SourceLocation.Value.Start.Line);
             Assert.Equal(4, error.SourceLocation.Value.Start.Column);
-            Assert.Equal("(ROOT)", error.StackFrame.FunctionName);
+            Assert.Equal("(ROOT)", error.StackFrame.FunctionSymbol.LocalName);
             Assert.Null(error.StackFrame.Parent);
             Assert.Equal("Symbol 'ONE' not found", error.Message);
         }
@@ -208,19 +211,19 @@ namespace IxMilia.Lisp.Test
             var error = (LispError)evalResult.LastResult;
             var errorStackFrame = error.StackFrame;
 
-            Assert.Equal("KERNEL:+/2", errorStackFrame.FunctionName);
+            Assert.Equal("KERNEL:+/2", errorStackFrame.FunctionSymbol.Value);
             Assert.Null(errorStackFrame.SourceLocation); // in native code
             
-            Assert.Equal("REDUCE", errorStackFrame.Parent.FunctionName);
+            Assert.Equal("REDUCE", errorStackFrame.Parent.FunctionSymbol.LocalName);
             Assert.Null(errorStackFrame.Parent.SourceLocation); // in native code
 
             // this function can move around, but the body is one line below the definition
             var plusFunction = host.GetValue<LispFunction>("+");
             var plusFunctionLocation = plusFunction.SourceLocation.Value;
-            Assert.Equal("+", errorStackFrame.Parent.Parent.FunctionName);
+            Assert.Equal("+", errorStackFrame.Parent.Parent.FunctionSymbol.LocalName);
             Assert.Equal(new LispSourceLocation("init.lisp", new LispSourcePosition(plusFunctionLocation.Start.Line + 1, 34), new LispSourcePosition(plusFunctionLocation.Start.Line + 1, 40)), errorStackFrame.Parent.Parent.SourceLocation);
 
-            Assert.Equal("(ROOT)", errorStackFrame.Parent.Parent.Parent.FunctionName);
+            Assert.Equal("(ROOT)", errorStackFrame.Parent.Parent.Parent.FunctionSymbol.LocalName);
             Assert.Equal(new LispSourceLocation("*REPL*", new LispSourcePosition(1, 12), new LispSourcePosition(1, 13)), errorStackFrame.Parent.Parent.Parent.SourceLocation);
             // TODO: [(1, 6)-(1, 11)) is better since that argument isn't a number
 
@@ -424,7 +427,7 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
         {
             var host = new LispHost();
             var result = host.Eval(@"(funcall #'cons 'a 'b)").LastResult;
-            var expected = LispList.FromItemsImproper(new LispSymbol("A"), new LispSymbol("B"));
+            var expected = LispList.FromItemsImproper(LispSymbol.CreateFromString("A"), LispSymbol.CreateFromString("B"));
             Assert.Equal(expected, result);
         }
 
@@ -492,8 +495,8 @@ Last/current .NET stack depth = {lastDotNetStackDepth}/{currentDotNetStackDepth}
 (defun average (x y)
     (+ (half x) (half y)))
 ");
-            host.RootFrame.FunctionEntered += (sender, e) => sb.AppendLine($"entered {e.Frame.FunctionName}");
-            host.RootFrame.FunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.Function.Name} with {e.ReturnValue}");
+            host.RootFrame.FunctionEntered += (sender, e) => sb.AppendLine($"entered {e.Frame.FunctionSymbol.ToDisplayString(host.CurrentPackage)}");
+            host.RootFrame.FunctionReturned += (sender, e) => sb.AppendLine($"returned from {e.Function.NameSymbol.ToDisplayString(host.CurrentPackage)} with {e.ReturnValue}");
             host.Eval("(average 3 7)");
             var actual = NormalizeNewlines(sb.ToString().Trim());
             var expected = NormalizeNewlines(@"
@@ -549,7 +552,7 @@ returned from AVERAGE with 5
   table))
 (my-assoc 'two words)
 ").LastResult;
-            var expected = LispList.FromItems(new LispSymbol("TWO"), new LispSymbol("DOS"));
+            var expected = LispList.FromItems(LispSymbol.CreateFromString("TWO"), LispSymbol.CreateFromString("DOS"));
             Assert.Equal(expected, result);
         }
 
@@ -837,6 +840,14 @@ returned from AVERAGE with 5
         }
 
         [Fact]
+        public void KeywordSymbolsImmediatelyResolveToThemselves()
+        {
+            var host = new LispHost(useInitScript: false);
+            var result = host.Eval(":some-keyword");
+            Assert.Equal(new LispResolvedSymbol("KEYWORD", "SOME-KEYWORD", isPublic: true), result.LastResult);
+        }
+
+        [Fact]
         public void KeywordArgumentDefaultValuesAreEvaluated()
         {
             var host = new LispHost();
@@ -883,7 +894,7 @@ returned from AVERAGE with 5
     (square 2))
 ");
             Assert.Equal(4, ((LispInteger)evalResult.LastResult).Value);
-            Assert.Null(evalResult.ExecutionState.StackFrame.GetValue("square")); // no leakage
+            Assert.Null(evalResult.ExecutionState.StackFrame.GetValue(LispSymbol.CreateFromString("SQUARE").Resolve(host.CurrentPackage))); // no leakage
         }
 
         [Fact]
@@ -895,7 +906,7 @@ returned from AVERAGE with 5
     (car (mapcar #'square '(2))))
 ");
             Assert.Equal(4, ((LispInteger)evalResult.LastResult).Value);
-            Assert.Null(evalResult.ExecutionState.StackFrame.GetValue("square")); // no leakage
+            Assert.Null(evalResult.ExecutionState.StackFrame.GetValue(LispSymbol.CreateFromString("SQUARE").Resolve(host.CurrentPackage))); // no leakage
         }
 
         [Fact]
@@ -962,9 +973,9 @@ total
 (setf a (push 1 my-stack))
 (setf b (push 2 my-stack))
 ");
-            Assert.Equal("(2 1)", evalResult.ExecutionState.StackFrame.GetValue("MY-STACK").ToString());
-            Assert.Equal("(1)", evalResult.ExecutionState.StackFrame.GetValue("A").ToString());
-            Assert.Equal("(2 1)", evalResult.ExecutionState.StackFrame.GetValue("B").ToString());
+            Assert.Equal("(2 1)", evalResult.ExecutionState.StackFrame.GetValue(LispSymbol.CreateFromString("MY-STACK").Resolve(host.CurrentPackage)).ToString());
+            Assert.Equal("(1)", evalResult.ExecutionState.StackFrame.GetValue(LispSymbol.CreateFromString("A").Resolve(host.CurrentPackage)).ToString());
+            Assert.Equal("(2 1)", evalResult.ExecutionState.StackFrame.GetValue(LispSymbol.CreateFromString("B").Resolve(host.CurrentPackage)).ToString());
         }
 
         [Fact]
@@ -976,9 +987,9 @@ total
 (setf a (pop my-stack))
 (setf b (pop my-stack))
 ");
-            Assert.Equal("()", evalResult.ExecutionState.StackFrame.GetValue("MY-STACK").ToString());
-            Assert.Equal("2", evalResult.ExecutionState.StackFrame.GetValue("A").ToString());
-            Assert.Equal("1", evalResult.ExecutionState.StackFrame.GetValue("B").ToString());
+            Assert.Equal("()", evalResult.ExecutionState.StackFrame.GetValue(LispSymbol.CreateFromString("MY-STACK").Resolve(host.CurrentPackage)).ToString());
+            Assert.Equal("2", evalResult.ExecutionState.StackFrame.GetValue(LispSymbol.CreateFromString("A").Resolve(host.CurrentPackage)).ToString());
+            Assert.Equal("1", evalResult.ExecutionState.StackFrame.GetValue(LispSymbol.CreateFromString("B").Resolve(host.CurrentPackage)).ToString());
         }
 
         [Fact]
@@ -1198,6 +1209,91 @@ the-list
 l
 ");
             Assert.Equal("(A BEE C D A BEE C D)", result.ToString());
+        }
+
+        [Fact]
+        public void PackageGlobalVariableIsUpdatedWithHostProperty()
+        {
+            var host = new LispHost(useInitScript: false);
+            var testPackage = host.AddPackage("TEST-PACKAGE", new[] { host.CurrentPackage });
+            var package = host.GetValue<LispPackage>("*PACKAGE*");
+            Assert.Equal("COMMON-LISP", package.Name);
+
+            host.CurrentPackage = testPackage;
+            package = host.GetValue<LispPackage>("*PACKAGE*");
+            Assert.Equal("TEST-PACKAGE", package.Name);
+        }
+
+        [Fact]
+        public void CurrentPackageIsUpdatedWithInPackageFunctionWithKeyword()
+        {
+            var host = new LispHost(useInitScript: false);
+            host.AddPackage("TEST-PACKAGE", new[] { host.CurrentPackage });
+            var package = host.GetValue<LispPackage>("*PACKAGE*");
+            Assert.Equal("COMMON-LISP", package.Name);
+
+            host.Eval("(in-package :test-package)");
+            package = host.GetValue<LispPackage>("*PACKAGE*");
+            Assert.Equal("TEST-PACKAGE", package.Name);
+        }
+
+        [Fact]
+        public void CurrentPackageIsUpdatedWithInPackageFunctionWithString()
+        {
+            var host = new LispHost();
+            host.AddPackage("TEST-PACKAGE", new[] { host.CurrentPackage });
+            var package = host.GetValue<LispPackage>("*PACKAGE*");
+            Assert.Equal("COMMON-LISP-USER", package.Name);
+
+            host.Eval("(in-package \"TEST-PACKAGE\")");
+            package = host.GetValue<LispPackage>("*PACKAGE*");
+            Assert.Equal("TEST-PACKAGE", package.Name);
+        }
+
+        [Fact]
+        public void PackageIsCreatedWithDefPackageWithKeyword()
+        {
+            var host = new LispHost(useInitScript: false);
+            host.Eval("(defpackage :test-package) (in-package :test-package)");
+            var package = host.GetValue<LispPackage>("*PACKAGE*");
+            Assert.Equal("TEST-PACKAGE", package.Name);
+        }
+
+        [Fact]
+        public void PackageIsCreatedWithDefPackageWithString()
+        {
+            var host = new LispHost();
+            host.Eval("(defpackage \"TEST-PACKAGE\") (in-package :test-package)");
+            var package = host.GetValue<LispPackage>("*PACKAGE*");
+            Assert.Equal("TEST-PACKAGE", package.Name);
+        }
+
+        [Fact]
+        public void PackagesCanInheritSymbols()
+        {
+            var host = new LispHost(useInitScript: false);
+            var result = host.Eval(@"
+(defpackage :a)
+(in-package :a)
+(setf aa 1)
+
+(defpackage :b
+    (:use :a))
+(in-package :b)
+(setf bb 2)
+
+(defpackage :x)
+(in-package :x)
+(setf xx 3)
+
+(defpackage :c
+    (:use :b :x))
+(in-package :c)
+(list aa  ; a:aa => 1
+      bb  ; b:bb => 2
+      xx) ; x:xx => 3
+");
+            Assert.Equal("(1 2 3)", result.LastResult.ToString());
         }
     }
 }

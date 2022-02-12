@@ -3,7 +3,7 @@
     public abstract class LispInvocationArgument
     {
         public LispSymbol Declaration { get; }
-        public string Name => Declaration.Value;
+        public string Name => Declaration.LocalName;
 
         protected LispInvocationArgument(LispSymbol declaration)
         {
