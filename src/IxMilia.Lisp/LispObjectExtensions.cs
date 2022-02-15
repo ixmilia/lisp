@@ -92,11 +92,28 @@ namespace IxMilia.Lisp
 ```
 
 {function.Documentation}".Trim();
+                case LispCodeMacro codeMacro:
+                    return $@"
+``` lisp
+; <in module {codeMacro.NameSymbol.PackageName}>
+(DEFMACRO {codeMacro.NameSymbol.ToDisplayString(repl.Host.CurrentPackage)} ({codeMacro.ArgumentCollection}) ...)
+```
+
+TODO: documentation".Trim();
+                case LispMacro macro:
+                    return $@"
+``` lisp
+; <native macro>
+; <in module {macro.NameSymbol.PackageName}>
+(DEFMACRO {macro.NameSymbol.ToDisplayString(repl.Host.CurrentPackage)} (...) ...)
+```
+
+TODO: documentation".Trim();
                 case LispResolvedSymbol symbol:
                     // TODO: don't display current package qualifier
                     return $"`{symbol.Value}`: {repl.GetValue(symbol.Value)}";
                 default:
-                    return obj.ToString();
+                    return obj?.ToString();
             }
         }
     }

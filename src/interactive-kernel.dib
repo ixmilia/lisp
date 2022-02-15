@@ -11,7 +11,10 @@ using Microsoft.DotNet.Interactive;
 using Microsoft.DotNet.Interactive.Commands;
 using Microsoft.DotNet.Interactive.Events;
 
-class LispKernel : Kernel, IKernelCommandHandler<RequestHoverText>, IKernelCommandHandler<SubmitCode>
+class LispKernel :
+    Kernel,
+    IKernelCommandHandler<RequestHoverText>,
+    IKernelCommandHandler<SubmitCode>
 {
     private LispRepl _repl;
 
@@ -26,17 +29,23 @@ class LispKernel : Kernel, IKernelCommandHandler<RequestHoverText>, IKernelComma
         var obj = _repl.GetObjectAtLocation(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
         if (obj != null)
         {
-            var formatted = new FormattedValue("text/markdown", _repl.GetMarkdownDisplayFromSourceObject(obj));
-            LinePositionSpan span = null;
-            if (obj.SourceLocation.HasValue)
+            var markdown = _repl.GetMarkdownDisplayFromSourceObject(obj);
+            if (markdown != null)
             {
-                span = new LinePositionSpan(
-                    new LinePosition(obj.SourceLocation.Value.Start.Line - 1, obj.SourceLocation.Value.Start.Column - 1),
-                    new LinePosition(obj.SourceLocation.Value.End.Line - 1, obj.SourceLocation.Value.End.Column - 1)
-                );
+                LinePositionSpan span = null;
+                var formatted = new FormattedValue("text/markdown", markdown);
+                if (obj.SourceLocation.HasValue)
+                {
+                    span = new LinePositionSpan(
+                        new LinePosition(obj.SourceLocation.Value.Start.Line - 1, obj.SourceLocation.Value.Start.Column - 1),
+                        new LinePosition(obj.SourceLocation.Value.End.Line - 1, obj.SourceLocation.Value.End.Column - 1)
+                    );
+                }
+
+                context.Publish(new HoverTextProduced(command, new[] { formatted }, span));
             }
-            context.Publish(new HoverTextProduced(command, new[] { formatted }, span));
         }
+
         return Task.CompletedTask;
     }
 
@@ -73,7 +82,7 @@ class LispKernel : Kernel, IKernelCommandHandler<RequestHoverText>, IKernelComma
                 }
 
                 context.Fail(command, null, err.Message);
-                break;  
+                break;
             case LispObject obj:
                 var formatted = new FormattedValue("text/plain", obj.ToString()); // TODO: return strings, ints, etc.
                 context.Publish(new ReturnValueProduced(obj, command, new[] { formatted }));

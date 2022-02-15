@@ -186,5 +186,18 @@ Adds 2 numbers.
             var markdown = repl.GetMarkdownDisplayFromSourceObject(obj);
             Assert.Equal("3.14159", markdown);
         }
+
+        [Fact]
+        public void GetMarkdownDisplayFromUndefinedObject()
+        {
+            var markedCode = @"
+as$$df
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var repl = new LispRepl();
+            var obj = repl.GetObjectAtLocation(code, position);
+            var markdown = repl.GetMarkdownDisplayFromSourceObject(obj);
+            Assert.Null(markdown);
+        }
     }
 }
