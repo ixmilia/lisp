@@ -1,6 +1,6 @@
 #!/usr/bin/pwsh
 
-[CmdletBinding(PositionalBinding=$false)]
+[CmdletBinding(PositionalBinding = $false)]
 param (
     [string]$configuration = "Debug",
     [switch]$noTest
@@ -36,8 +36,13 @@ try {
 
     # create package
     dotnet pack --no-restore --no-build --configuration $configuration $solution || Fail "Error creating package."
-    $package = Single "$PSScriptRoot/artifacts/packages/$configuration/*.nupkg"
-    Write-Host "Package generated at '$package'"
+    Write-Host "Packages generated at $PSScriptRoot/artifacts/packages/$configuration"
+
+    # create extension
+    Push-Location "$PSScriptRoot\src\vscode"
+    npm i
+    npm run package
+    Pop-Location
 }
 catch {
     Write-Host $_

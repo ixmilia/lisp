@@ -1,0 +1,45 @@
+{
+  "name": "lisp",
+  "publisher": "ixmilia",
+  "version": "0.1.0",
+  "description": "",
+  "main": "out/extension.js",
+  "engines": {
+    "vscode": "^1.64.0"
+  },
+  "activationEvents": [
+    "onLanguage:lisp"
+  ],
+  "extensionDependencies": [
+    "ms-dotnettools.vscode-dotnet-runtime"
+  ],
+  "scripts": {
+    "compile": "tsc -p ./",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watch": "tsc -watch -p ./",
+    "clean-server": "npx rimraf ./server",
+    "publish-server": "dotnet publish ../IxMilia.Lisp.LanguageServer.App/IxMilia.Lisp.LanguageServer.App.csproj --configuration Release",
+    "copy-server": "npx copyfiles --up 8 --error --verbose \"../../artifacts/bin/IxMilia.Lisp.LanguageServer.App/Release/net6.0/publish/*\" ./server/",
+    "package": "npm run compile && npm run clean-server && npm run publish-server && npm run copy-server && npx vsce package"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ixmilia/lisp.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ixmilia/lisp/issues"
+  },
+  "homepage": "https://github.com/ixmilia/lisp#readme",
+  "devDependencies": {
+    "copyfiles": "^2.4.1",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.5.5",
+    "vsce": "^2.6.7"
+  },
+  "dependencies": {
+    "@types/node": "^17.0.18",
+    "vscode-languageclient": "^7.0.0"
+  }
+}
