@@ -21,12 +21,10 @@ export async function activate(context: vscode.ExtensionContext) {
         run: {
             command: dotnetPath,
             args: [path.join(__dirname, '..', 'server', 'IxMilia.Lisp.LanguageServer.App.dll')],
-            transport: languageclient.TransportKind.stdio,
         },
         debug: {
             command: dotnetPath,
             args: ['run', '--project', path.join(__dirname, '..', '..', 'IxMilia.Lisp.LanguageServer.App', 'IxMilia.Lisp.LanguageServer.App.csproj')],
-            transport: languageclient.TransportKind.stdio,
         }
     };
     const clientOptions: languageclient.LanguageClientOptions = {
