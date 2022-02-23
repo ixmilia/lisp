@@ -35,7 +35,8 @@ export async function activate(context: vscode.ExtensionContext) {
     const serverOptions: languageclient.ServerOptions = () => Promise.resolve(serverProcess);
     const clientOptions: languageclient.LanguageClientOptions = {
         documentSelector: [
-            { language: languageName }
+            { scheme: 'file', language: languageName },
+            { scheme: 'untitled', language: languageName },
         ],
     };
     client = new languageclient.LanguageClient(languageName, outputChannelName, serverOptions, clientOptions);
