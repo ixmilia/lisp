@@ -87,6 +87,11 @@ namespace IxMilia.Lisp
             }
 
             var narrowestChild = containingObject?.GetNarrowestChild(position);
+            if (narrowestChild != null && !ReferenceEquals(narrowestChild, containingObject))
+            {
+                sourceBindings.TryAddSourceBinding(narrowestChild);
+            }
+
             var parseResult = new LispParseResult(Host, narrowestChild, sourceBindings);
             return parseResult;
         }

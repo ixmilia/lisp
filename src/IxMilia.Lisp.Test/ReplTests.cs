@@ -243,5 +243,40 @@ some-$$value
             var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             Assert.Contains("(+ 1 1)", markdown);
         }
+
+        [Fact]
+        public void GetMarkdownDisplayFromUnevaluatedShadowedValues()
+        {
+            var markedCode = @"
+(defun some-value () ; this is shadowed
+    ())
+(setf some-value 2222) ; this is the returned value
+some-$$value
+(setf some-value 3333) ; this is ignored
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var repl = new LispRepl();
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
+            Assert.Contains("2222", markdown);
+        }
+
+        [Fact]
+        public void GetMarkdownDisplayFromUnevaluatedParsedSetInUnevaluatedFunction()
+        {
+            var repl = new LispRepl();
+            repl.Host.SetValue("some-value", new LispInteger(111)); // top-level value that's shadowed
+            var markedCode = @"
+(setf some-value 222) ; this is also shadowed
+(defun some-function ()
+    (setf some-value 333) ; this is the one we want to see
+    some-$$value)
+(setf some-value 444) ; this is never reached
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
+            Assert.Contains("333", markdown);
+        }
     }
 }

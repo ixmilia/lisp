@@ -16,7 +16,21 @@ namespace IxMilia.Lisp
 
         public void TryAddSourceBinding(LispObject obj)
         {
-            // TODO: delve into labels and functions/macros for arguments
+            // first process all parents and the children up to the current...
+            if (obj.Parent is object)
+            {
+                foreach (var sibling in obj.Parent.GetChildren())
+                {
+                    if (ReferenceEquals(sibling, obj))
+                    {
+                        break;
+                    }
+
+                    TryAddSourceBinding(sibling);
+                }
+            }
+
+            // ...then check this object specifically
             if (obj is LispList list)
             {
                 var listItems = list.ToList();
