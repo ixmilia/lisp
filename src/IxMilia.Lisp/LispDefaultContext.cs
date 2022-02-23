@@ -63,22 +63,35 @@ namespace IxMilia.Lisp
         [LispMacro("DEFMACRO")]
         public LispObject DefineMacro(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
-            // TODO: validate arg types and count
-            var macroNameSymbol = ((LispSymbol)args[0]).Resolve(host.CurrentPackage);
-            var macroArgs = ((LispList)args[1]).ToList();
-            if (!LispArgumentCollection.TryBuildArgumentCollection(macroArgs.ToArray(), out var argumentCollection, out var error))
+            if (!TryGetCodeMacroFromItems(args, host.CurrentPackage, out var codeMacro, out var error))
             {
                 return error;
             }
 
+            executionState.StackFrame.SetValueInParentScope(codeMacro.NameSymbol, codeMacro);
+            return host.Nil;
+        }
+
+        internal static bool TryGetCodeMacroFromItems(LispObject[] items, LispPackage currentPackage, out LispCodeMacro codeMacro, out LispError error)
+        {
+            codeMacro = default;
+
+            // TODO: validate arg types and count
+            var macroNameSymbol = ((LispSymbol)items[0]).Resolve(currentPackage);
+            var macroArgs = ((LispList)items[1]).ToList();
+            if (!LispArgumentCollection.TryBuildArgumentCollection(macroArgs.ToArray(), out var argumentCollection, out error))
+            {
+                return false;
+            }
+
             // TODO: allow docstring
-            var macroBody = args.Skip(2);
-            var macro = new LispCodeMacro(macroNameSymbol, argumentCollection, macroBody)
+            var macroBody = items.Skip(2);
+            codeMacro = new LispCodeMacro(macroNameSymbol, argumentCollection, macroBody)
             {
                 SourceLocation = macroNameSymbol.SourceLocation,
             };
-            executionState.StackFrame.SetValueInParentScope(macroNameSymbol, macro);
-            return host.Nil;
+
+            return true;
         }
 
         [LispMacro("DEFUN")]

@@ -284,7 +284,7 @@ namespace IxMilia.Lisp
 
         public override string ToString() => Value;
 
-        public override string ToDisplayString(LispPackage currentPackage) => currentPackage.HasSymbolWithName(LocalName) ? LocalName : Value;
+        public override string ToDisplayString(LispPackage currentPackage) => currentPackage.HasSymbolWithName(LocalName) || PackageName == currentPackage.Name ? LocalName : Value;
 
         public static bool operator ==(LispResolvedSymbol a, LispResolvedSymbol b)
         {

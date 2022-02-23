@@ -26,19 +26,19 @@ class LispKernel :
 
     public Task HandleAsync(RequestHoverText command, KernelInvocationContext context)
     {
-        var obj = _repl.GetObjectAtLocation(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
-        if (obj != null)
+        var parseResult = _repl.ParseUntilSourceLocation(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
+        if (parseResult.Object != null)
         {
-            var markdown = _repl.GetMarkdownDisplayFromSourceObject(obj);
+            var markdown = parseResult.GetMarkdownDisplay();
             if (markdown != null)
             {
                 LinePositionSpan span = null;
                 var formatted = new FormattedValue("text/markdown", markdown);
-                if (obj.SourceLocation.HasValue)
+                if (parseResult.Object.SourceLocation.HasValue)
                 {
                     span = new LinePositionSpan(
-                        new LinePosition(obj.SourceLocation.Value.Start.Line - 1, obj.SourceLocation.Value.Start.Column - 1),
-                        new LinePosition(obj.SourceLocation.Value.End.Line - 1, obj.SourceLocation.Value.End.Column - 1)
+                        new LinePosition(parseResult.Object.SourceLocation.Value.Start.Line - 1, parseResult.Object.SourceLocation.Value.Start.Column - 1),
+                        new LinePosition(parseResult.Object.SourceLocation.Value.End.Line - 1, parseResult.Object.SourceLocation.Value.End.Column - 1)
                     );
                 }
 

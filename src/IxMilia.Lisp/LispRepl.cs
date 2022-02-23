@@ -60,8 +60,9 @@ namespace IxMilia.Lisp
             _traceWriter.Flush();
         }
 
-        public LispObject GetObjectAtLocation(string code, LispSourcePosition position)
+        public LispParseResult ParseUntilSourceLocation(string code, LispSourcePosition position)
         {
+            var sourceBindings = new LispSourceBindings(Host.CurrentPackage);
             LispObject containingObject = null;
             var eofValue = new LispError("EOF");
             var textReader = new StringReader(code);
@@ -75,6 +76,8 @@ namespace IxMilia.Lisp
                     break;
                 }
 
+                sourceBindings.TryAddSourceBinding(result.LastResult);
+
                 if (result.LastResult.SourceLocation.HasValue &&
                     result.LastResult.SourceLocation.Value.ContainsPosition(position))
                 {
@@ -83,7 +86,9 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return containingObject?.GetNarrowestChild(position);
+            var narrowestChild = containingObject?.GetNarrowestChild(position);
+            var parseResult = new LispParseResult(Host, narrowestChild, sourceBindings);
+            return parseResult;
         }
 
         public LispObject GetValue(string name) => Host.GetValue(name);
@@ -105,14 +110,6 @@ namespace IxMilia.Lisp
         internal void Eval(LispExecutionState executionState)
         {
             Host.EvalContinue(executionState);
-        }
-
-        public string GetMarkdownDisplayFromSourceObject(LispObject obj)
-        {
-            var baseObject = obj is LispSymbol symbol
-                ? GetValue(symbol.Resolve(Host.CurrentPackage).Value)
-                : obj;
-            return baseObject.GetMarkdownDisplay(this);
         }
 
         internal LispObject Trace(LispObject[] args)

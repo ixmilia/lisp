@@ -71,7 +71,7 @@ namespace IxMilia.Lisp
             return obj;
         }
 
-        public static string GetMarkdownDisplay(this LispObject obj, LispRepl repl)
+        public static string GetMarkdownDisplay(this LispObject obj, LispHost host)
         {
             switch (obj)
             {
@@ -79,7 +79,7 @@ namespace IxMilia.Lisp
                     return $@"
 ``` lisp
 ; <in module {codeFunction.NameSymbol.PackageName}>
-(DEFUN {codeFunction.NameSymbol.ToDisplayString(repl.Host.CurrentPackage)} ({codeFunction.ArgumentCollection}) ...)
+(DEFUN {codeFunction.NameSymbol.ToDisplayString(host.CurrentPackage)} ({codeFunction.ArgumentCollection}) ...)
 ```
 
 {codeFunction.Documentation}".Trim();
@@ -88,7 +88,7 @@ namespace IxMilia.Lisp
 ``` lisp
 ; <native function>
 ; <in module {function.NameSymbol.PackageName}>
-(DEFUN {function.NameSymbol.ToDisplayString(repl.Host.CurrentPackage)} (...) ...)
+(DEFUN {function.NameSymbol.ToDisplayString(host.CurrentPackage)} (...) ...)
 ```
 
 {function.Documentation}".Trim();
@@ -96,7 +96,7 @@ namespace IxMilia.Lisp
                     return $@"
 ``` lisp
 ; <in module {codeMacro.NameSymbol.PackageName}>
-(DEFMACRO {codeMacro.NameSymbol.ToDisplayString(repl.Host.CurrentPackage)} ({codeMacro.ArgumentCollection}) ...)
+(DEFMACRO {codeMacro.NameSymbol.ToDisplayString(host.CurrentPackage)} ({codeMacro.ArgumentCollection}) ...)
 ```
 
 TODO: documentation".Trim();
@@ -105,13 +105,13 @@ TODO: documentation".Trim();
 ``` lisp
 ; <native macro>
 ; <in module {macro.NameSymbol.PackageName}>
-(DEFMACRO {macro.NameSymbol.ToDisplayString(repl.Host.CurrentPackage)} (...) ...)
+(DEFMACRO {macro.NameSymbol.ToDisplayString(host.CurrentPackage)} (...) ...)
 ```
 
 TODO: documentation".Trim();
                 case LispResolvedSymbol symbol:
                     // TODO: don't display current package qualifier
-                    return $"`{symbol.Value}`: {repl.GetValue(symbol.Value)}";
+                    return $"`{symbol.Value}`: {host.GetValue(symbol.Value)}";
                 default:
                     return obj?.ToString();
             }

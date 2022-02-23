@@ -106,8 +106,8 @@ namespace IxMilia.Lisp.LanguageServer
             var position = Converters.SourcePositionFromPosition(param.Position);
             if (_documentContents.TryGetValue(path, out var code))
             {
-                var obj = _repl.GetObjectAtLocation(code, position);
-                var markdown = _repl.GetMarkdownDisplayFromSourceObject(obj);
+                var parseResult = _repl.ParseUntilSourceLocation(code, position);
+                var markdown = parseResult.GetMarkdownDisplay();
                 return new Hover(new MarkupContent(MarkupKind.Markdown, markdown));
             }
 

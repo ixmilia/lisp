@@ -118,9 +118,9 @@ Finished recording in file {tempFile.FilePath}
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
             var repl = new LispRepl();
-            var child = repl.GetObjectAtLocation(code, position);
-            Assert.IsType<LispInteger>(child);
-            Assert.Equal(34, ((LispInteger)child).Value);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.IsType<LispInteger>(parseResult.Object);
+            Assert.Equal(34, ((LispInteger)parseResult.Object).Value);
         }
 
         [Fact]
@@ -133,9 +133,9 @@ Finished recording in file {tempFile.FilePath}
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
             var repl = new LispRepl();
-            var child = repl.GetObjectAtLocation(code, position);
-            Assert.IsType<LispList>(child);
-            Assert.Equal("(+ (* 12 34) (/ 56 78))", child.ToString());
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.IsType<LispList>(parseResult.Object);
+            Assert.Equal("(+ (* 12 34) (/ 56 78))", parseResult.Object.ToString());
         }
 
         [Fact]
@@ -148,8 +148,8 @@ $$
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
             var repl = new LispRepl();
-            var child = repl.GetObjectAtLocation(code, position);
-            Assert.Null(child);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.Null(parseResult.Object);
         }
 
         [Fact]
@@ -161,8 +161,8 @@ $$
             GetCodeAndPosition(markedCode, out var code, out var position);
             var repl = new LispRepl();
             repl.Eval("(defun add-2-numbers (a b) \"Adds 2 numbers.\" (+ a b))");
-            var obj = repl.GetObjectAtLocation(code, position);
-            var markdown = repl.GetMarkdownDisplayFromSourceObject(obj).Replace("\r", "");
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             var expected = @"
 ``` lisp
 ; <in module COMMON-LISP-USER>
@@ -182,8 +182,8 @@ Adds 2 numbers.
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
             var repl = new LispRepl();
-            var obj = repl.GetObjectAtLocation(code, position);
-            var markdown = repl.GetMarkdownDisplayFromSourceObject(obj);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             Assert.Equal("3.14159", markdown);
         }
 
@@ -195,9 +195,53 @@ as$$df
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
             var repl = new LispRepl();
-            var obj = repl.GetObjectAtLocation(code, position);
-            var markdown = repl.GetMarkdownDisplayFromSourceObject(obj);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var markdown = parseResult.GetMarkdownDisplay();
             Assert.Null(markdown);
+        }
+
+        [Fact]
+        public void GetMarkdownDisplayFromUnevaluatedParsedFunction()
+        {
+            var markedCode = @"
+(defun some-function (a b)
+    ())
+(some-$$function 1 2)
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var repl = new LispRepl();
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
+            Assert.Contains("DEFUN SOME-FUNCTION", markdown);
+        }
+
+        [Fact]
+        public void GetMarkdownDisplayFromUnevaludatedParsedMacro()
+        {
+            var markedCode = @"
+(defmacro some-macro (a b)
+    ())
+(some-$$macro 1 2)
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var repl = new LispRepl();
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
+            Assert.Contains("DEFMACRO SOME-MACRO", markdown);
+        }
+
+        [Fact]
+        public void GetMarkdownDisplayFromUnevaludatedParsedSet()
+        {
+            var markedCode = @"
+(setf some-value (+ 1 1))
+some-$$value
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var repl = new LispRepl();
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
+            Assert.Contains("(+ 1 1)", markdown);
         }
     }
 }
