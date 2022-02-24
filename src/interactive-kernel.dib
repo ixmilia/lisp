@@ -1,6 +1,6 @@
 #!csharp
 
-#r "../artifacts/bin/IxMilia.Lisp/Debug/netstandard1.3/IxMilia.Lisp.dll"
+#r "../artifacts/bin/IxMilia.Lisp/Debug/netstandard2.0/IxMilia.Lisp.dll"
 
 #!csharp
 
