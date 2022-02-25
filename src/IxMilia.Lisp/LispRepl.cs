@@ -62,7 +62,7 @@ namespace IxMilia.Lisp
 
         public LispParseResult ParseUntilSourceLocation(string code, LispSourcePosition position)
         {
-            var sourceBindings = new LispSourceBindings(Host.CurrentPackage);
+            var boundValues = new LispBoundValues();
             LispObject containingObject = null;
             var eofValue = new LispError("EOF");
             var textReader = new StringReader(code);
@@ -76,7 +76,7 @@ namespace IxMilia.Lisp
                     break;
                 }
 
-                sourceBindings.TryAddSourceBinding(result.LastResult);
+                boundValues.TryAddSourceBinding(Host.CurrentPackage, result.LastResult);
 
                 if (result.LastResult.SourceLocation.HasValue &&
                     result.LastResult.SourceLocation.Value.ContainsPosition(position))
@@ -89,10 +89,13 @@ namespace IxMilia.Lisp
             var narrowestChild = containingObject?.GetNarrowestChild(position);
             if (narrowestChild != null && !ReferenceEquals(narrowestChild, containingObject))
             {
-                sourceBindings.TryAddSourceBinding(narrowestChild);
+                boundValues.TryAddSourceBinding(Host.CurrentPackage, narrowestChild);
             }
 
-            var parseResult = new LispParseResult(Host, narrowestChild, sourceBindings);
+            var runtimeValues = Host.RootFrame.GetBoundValues();
+            var finalBoundValues = runtimeValues.WithOverrides(boundValues);
+
+            var parseResult = new LispParseResult(Host, narrowestChild, finalBoundValues);
             return parseResult;
         }
 

@@ -2,15 +2,16 @@
 {
     public class LispParseResult
     {
-        public LispHost Host { get; }
-        public LispObject Object { get; }
-        public LispSourceBindings Bindings { get; }
+        private LispHost _host;
 
-        public LispParseResult(LispHost host, LispObject obj, LispSourceBindings bindings)
+        public LispBoundValues VisibleValues { get; }
+        public LispObject Object { get; }
+
+        public LispParseResult(LispHost host, LispObject obj, LispBoundValues visibleValues)
         {
-            Host = host;
+            _host = host;
             Object = obj;
-            Bindings = bindings;
+            VisibleValues = visibleValues;
         }
 
         public string GetMarkdownDisplay()
@@ -18,18 +19,18 @@
             var baseObject = Object;
             if (Object is LispSymbol symbol)
             {
-                var resolvedSymbol = symbol.Resolve(Host.CurrentPackage);
-                if (Bindings.TryGetBoundValue(resolvedSymbol, out var boundValue))
+                var resolvedSymbol = symbol.Resolve(_host.CurrentPackage);
+                if (VisibleValues.TryGetBoundValue(resolvedSymbol, out var boundValue))
                 {
                     baseObject = boundValue;
                 }
                 else
                 {
-                    baseObject = Host.GetValue(resolvedSymbol.Value);
+                    baseObject = _host.GetValue(resolvedSymbol.Value);
                 }
             }
 
-            return baseObject.GetMarkdownDisplay(Host);
+            return baseObject.GetMarkdownDisplay(_host);
         }
     }
 }

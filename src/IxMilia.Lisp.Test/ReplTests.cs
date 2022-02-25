@@ -278,5 +278,55 @@ some-$$value
             var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             Assert.Contains("333", markdown);
         }
+
+        [Fact]
+        public void BoundValuesCanBeDeterminedFromAlreadyExecutedCode()
+        {
+            var repl = new LispRepl();
+            var result = repl.Eval("(setf the-answer 42)");
+            Assert.IsNotType<LispError>(result.LastResult);
+            var markedCode = @"the-$$answer";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.Contains(
+                parseResult.VisibleValues.Values,
+                boundSymbol => boundSymbol.Symbol.Value == "COMMON-LISP-USER:THE-ANSWER" && boundSymbol.Value is LispInteger i && i.Value == 42);
+        }
+
+        [Fact]
+        public void BoundValuesCanBeDeterminedAtTheRoot()
+        {
+            var repl = new LispRepl();
+            var markedCode = @"
+(setf the-answer 42)
+the-$$answer
+(setf then-answer 84)
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.Contains(
+                parseResult.VisibleValues.Values,
+                boundSymbol => boundSymbol.Symbol.Value == "COMMON-LISP-USER:THE-ANSWER" && boundSymbol.Value is LispInteger i && i.Value == 42);
+        }
+
+        [Fact]
+        public void BoundValuesCanBeDeterminedFromWithinAFunctionDefinition()
+        {
+            var repl = new LispRepl();
+            var markedCode = @"
+(setf the-answer 11)
+(defun some-function ()
+    (setf the-answer 22)
+    (setf the-answer 42)
+    the-$$answer
+    (setf the-answer 33))
+(setf the-answer 44)
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.Contains(
+                parseResult.VisibleValues.Values,
+                boundSymbol => boundSymbol.Symbol.Value == "COMMON-LISP-USER:THE-ANSWER" && boundSymbol.Value is LispInteger i && i.Value == 42);
+        }
     }
 }

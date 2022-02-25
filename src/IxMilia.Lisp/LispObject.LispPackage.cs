@@ -8,6 +8,8 @@ namespace IxMilia.Lisp
         private List<LispPackage> _inheritedPackages = new List<LispPackage>();
         public string Name { get; }
 
+        internal IEnumerable<KeyValuePair<string, LispObject>> Values => _values;
+
         public LispPackage(string name, IEnumerable<LispPackage> inheritedPackages = null)
         {
             Name = name;

@@ -3,18 +3,38 @@ using System.Linq;
 
 namespace IxMilia.Lisp
 {
-    public class LispSourceBindings
+    public class LispBoundValues
     {
-        public LispPackage CurrentPackage { get; }
+        private Dictionary<string, (LispResolvedSymbol Symbol, LispObject Value)> _boundValues = new();
 
-        private Dictionary<string, LispObject> _parsedBindings = new Dictionary<string, LispObject>();
+        public IEnumerable<(LispResolvedSymbol Symbol, LispObject Value)> Values => _boundValues.Values;
 
-        internal LispSourceBindings(LispPackage currentPackage)
+        internal LispBoundValues()
         {
-            CurrentPackage = currentPackage;
         }
 
-        public void TryAddSourceBinding(LispObject obj)
+        public LispBoundValues WithOverrides(LispBoundValues overridingValues)
+        {
+            var result = new LispBoundValues();
+            foreach (var value in _boundValues.Values)
+            {
+                result.SetBoundValue(value.Symbol, value.Value);
+            }
+
+            foreach (var value in overridingValues._boundValues.Values)
+            {
+                result.SetBoundValue(value.Symbol, value.Value);
+            }
+
+            return result;
+        }
+
+        public void SetBoundValue(LispResolvedSymbol symbol, LispObject value)
+        {
+            _boundValues[symbol.Value] = (symbol, value);
+        }
+
+        public void TryAddSourceBinding(LispPackage currentPackage, LispObject obj)
         {
             // first process all parents and the children up to the current...
             if (obj.Parent is object)
@@ -26,7 +46,7 @@ namespace IxMilia.Lisp
                         break;
                     }
 
-                    TryAddSourceBinding(sibling);
+                    TryAddSourceBinding(currentPackage, sibling);
                 }
             }
 
@@ -36,27 +56,27 @@ namespace IxMilia.Lisp
                 var listItems = list.ToList();
                 if (list.Value is LispSymbol symbol)
                 {
-                    var resolvedSymbol = symbol.Resolve(CurrentPackage);
+                    var resolvedSymbol = symbol.Resolve(currentPackage);
                     switch (resolvedSymbol.Value)
                     {
                         case "COMMON-LISP:DEFUN":
                             {
-                                if (LispDefaultContext.TryGetCodeFunctionFromItems(listItems.Skip(1).ToArray(), CurrentPackage, out var codeFunction, out var _error))
+                                if (LispDefaultContext.TryGetCodeFunctionFromItems(listItems.Skip(1).ToArray(), currentPackage, out var codeFunction, out var _error))
                                 {
                                     if (codeFunction != null)
                                     {
-                                        _parsedBindings[codeFunction.NameSymbol.Value] = codeFunction;
+                                        SetBoundValue(codeFunction.NameSymbol, codeFunction);
                                     }
                                 }
                             }
                             break;
                         case "COMMON-LISP:DEFMACRO":
                             {
-                                if (LispDefaultContext.TryGetCodeMacroFromItems(listItems.Skip(1).ToArray(), CurrentPackage, out var codeMacro, out var _error))
+                                if (LispDefaultContext.TryGetCodeMacroFromItems(listItems.Skip(1).ToArray(), currentPackage, out var codeMacro, out var _error))
                                 {
                                     if (codeMacro != null)
                                     {
-                                        _parsedBindings[codeMacro.NameSymbol.Value] = codeMacro;
+                                        SetBoundValue(codeMacro.NameSymbol, codeMacro);
                                     }
                                 }
                             }
@@ -69,8 +89,8 @@ namespace IxMilia.Lisp
                                 var value = listItems[i + 1];
                                 if (name is LispSymbol symbolName)
                                 {
-                                    var resolvedSymbolName = symbolName.Resolve(CurrentPackage);
-                                    _parsedBindings[resolvedSymbolName.Value] = value;
+                                    var resolvedSymbolName = symbolName.Resolve(currentPackage);
+                                    SetBoundValue(resolvedSymbolName, value);
                                 }
                             }
                             break;
@@ -81,8 +101,10 @@ namespace IxMilia.Lisp
 
         public bool TryGetBoundValue(LispResolvedSymbol symbol, out LispObject value)
         {
-            if (_parsedBindings.TryGetValue(symbol.Value, out value))
+            value = default;
+            if (_boundValues.TryGetValue(symbol.Value, out var valuePair))
             {
+                value = valuePair.Value;
                 return true;
             }
 

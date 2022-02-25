@@ -18,7 +18,7 @@ namespace IxMilia.Lisp
         public virtual LispRootStackFrame Root => Parent.Root;
         public virtual int Depth { get; }
 
-        private Dictionary<string, LispObject> _values = new Dictionary<string, LispObject>();
+        private Dictionary<string, (LispResolvedSymbol Symbol, LispObject Value)> _values = new Dictionary<string, (LispResolvedSymbol, LispObject)>();
 
         protected LispStackFrame(LispResolvedSymbol functionSymbol, LispStackFrame parent)
         {
@@ -44,7 +44,7 @@ namespace IxMilia.Lisp
             {
                 if (invocationArgumentNames.Contains(valuePair.Key))
                 {
-                    Parent?.SetValue(LispSymbol.CreateFromString(valuePair.Key).Resolve(currentPackage), valuePair.Value);
+                    Parent?.SetValue(LispSymbol.CreateFromString(valuePair.Key).Resolve(currentPackage), valuePair.Value.Value);
                 }
             }
         }
@@ -57,7 +57,7 @@ namespace IxMilia.Lisp
 
         public virtual void SetValue(LispResolvedSymbol symbol, LispObject value)
         {
-            _values[symbol.Value] = value;
+            _values[symbol.Value] = (symbol, value);
             Root.OnValueSet(symbol, value, this);
         }
 
@@ -65,7 +65,7 @@ namespace IxMilia.Lisp
         {
             if (_values.TryGetValue(symbol.Value, out var value))
             {
-                return value;
+                return value.Value;
             }
 
             return Parent?.GetValue(symbol);
@@ -74,6 +74,23 @@ namespace IxMilia.Lisp
         public TObject GetValue<TObject>(LispResolvedSymbol symbol) where TObject : LispObject
         {
             return (TObject)GetValue(symbol);
+        }
+
+        public virtual LispBoundValues GetBoundValues()
+        {
+            var boundValues = new LispBoundValues();
+            foreach (var value in _values.Values)
+            {
+                boundValues.SetBoundValue(value.Symbol, value.Value);
+            }
+
+            if (Parent is object)
+            {
+                var parentBoundValues = Parent.GetBoundValues();
+                parentBoundValues.WithOverrides(boundValues);
+            }
+
+            return boundValues;
         }
 
         public virtual void DeleteValue(LispResolvedSymbol symbol)
@@ -208,6 +225,21 @@ namespace IxMilia.Lisp
             {
                 package.DeleteValue(symbol.LocalName);
             }
+        }
+
+        public override LispBoundValues GetBoundValues()
+        {
+            var boundValues = new LispBoundValues();
+            foreach (var package in _packages.Values)
+            {
+                foreach (var value in package.Values)
+                {
+                    var symbol = new LispResolvedSymbol(package.Name, value.Key, isPublic: true); // TODO: figure out isPublic
+                    boundValues.SetBoundValue(symbol, value.Value);
+                }
+            }
+
+            return boundValues;
         }
 
         internal bool OnFunctionEnter(LispStackFrame frame, LispObject[] functionArguments)
