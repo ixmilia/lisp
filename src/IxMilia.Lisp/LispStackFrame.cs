@@ -78,16 +78,12 @@ namespace IxMilia.Lisp
 
         public virtual LispBoundValues GetBoundValues()
         {
-            var boundValues = new LispBoundValues();
+            var boundValues = Parent is object
+                ? Parent.GetBoundValues()
+                : new LispBoundValues();
             foreach (var value in _values.Values)
             {
                 boundValues.SetBoundValue(value.Symbol, value.Value);
-            }
-
-            if (Parent is object)
-            {
-                var parentBoundValues = Parent.GetBoundValues();
-                parentBoundValues.WithOverrides(boundValues);
             }
 
             return boundValues;

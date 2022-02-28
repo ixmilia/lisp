@@ -62,7 +62,7 @@ namespace IxMilia.Lisp
 
         public LispParseResult ParseUntilSourceLocation(string code, LispSourcePosition position)
         {
-            var boundValues = new LispBoundValues();
+            var boundValues = Host.RootFrame.GetBoundValues();
             LispObject containingObject = null;
             var eofValue = new LispError("EOF");
             var textReader = new StringReader(code);
@@ -92,10 +92,7 @@ namespace IxMilia.Lisp
                 boundValues.TryAddSourceBinding(Host.CurrentPackage, narrowestChild);
             }
 
-            var runtimeValues = Host.RootFrame.GetBoundValues();
-            var finalBoundValues = runtimeValues.WithOverrides(boundValues);
-
-            var parseResult = new LispParseResult(Host, narrowestChild, finalBoundValues);
+            var parseResult = new LispParseResult(Host, narrowestChild, boundValues);
             return parseResult;
         }
 

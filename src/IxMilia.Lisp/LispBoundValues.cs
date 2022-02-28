@@ -13,22 +13,6 @@ namespace IxMilia.Lisp
         {
         }
 
-        public LispBoundValues WithOverrides(LispBoundValues overridingValues)
-        {
-            var result = new LispBoundValues();
-            foreach (var value in _boundValues.Values)
-            {
-                result.SetBoundValue(value.Symbol, value.Value);
-            }
-
-            foreach (var value in overridingValues._boundValues.Values)
-            {
-                result.SetBoundValue(value.Symbol, value.Value);
-            }
-
-            return result;
-        }
-
         public void SetBoundValue(LispResolvedSymbol symbol, LispObject value)
         {
             _boundValues[symbol.Value] = (symbol, value);
