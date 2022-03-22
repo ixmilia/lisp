@@ -328,5 +328,66 @@ the-$$answer
                 parseResult.VisibleValues.Values,
                 boundSymbol => boundSymbol.Symbol.Value == "COMMON-LISP-USER:THE-ANSWER" && boundSymbol.Value is LispInteger i && i.Value == 42);
         }
+
+        [Fact]
+        public void BoundValuesCanBeDeterminedFromFunctionArguments()
+        {
+            var repl = new LispRepl();
+            var markedCode = @"
+(defun incomplete-function (some-parameter some-other-parameter)
+    $$())
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.Contains(
+                parseResult.VisibleValues.Values,
+                boundSymbol => boundSymbol.Value is LispSymbol s && s.LocalName == "SOME-PARAMETER");
+        }
+
+        [Fact]
+        public void BoundValuesCanBeDeterminedFromMacroArguments()
+        {
+            var repl = new LispRepl();
+            var markedCode = @"
+(defmacro incomplete-function (some-parameter some-other-parameter)
+    $$())
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.Contains(
+                parseResult.VisibleValues.Values,
+                boundSymbol => boundSymbol.Value is LispSymbol s && s.LocalName == "SOME-PARAMETER");
+        }
+
+        [Fact]
+        public void BoundValuesCanBeDeterminedFromWithinAnIncompleteList()
+        {
+            var repl = new LispRepl();
+            var markedCode = @"
+(defun some-function ()
+    ())
+'(some list $$
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.Contains(
+                parseResult.VisibleValues.Values,
+                boundSymbol => boundSymbol.Value is LispFunction f && f.NameSymbol.LocalName == "SOME-FUNCTION");
+        }
+
+        [Fact]
+        public void BoundValueOfFunctionParameterCanBeReturnedFromAnIncompleteDefinition()
+        {
+            var repl = new LispRepl();
+            var markedCode = @"
+(defun incomplete-function (some-parameter some-other-parameter)
+    $$
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.Contains(
+                parseResult.VisibleValues.Values,
+                boundSymbol => boundSymbol.Value is LispSymbol s && s.LocalName == "SOME-PARAMETER");
+        }
     }
 }

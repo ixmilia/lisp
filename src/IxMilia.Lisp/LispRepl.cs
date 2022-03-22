@@ -70,7 +70,7 @@ namespace IxMilia.Lisp
             Host.ObjectReader.SetReaderStream(textStream);
             while (true)
             {
-                var result = Host.ObjectReader.Read(false, eofValue, true);
+                var result = Host.ObjectReader.Read(false, eofValue, true, allowIncompleteLists: true);
                 if (ReferenceEquals(result.LastResult, eofValue))
                 {
                     break;

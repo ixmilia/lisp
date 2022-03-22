@@ -121,7 +121,7 @@ namespace IxMilia.Lisp
 
             var commands = items.Skip(2).ToList();
             string documentation = null;
-            if (commands[0] is LispString str)
+            if (commands.Count > 0 && commands[0] is LispString str)
             {
                 documentation = str.Value;
                 commands.RemoveAt(0);

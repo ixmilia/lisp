@@ -45,22 +45,28 @@ namespace IxMilia.Lisp
                     {
                         case "COMMON-LISP:DEFUN":
                             {
-                                if (LispDefaultContext.TryGetCodeFunctionFromItems(listItems.Skip(1).ToArray(), currentPackage, out var codeFunction, out var _error))
+                                if (LispDefaultContext.TryGetCodeFunctionFromItems(listItems.Skip(1).ToArray(), currentPackage, out var codeFunction, out var _error) &&
+                                    codeFunction != null)
                                 {
-                                    if (codeFunction != null)
+                                    SetBoundValue(codeFunction.NameSymbol, codeFunction);
+                                    foreach (var argumentName in codeFunction.ArgumentCollection.ArgumentNames)
                                     {
-                                        SetBoundValue(codeFunction.NameSymbol, codeFunction);
+                                        var argumentSymbol = LispSymbol.CreateFromString(argumentName).Resolve(currentPackage);
+                                        SetBoundValue(argumentSymbol, argumentSymbol);
                                     }
                                 }
                             }
                             break;
                         case "COMMON-LISP:DEFMACRO":
                             {
-                                if (LispDefaultContext.TryGetCodeMacroFromItems(listItems.Skip(1).ToArray(), currentPackage, out var codeMacro, out var _error))
+                                if (LispDefaultContext.TryGetCodeMacroFromItems(listItems.Skip(1).ToArray(), currentPackage, out var codeMacro, out var _error) &&
+                                    codeMacro != null)
                                 {
-                                    if (codeMacro != null)
+                                    SetBoundValue(codeMacro.NameSymbol, codeMacro);
+                                    foreach (var argumentName in codeMacro.ArgumentCollection.ArgumentNames)
                                     {
-                                        SetBoundValue(codeMacro.NameSymbol, codeMacro);
+                                        var argumentSymbol = LispSymbol.CreateFromString(argumentName).Resolve(currentPackage);
+                                        SetBoundValue(argumentSymbol, argumentSymbol);
                                     }
                                 }
                             }
