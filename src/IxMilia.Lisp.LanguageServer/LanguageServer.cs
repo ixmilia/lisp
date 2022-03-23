@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using IxMilia.Lisp.LanguageServer.Protocol;
 using StreamJsonRpc;
@@ -56,6 +57,25 @@ namespace IxMilia.Lisp.LanguageServer
         public InitializeResult Initialize(InitializeParams param)
         {
             return new InitializeResult(TextDocumentSyncKind.Incremental);
+        }
+
+        [JsonRpcMethod("textDocument/completion", UseSingleObjectParameterDeserialization = true)]
+        public CompletionList TextDocumentCompletion(CompletionParams param)
+        {
+            var path = Converters.PathFromUri(param.TextDocument.Uri);
+            var position = Converters.SourcePositionFromPosition(param.Position);
+            var items = Enumerable.Empty<CompletionItem>();
+            if (_documentContents.TryGetValue(path, out var contents))
+            {
+                var parseResult = _repl.ParseUntilSourceLocation(contents, position);
+                items = parseResult.VisibleValues.Values.Select(
+                    v => new CompletionItem(
+                        v.Symbol.ToDisplayString(_repl.Host.CurrentPackage),
+                        v.Symbol.Value,
+                        v.Value is LispFunction f ? new MarkupContent(MarkupKind.Markdown, f.Documentation) : null));
+            }
+
+            return new CompletionList(false, items);
         }
 
         [JsonRpcMethod("textDocument/didChange", UseSingleObjectParameterDeserialization = true)]

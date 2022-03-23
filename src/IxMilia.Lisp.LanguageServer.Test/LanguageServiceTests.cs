@@ -62,6 +62,17 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
+        public void GetCompletionItems()
+        {
+            var server = new LanguageServer();
+            server.Initialize(new InitializeParams(0, Array.Empty<WorkspaceFolder>()));
+            server.TextDocumentDidOpen(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "some-language-id", 1, "(def")));
+            var completionList = server.TextDocumentCompletion(new CompletionParams(new CompletionContext(CompletionTriggerKind.TriggerCharacter, '('), new TextDocumentIdentifier("file:///some-uri"), new Position(0, 4)));
+            Assert.False(completionList.IsIncomplete);
+            Assert.Contains(completionList.Items, item => item.Label == "DEFUN" && item.Detail == "COMMON-LISP:DEFUN");
+        }
+
+        [Fact]
         public void GetHoverTextAfterFullUpdate()
         {
             var server = new LanguageServer();

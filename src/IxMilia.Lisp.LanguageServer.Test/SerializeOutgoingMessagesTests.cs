@@ -18,6 +18,17 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
+        public void SerializeCompletionList()
+        {
+            var obj = new CompletionList(false, new[]
+            {
+                new CompletionItem("some-completion-item-label", "some-completion-item-detail", new MarkupContent(MarkupKind.Markdown, "this is `markdown`")),
+            });
+            var json = SerializeObject(obj);
+            Assert.Equal(@"{""isIncomplete"":false,""items"":[{""label"":""some-completion-item-label"",""detail"":""some-completion-item-detail"",""documentation"":{""kind"":""markdown"",""value"":""this is `markdown`""}}]}", json);
+        }
+
+        [Fact]
         public void SerializeHover()
         {
             var obj = new Hover(new MarkupContent(MarkupKind.Markdown, "some markdown"));
@@ -30,7 +41,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
         {
             var obj = new InitializeResult(TextDocumentSyncKind.Full);
             var json = SerializeObject(obj);
-            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":1},""hoverProvider"":true}}", json);
+            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":1},""completionProvider"":{""triggerCharacters"":["" "",""(""]},""hoverProvider"":true}}", json);
         }
 
         [Fact]
@@ -38,7 +49,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
         {
             var obj = new InitializeResult(TextDocumentSyncKind.Incremental);
             var json = SerializeObject(obj);
-            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":2},""hoverProvider"":true}}", json);
+            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":2},""completionProvider"":{""triggerCharacters"":["" "",""(""]},""hoverProvider"":true}}", json);
         }
     }
 }

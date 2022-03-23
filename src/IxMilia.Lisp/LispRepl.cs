@@ -13,7 +13,7 @@ namespace IxMilia.Lisp
         private TextWriter _traceWriter;
         private string _incompleteInput;
 
-        internal LispHost Host { get; }
+        public LispHost Host { get; }
 
         public HashSet<string> TracedFunctions { get; } = new HashSet<string>();
 

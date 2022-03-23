@@ -39,6 +39,17 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
+        public void ParseCompletionParams()
+        {
+            var result = DeserializeObject<CompletionParams>(@"{""context"":{""triggerKind"":2,""triggerCharacter"":""(""},""textDocument"":{""uri"":""some-uri""},""position"":{""line"":12,""character"":34}}");
+            Assert.Equal(CompletionTriggerKind.TriggerCharacter, result.Context.TriggerKind);
+            Assert.Equal('(', result.Context.TriggerCharacter);
+            Assert.Equal("some-uri", result.TextDocument.Uri);
+            Assert.Equal(12u, result.Position.Line);
+            Assert.Equal(34u, result.Position.Character);
+        }
+
+        [Fact]
         public void ParseDidOpenTextDocumentParams()
         {
             var result = DeserializeObject<DidOpenTextDocumentParams>(@"{""textDocument"":{""uri"":""some-uri"",""languageId"":""some-language-id"",""version"":123,""text"":""some-text""}}");
