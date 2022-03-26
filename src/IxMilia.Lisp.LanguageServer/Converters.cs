@@ -22,6 +22,11 @@ namespace IxMilia.Lisp.LanguageServer
             return localPath;
         }
 
+        public static Position PositionFromSourcePosition(LispSourcePosition position)
+        {
+            return new Position((uint)(position.Line - 1), (uint)(position.Column - 1));
+        }
+
         public static LispSourcePosition SourcePositionFromPosition(Position position)
         {
             return new LispSourcePosition((int)position.Line + 1, (int)position.Character + 1);

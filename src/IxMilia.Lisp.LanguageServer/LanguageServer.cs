@@ -68,11 +68,14 @@ namespace IxMilia.Lisp.LanguageServer
             if (_documentContents.TryGetValue(path, out var contents))
             {
                 var parseResult = _repl.ParseUntilSourceLocation(contents, position);
-                items = parseResult.VisibleValues.Values.Select(
-                    v => new CompletionItem(
-                        v.Symbol.ToDisplayString(_repl.Host.CurrentPackage),
-                        v.Symbol.Value,
-                        v.Value is LispFunction f ? new MarkupContent(MarkupKind.Markdown, f.Documentation) : null));
+                if (!(parseResult.Object is LispString))
+                {
+                    items = parseResult.VisibleValues.Values.Select(
+                        v => new CompletionItem(
+                            v.Symbol.ToDisplayString(_repl.Host.CurrentPackage),
+                            v.Symbol.Value,
+                            v.Value is LispFunction f ? new MarkupContent(MarkupKind.Markdown, f.Documentation) : null));
+                }
             }
 
             return new CompletionList(false, items);

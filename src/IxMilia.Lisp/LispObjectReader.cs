@@ -19,6 +19,8 @@ namespace IxMilia.Lisp
 
         public LispTextStream InputStream => _input;
 
+        public bool AllowIncompleteObjects { get; set; } = false;
+
         static LispObjectReader()
         {
             // integer
@@ -135,7 +137,7 @@ namespace IxMilia.Lisp
             _leftParenCount = t.Item2;
         }
 
-        public LispObjectReaderResult Read(bool errorOnEof, LispObject eofValue, bool isRecursive, bool allowIncompleteLists = false)
+        public LispObjectReaderResult Read(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             var handler = new EventHandler<LispCharacter>((s, c) =>
             {
@@ -170,7 +172,7 @@ namespace IxMilia.Lisp
                 }
                 else if (IsLeftParen(c))
                 {
-                    result = ReadList(errorOnEof, eofValue, isRecursive, allowIncompleteLists);
+                    result = ReadList(errorOnEof, eofValue, isRecursive);
                 }
                 else
                 {
@@ -232,7 +234,7 @@ namespace IxMilia.Lisp
             return new LispObjectReaderResult(result, incompleteInput, _leftParenCount);
         }
 
-        private LispObject ReadList(bool errorOnEof, LispObject eofValue, bool isRecursive, bool allowIncompleteLists)
+        private LispObject ReadList(bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             var items = new List<LispObject>();
             var tailItems = new List<LispObject>();
@@ -275,7 +277,7 @@ namespace IxMilia.Lisp
                     dotLocation = currentLocation;
                 }
 
-                var nextItemResult = Read(errorOnEof, eofValue, isRecursive, allowIncompleteLists);
+                var nextItemResult = Read(errorOnEof, eofValue, isRecursive);
                 var nextItem = nextItemResult.LastResult;
                 if (nextItem is LispError)
                 {
@@ -294,7 +296,7 @@ namespace IxMilia.Lisp
                 ConsumeTrivia();
             }
 
-            if (!isListComplete && !allowIncompleteLists)
+            if (!isListComplete && !AllowIncompleteObjects)
             {
                 return new LispError($"Unmatched '(' at ({startPosition.Line}, {startPosition.Column}) (depth {_leftParenCount})");
             }
