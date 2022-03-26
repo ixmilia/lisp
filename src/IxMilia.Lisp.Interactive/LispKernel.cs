@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.DotNet.Interactive;
@@ -9,6 +10,7 @@ namespace IxMilia.Lisp.Interactive
 {
     public class LispKernel :
         Kernel,
+        IKernelCommandHandler<RequestCompletions>,
         IKernelCommandHandler<RequestHoverText>,
         IKernelCommandHandler<SubmitCode>
     {
@@ -18,6 +20,23 @@ namespace IxMilia.Lisp.Interactive
             : base("lisp")
         {
             _repl = new LispRepl(location: "*REPL*");
+        }
+
+        public Task HandleAsync(RequestCompletions command, KernelInvocationContext context)
+        {
+            var parseResult = _repl.ParseUntilSourceLocation(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
+            if (parseResult.Object != null &&
+                !(parseResult.Object is LispString))
+            {
+                var completionItems = parseResult.VisibleValues.Values.Select(
+                    v => new CompletionItem(
+                        displayText: v.Symbol.ToDisplayString(_repl.Host.CurrentPackage),
+                        kind: "",
+                        documentation: v.Value is LispFunction f ? f.Documentation : null));
+                context.Publish(new CompletionsProduced(completionItems, command));
+            }
+
+            return Task.CompletedTask;
         }
 
         public Task HandleAsync(RequestHoverText command, KernelInvocationContext context)
