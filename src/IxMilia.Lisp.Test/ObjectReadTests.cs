@@ -282,6 +282,34 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void FunctionDocumentationHandlesMultilineIndentedText()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(defun test-function ()
+    ""First line of doc string.
+     Second line of doc string.""
+    ())
+".Replace("\r", ""));
+            var function = host.GetValue<LispFunction>("TEST-FUNCTION");
+            Assert.Equal("First line of doc string.\nSecond line of doc string.", function.Documentation);
+        }
+
+        [Fact]
+        public void MacroDocumentationHandlesMultilineIndentedText()
+        {
+            var host = new LispHost();
+            var result = host.Eval(@"
+(defmacro test-macro ()
+    ""First line of doc string.
+     Second line of doc string.""
+    ())
+".Replace("\r", ""));
+            var macro = host.GetValue<LispMacro>("TEST-MACRO");
+            Assert.Equal("First line of doc string.\nSecond line of doc string.", macro.Documentation);
+        }
+
+        [Fact]
         public void WithOpenFile_Reading()
         {
             var output = new StringWriter();

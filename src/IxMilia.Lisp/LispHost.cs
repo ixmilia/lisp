@@ -76,10 +76,12 @@ namespace IxMilia.Lisp
 
         public void AddMacro(string name, LispMacroDelegate del) => AddMacro(LispSymbol.CreateFromString(name), del);
 
-        public void AddMacro(LispSymbol symbol, LispMacroDelegate del)
+        public void AddMacro(LispSymbol symbol, LispMacroDelegate del) => AddMacro(symbol, null, del);
+
+        public void AddMacro(LispSymbol symbol, string documentation, LispMacroDelegate del)
         {
             var resolvedSymbol = symbol.Resolve(CurrentPackage);
-            var macro = new LispNativeMacro(resolvedSymbol, del);
+            var macro = new LispNativeMacro(resolvedSymbol, documentation, del);
             SetValue(resolvedSymbol.Value, macro, createPackage: true);
         }
 

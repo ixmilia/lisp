@@ -84,9 +84,8 @@ namespace IxMilia.Lisp
                 return false;
             }
 
-            // TODO: allow docstring
-            var macroBody = items.Skip(2);
-            codeMacro = new LispCodeMacro(macroNameSymbol, argumentCollection, macroBody)
+            ExtractDocumentationString(items.Skip(2), out var macroBody, out var documentation);
+            codeMacro = new LispCodeMacro(macroNameSymbol, documentation, argumentCollection, macroBody)
             {
                 SourceLocation = macroNameSymbol.SourceLocation,
             };
@@ -119,17 +118,41 @@ namespace IxMilia.Lisp
                 return false;
             }
 
-            var commands = items.Skip(2).ToList();
-            string documentation = null;
-            if (commands.Count > 0 && commands[0] is LispString str)
-            {
-                documentation = str.Value;
-                commands.RemoveAt(0);
-            }
-
+            ExtractDocumentationString(items.Skip(2), out var commands, out var documentation);
             var nameSymbol = LispSymbol.CreateFromString(name).Resolve(currentPackage);
             codeFunction = new LispCodeFunction(nameSymbol, documentation, argumentCollection, commands);
             return true;
+        }
+
+        internal static void ExtractDocumentationString(IEnumerable<LispObject> bodyObjects, out IEnumerable<LispObject> resultBody, out string documentation)
+        {
+            documentation = null;
+            resultBody = bodyObjects;
+            if (bodyObjects.Count() > 0 && bodyObjects.First() is LispString str)
+            {
+                documentation = NormalizeDocumentationString(str);
+                resultBody = bodyObjects.Skip(1);
+            }
+        }
+
+        internal static string NormalizeDocumentationString(LispString s)
+        {
+            var documentation = s.Value;
+            if (s.SourceLocation.HasValue)
+            {
+                var documentationIndent = s.SourceLocation.Value.Start.Column;
+                var indentValue = new string(' ', documentationIndent);
+                var documentationLines = documentation.Split('\n');
+                if (documentationLines.Length > 1 &&
+                    documentationLines.Skip(1).All(l => l.StartsWith(indentValue)))
+                {
+                    // trim leading indentation
+                    documentationLines = new[] { documentationLines[0] }.Concat(documentationLines.Skip(1).Select(l => l.Substring(indentValue.Length))).ToArray();
+                    documentation = string.Join("\n", documentationLines);
+                }
+            }
+
+            return documentation;
         }
 
         [LispMacro("DEFVAR")]

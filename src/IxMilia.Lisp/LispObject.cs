@@ -53,7 +53,7 @@ namespace IxMilia.Lisp
                 // these go into the definitions
                 // TODO: replace in arguments?
                 case LispCodeMacro codeMacro:
-                    result = new LispCodeMacro(codeMacro.NameSymbol, codeMacro.ArgumentCollection, codeMacro.Body.PerformMacroReplacements(currentPackage, replacements).ToList());
+                    result = new LispCodeMacro(codeMacro.NameSymbol, codeMacro.Documentation, codeMacro.ArgumentCollection, codeMacro.Body.PerformMacroReplacements(currentPackage, replacements).ToList());
                     break;
                 case LispCodeFunction codeFunction:
                     result = new LispCodeFunction(codeFunction.NameSymbol, codeFunction.Documentation, codeFunction.ArgumentCollection, codeFunction.Commands.PerformMacroReplacements(currentPackage, replacements).ToList());
@@ -1763,9 +1763,12 @@ namespace IxMilia.Lisp
 
     public abstract class LispMacro : LispInvocableObject
     {
-        public LispMacro(LispResolvedSymbol nameSymbol)
+        public string Documentation { get; }
+
+        public LispMacro(LispResolvedSymbol nameSymbol, string documentation)
             : base(nameSymbol)
         {
+            Documentation = documentation;
         }
     }
 
@@ -1774,8 +1777,8 @@ namespace IxMilia.Lisp
         public LispArgumentCollection ArgumentCollection { get; }
         public LispObject[] Body { get; }
 
-        public LispCodeMacro(LispResolvedSymbol nameSymbol, LispArgumentCollection argumentCollection, IEnumerable<LispObject> body)
-            : base(nameSymbol)
+        public LispCodeMacro(LispResolvedSymbol nameSymbol, string documentation, LispArgumentCollection argumentCollection, IEnumerable<LispObject> body)
+            : base(nameSymbol, documentation)
         {
             ArgumentCollection = argumentCollection;
             Body = body.ToArray();
@@ -1788,7 +1791,7 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispCodeMacro(NameSymbol, ArgumentCollection, Body);
+            return new LispCodeMacro(NameSymbol, Documentation, ArgumentCollection, Body);
         }
 
         public override string ToString() => $"{NameSymbol.LocalName} ({ArgumentCollection})";
@@ -1800,8 +1803,8 @@ namespace IxMilia.Lisp
     {
         public LispMacroDelegate Macro { get; }
 
-        public LispNativeMacro(LispResolvedSymbol nameSymbol, LispMacroDelegate macro)
-            : base(nameSymbol)
+        public LispNativeMacro(LispResolvedSymbol nameSymbol, string documentation, LispMacroDelegate macro)
+            : base(nameSymbol, documentation)
         {
             Macro = macro;
         }
@@ -1813,7 +1816,7 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispNativeMacro(NameSymbol, Macro);
+            return new LispNativeMacro(NameSymbol, Documentation, Macro);
         }
 
         public override string ToString() => $"{NameSymbol} <native>";
