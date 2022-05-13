@@ -21,9 +21,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     const debugArgs = [
-        'run',
-        '--project',
-        path.join(__dirname, '..', '..', 'IxMilia.Lisp.LanguageServer.App', 'IxMilia.Lisp.LanguageServer.App.csproj')
+        path.join(__dirname, '..', '..', '..', 'artifacts', 'bin', 'IxMilia.Lisp.LanguageServer.App', 'Debug', 'net6.0', 'IxMilia.Lisp.LanguageServer.App.dll')
     ];
     const releaseArgs = [
         path.join(__dirname, '..', 'server', 'IxMilia.Lisp.LanguageServer.App.dll')
