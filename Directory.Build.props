@@ -8,15 +8,8 @@
     <BaseIntermediateOutputPath>$(ArtifactsDir)\obj\$(MSBuildProjectName)</BaseIntermediateOutputPath>
     <PackageOutputPath>$(ArtifactsPackagesDir)\$(Configuration)</PackageOutputPath>
     <DebugType>embedded</DebugType>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <MicrosoftDotNetInteractiveVersion>1.0.0-beta.22256.1</MicrosoftDotNetInteractiveVersion>
-    <MicrosoftNETTestSdkVersion>17.0.0</MicrosoftNETTestSdkVersion>
-    <MicrosoftSourceLinkGitHubVersion>1.0.0-beta2-19367-01</MicrosoftSourceLinkGitHubVersion>
-    <StreamJsonRpcVersion>2.9.85</StreamJsonRpcVersion>
-    <xunitVersion>2.4.1</xunitVersion>
-    <xunitrunnervisualstudioVersion>2.4.3</xunitrunnervisualstudioVersion>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <NoWarn>$(NoWarn);NU1507</NoWarn>
   </PropertyGroup>
 
 </Project>
