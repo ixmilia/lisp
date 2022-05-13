@@ -389,5 +389,32 @@ the-$$answer
                 parseResult.VisibleValues.Values,
                 boundSymbol => boundSymbol.Value is LispSymbol s && s.LocalName == "SOME-PARAMETER");
         }
+
+        [Fact]
+        public void VisibleValuesAreHandledAfterAColonCharacter()
+        {
+            var repl = new LispRepl();
+            var markedCode = @"
+(setf some-value 0)
+common-lisp-user:$$
+";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            Assert.Contains(
+                parseResult.VisibleValues.Values,
+                boundSymbol => boundSymbol.Symbol.LocalName == "SOME-VALUE");
+        }
+
+        [Fact]
+        public void ParsedObjectCanBeAnIncompleteResolvedSymbol()
+        {
+            var repl = new LispRepl();
+            var markedCode = @"common-lisp-user:$$";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var resolvedSymbol = (LispResolvedSymbol)parseResult.Object;
+            Assert.Equal("COMMON-LISP-USER", resolvedSymbol.PackageName);
+            Assert.Equal("", resolvedSymbol.LocalName);
+        }
     }
 }

@@ -12,6 +12,7 @@ namespace IxMilia.Lisp.LanguageServer.Protocol
             {
                 ' ',
                 '(',
+                ':',
             };
         }
     }

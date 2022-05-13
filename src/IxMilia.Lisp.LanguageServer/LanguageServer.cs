@@ -68,9 +68,17 @@ namespace IxMilia.Lisp.LanguageServer
             if (_documentContents.TryGetValue(path, out var contents))
             {
                 var parseResult = _repl.ParseUntilSourceLocation(contents, position);
+
+                // don't return anything if we're in a string
                 if (!(parseResult.Object is LispString))
                 {
-                    items = parseResult.VisibleValues.Values.Select(
+                    var visibleValues = parseResult.VisibleValues.Values;
+                    if (parseResult.Object is LispResolvedSymbol resolved)
+                    {
+                        visibleValues = visibleValues.Where(v => v.Symbol.PackageName == resolved.PackageName);
+                    }
+
+                    items = visibleValues.Select(
                         v => new CompletionItem(
                             v.Symbol.ToDisplayString(_repl.Host.CurrentPackage),
                             v.Symbol.Value,

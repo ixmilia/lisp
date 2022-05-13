@@ -18,7 +18,7 @@ namespace IxMilia.Lisp
 
         public bool ContainsPosition(LispSourcePosition position)
         {
-            return position >= Start && position < End;
+            return position >= Start && position <= End;
         }
 
         public static bool operator==(LispSourceLocation a, LispSourceLocation b)

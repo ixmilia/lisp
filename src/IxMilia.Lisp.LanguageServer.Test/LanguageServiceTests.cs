@@ -81,6 +81,16 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
+        public void CompletionItemsAreScopedToTheSpecifiedPackage()
+        {
+            var server = GetServerWithFileContent("file:///some-uri", "common-lisp-user:$$", out var position);
+            var completionList = server.TextDocumentCompletion(new CompletionParams(new CompletionContext(CompletionTriggerKind.TriggerCharacter, ':'), new TextDocumentIdentifier("file:///some-uri"), position));
+            Assert.All(
+                completionList.Items,
+                item => Assert.StartsWith("COMMON-LISP-USER:", item.Detail));
+        }
+
+        [Fact]
         public void NoCompletionItemsInATerminatedString()
         {
             var server = GetServerWithFileContent("file:///some-uri", "\"in a string $$\"", out var position);

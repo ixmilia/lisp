@@ -203,7 +203,8 @@ namespace IxMilia.Lisp
                 }
 
                 // double colon = private symbol
-                if (name.Substring(colonIndex + 1, 1) == ":")
+                if (name.Length > colonIndex + 1 &&
+                    name[colonIndex + 1] == ':')
                 {
                     isPublic = false;
                     colonIndex++;

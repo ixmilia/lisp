@@ -41,7 +41,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
         {
             var obj = new InitializeResult(TextDocumentSyncKind.Full);
             var json = SerializeObject(obj);
-            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":1},""completionProvider"":{""triggerCharacters"":["" "",""(""]},""hoverProvider"":true}}", json);
+            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":1},""completionProvider"":{""triggerCharacters"":["" "",""("","":""]},""hoverProvider"":true}}", json);
         }
 
         [Fact]
@@ -49,7 +49,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
         {
             var obj = new InitializeResult(TextDocumentSyncKind.Incremental);
             var json = SerializeObject(obj);
-            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":2},""completionProvider"":{""triggerCharacters"":["" "",""(""]},""hoverProvider"":true}}", json);
+            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":2},""completionProvider"":{""triggerCharacters"":["" "",""("","":""]},""hoverProvider"":true}}", json);
         }
     }
 }
