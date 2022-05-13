@@ -142,13 +142,37 @@ namespace IxMilia.Lisp
             {
                 var documentationIndent = s.SourceLocation.Value.Start.Column;
                 var indentValue = new string(' ', documentationIndent);
+                var indentValueOneLess = new string(' ', Math.Max(documentationIndent - 1, 0));
                 var documentationLines = documentation.Split('\n');
-                if (documentationLines.Length > 1 &&
-                    documentationLines.Skip(1).All(l => l.StartsWith(indentValue)))
+                if (documentationLines.Length > 1)
                 {
-                    // trim leading indentation
-                    documentationLines = new[] { documentationLines[0] }.Concat(documentationLines.Skip(1).Select(l => l.Substring(indentValue.Length))).ToArray();
-                    documentation = string.Join("\n", documentationLines);
+                    var normalizedLines = new List<string>() { documentationLines[0] };
+                    var canBeNormalized = true;
+                    foreach (var line in documentationLines.Skip(1))
+                    {
+                        if (string.IsNullOrWhiteSpace(line))
+                        {
+                            normalizedLines.Add(string.Empty);
+                        }
+                        else if (line.StartsWith(indentValue))
+                        {
+                            normalizedLines.Add(line.Substring(indentValue.Length));
+                        }
+                        else if (line.StartsWith(indentValueOneLess))
+                        {
+                            normalizedLines.Add(line.Substring(indentValueOneLess.Length));
+                        }
+                        else
+                        {
+                            canBeNormalized = false;
+                            break;
+                        }
+                    }
+
+                    if (canBeNormalized)
+                    {
+                        documentation = string.Join("\n", normalizedLines);
+                    }
                 }
             }
 

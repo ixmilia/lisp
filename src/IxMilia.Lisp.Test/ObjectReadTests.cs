@@ -310,6 +310,44 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void DocumentationStringsHandleBlankLinesInIndentedText()
+        {
+            var docString = (LispString)Read(@"
+    ""First line.
+
+     Third line.""
+");
+            var normalized = LispDefaultContext.NormalizeDocumentationString(docString).Replace("\r", "");
+            Assert.Equal("First line.\n\nThird line.", normalized);
+        }
+
+        [Fact]
+        public void DocumentationStringsHandleExtraWhitespaceBlankLinesInIndentedText()
+        {
+            var docString = (LispString)Read(@"
+    ; note, all of the whitespace between the lines
+    ""First line.
+            
+     Third line.""
+");
+            var normalized = LispDefaultContext.NormalizeDocumentationString(docString).Replace("\r", "");
+            Assert.Equal("First line.\n\nThird line.", normalized);
+        }
+
+        [Fact]
+        public void DocumentationStringsCanBeIndentedOneLessToAccountForTheLeadingDoubleQuote()
+        {
+            var docString = (LispString)Read(@"
+    ""First line.
+
+    Third line.""
+    ; note, `Third line.` is indented one less than the first line.
+");
+            var normalized = LispDefaultContext.NormalizeDocumentationString(docString).Replace("\r", "");
+            Assert.Equal("First line.\n\nThird line.", normalized);
+        }
+
+        [Fact]
         public void WithOpenFile_Reading()
         {
             var output = new StringWriter();
