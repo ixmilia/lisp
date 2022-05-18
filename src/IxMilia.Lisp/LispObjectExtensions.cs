@@ -99,7 +99,7 @@ namespace IxMilia.Lisp
 (DEFMACRO {codeMacro.NameSymbol.ToDisplayString(host.CurrentPackage)} ({codeMacro.ArgumentCollection}) ...)
 ```
 
-TODO: documentation".Trim();
+{codeMacro.Documentation}".Trim();
                 case LispMacro macro:
                     return $@"
 ``` lisp
@@ -108,12 +108,60 @@ TODO: documentation".Trim();
 (DEFMACRO {macro.NameSymbol.ToDisplayString(host.CurrentPackage)} (...) ...)
 ```
 
-TODO: documentation".Trim();
+{macro.Documentation}".Trim();
                 case LispResolvedSymbol symbol:
                     // TODO: don't display current package qualifier
                     return $"`{symbol.Value}`: {host.GetValue(symbol.Value)}";
                 default:
                     return obj?.ToString();
+            }
+        }
+
+        public static IEnumerable<LispToken> GetSemanticTokens(this LispObject obj, LispHost host)
+        {
+            var tokens = new List<LispToken>();
+            obj.AddSemanticTokens(host, tokens);
+            return tokens;
+        }
+
+        private static void AddSemanticTokens(this LispObject obj, LispHost host, List<LispToken> tokens)
+        {
+            if (!obj.SourceLocation.HasValue)
+            {
+                return;
+            }
+
+            var start = obj.SourceLocation.Value.Start;
+            var end = obj.SourceLocation.Value.End;
+            switch (obj)
+            {
+                case LispList list:
+                    {
+                        foreach (var child in list.GetChildren())
+                        {
+                            child.AddSemanticTokens(host, tokens);
+                        }
+                    }
+                    break;
+                case LispNumber _:
+                    tokens.Add(new LispToken(LispTokenType.Number, start, end));
+                    break;
+                case LispString _:
+                    tokens.Add(new LispToken(LispTokenType.String, start, end));
+                    break;
+                case LispSymbol s:
+                    var resolvedSymbol = s.Resolve(host.CurrentPackage);
+                    var resolvedValue = host.RootFrame.GetValue(resolvedSymbol);
+                    switch (resolvedValue)
+                    {
+                        case LispFunction _:
+                            tokens.Add(new LispToken(LispTokenType.Function, start, end));
+                            break;
+                        case LispMacro _:
+                            tokens.Add(new LispToken(LispTokenType.Macro, start, end));
+                            break;
+                    }
+                    break;
             }
         }
     }

@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Linq;
 using Xunit;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace IxMilia.Lisp.Test
 {
@@ -13,6 +14,16 @@ namespace IxMilia.Lisp.Test
             host.ObjectReader.SetReaderStream(input);
             var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
             return result.LastResult;
+        }
+
+        private LispToken[] ReadTokens(string code)
+        {
+            var host = new LispHost();
+            var input = new LispTextStream("", new StringReader(code), TextWriter.Null);
+            host.ObjectReader.SetReaderStream(input);
+            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            var tokens = result.LastResult.GetSemanticTokens(host).ToArray();
+            return tokens;
         }
 
         [Fact]
@@ -512,6 +523,29 @@ namespace IxMilia.Lisp.Test
             host.ObjectReader.SetReaderStream(input);
             var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
             Assert.Equal(text, result.IncompleteInput);
+        }
+
+        [Fact]
+        public void Tokens()
+        {
+            var code = @"(defun my-function (a b) (+ 11 22) ""some string"")";
+            //            macro function     parameter
+            //                                     function
+            //                                       number string
+            var tokens = ReadTokens(code);
+            var expected = new[]
+            {
+                new LispToken(LispTokenType.Macro, new LispSourcePosition(1, 2), new LispSourcePosition(1, 7)), // `defun`
+                // NYI
+                //new LispToken(LispTokenType.Function, new LispSourcePosition(1, 8), new LispSourcePosition(1, 19)), // `my-function`
+                //new LispToken(LispTokenType.Parameter, new LispSourcePosition(1, 21), new LispSourcePosition(1, 22)), // `a`
+                //new LispToken(LispTokenType.Parameter, new LispSourcePosition(1, 23), new LispSourcePosition(1, 24)), // `b`
+                new LispToken(LispTokenType.Function, new LispSourcePosition(1, 27), new LispSourcePosition(1, 28)), // `+`
+                new LispToken(LispTokenType.Number, new LispSourcePosition(1, 29), new LispSourcePosition(1, 31)), // `11`
+                new LispToken(LispTokenType.Number, new LispSourcePosition(1, 32), new LispSourcePosition(1, 34)), // `22`
+                new LispToken(LispTokenType.String, new LispSourcePosition(1, 36), new LispSourcePosition(1, 49)), // `"some string"`
+            };
+            Assert.Equal(expected, tokens);
         }
     }
 }

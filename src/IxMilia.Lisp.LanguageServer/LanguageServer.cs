@@ -144,5 +144,34 @@ namespace IxMilia.Lisp.LanguageServer
 
             return null;
         }
+
+        [JsonRpcMethod("textDocument/semanticTokens/full", UseSingleObjectParameterDeserialization = true)]
+        public SemanticTokens TextDocumentSemanticTokensFull(SemanticTokensParams param)
+        {
+            var path = Converters.PathFromUri(param.TextDocument.Uri);
+            if (_documentContents.TryGetValue(path, out var code))
+            {
+                var legend = new SemanticTokensLegend();
+                var builder = new SemanticTokensBuilder(legend.TokenTypes, legend.TokenModifiers);
+                var objects = _repl.ParseAll(code);
+                foreach (var obj in objects)
+                {
+                    foreach (var token in obj.GetSemanticTokens(_repl.Host))
+                    {
+                        var start = Converters.PositionFromSourcePosition(token.Start);
+                        var end = Converters.PositionFromSourcePosition(token.End);
+                        var startIndex = start.GetIndex(code);
+                        var endIndex = end.GetIndex(code);
+                        var length = endIndex - startIndex;
+                        builder.AddToken(start.Line, start.Character, (uint)length, token.Type.AsTokenTypeString());
+                    }
+                }
+
+                var result = builder.Build();
+                return result;
+            }
+
+            return null;
+        }
     }
 }

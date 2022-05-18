@@ -84,5 +84,12 @@ namespace IxMilia.Lisp.LanguageServer.Test
             Assert.Equal(123, result.ProcessId);
             Assert.Empty(result.WorkspaceFolders);
         }
+
+        [Fact]
+        public void ParseSemanticTokensParams()
+        {
+            var result = DeserializeObject<SemanticTokensParams>(@"{""textDocument"":{""uri"":""some-text-document""}}");
+            Assert.Equal("some-text-document", result.TextDocument.Uri);
+        }
     }
 }

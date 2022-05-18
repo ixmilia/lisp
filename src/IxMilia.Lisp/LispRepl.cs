@@ -99,6 +99,27 @@ namespace IxMilia.Lisp
             return parseResult;
         }
 
+        public IEnumerable<LispObject> ParseAll(string code)
+        {
+            var eofValue = new LispError("EOF");
+            var textReader = new StringReader(code);
+            var textStream = new LispTextStream("", textReader, TextWriter.Null);
+            Host.ObjectReader.SetReaderStream(textStream);
+            while (true)
+            {
+                var oldAllow = Host.ObjectReader.AllowIncompleteObjects;
+                Host.ObjectReader.AllowIncompleteObjects = true;
+                var result = Host.ObjectReader.Read(false, eofValue, true);
+                Host.ObjectReader.AllowIncompleteObjects = oldAllow;
+                if (ReferenceEquals(result.LastResult, eofValue))
+                {
+                    break;
+                }
+
+                yield return result.LastResult;
+            }
+        }
+
         public LispObject GetValue(string name) => Host.GetValue(name);
 
         public TObject GetValue<TObject>(string name) where TObject : LispObject => Host.GetValue<TObject>(name);

@@ -11,7 +11,8 @@
     "onLanguage:lisp"
   ],
   "extensionDependencies": [
-    "ms-dotnettools.vscode-dotnet-runtime"
+    "ms-dotnettools.vscode-dotnet-runtime",
+    "mattn.Lisp"
   ],
   "scripts": {
     "compile": "tsc -p ./",

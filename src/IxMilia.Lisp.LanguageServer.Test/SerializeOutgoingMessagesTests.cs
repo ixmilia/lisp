@@ -41,7 +41,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
         {
             var obj = new InitializeResult(TextDocumentSyncKind.Full);
             var json = SerializeObject(obj);
-            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":1},""completionProvider"":{""triggerCharacters"":["" "",""("","":""]},""hoverProvider"":true}}", json);
+            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":1},""completionProvider"":{""triggerCharacters"":["" "",""("","":""]},""hoverProvider"":true,""semanticTokensProvider"":{""legend"":{""tokenTypes"":[""type"",""class"",""enum"",""interface"",""struct"",""typeParameter"",""parameter"",""variable"",""property"",""enumMember"",""event"",""function"",""method"",""macro"",""keyword"",""modifier"",""comment"",""string"",""number"",""regexp"",""operator""],""tokenModifiers"":[""declaration""]},""full"":true}}}", json);
         }
 
         [Fact]
@@ -49,7 +49,15 @@ namespace IxMilia.Lisp.LanguageServer.Test
         {
             var obj = new InitializeResult(TextDocumentSyncKind.Incremental);
             var json = SerializeObject(obj);
-            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":2},""completionProvider"":{""triggerCharacters"":["" "",""("","":""]},""hoverProvider"":true}}", json);
+            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":2},""completionProvider"":{""triggerCharacters"":["" "",""("","":""]},""hoverProvider"":true,""semanticTokensProvider"":{""legend"":{""tokenTypes"":[""type"",""class"",""enum"",""interface"",""struct"",""typeParameter"",""parameter"",""variable"",""property"",""enumMember"",""event"",""function"",""method"",""macro"",""keyword"",""modifier"",""comment"",""string"",""number"",""regexp"",""operator""],""tokenModifiers"":[""declaration""]},""full"":true}}}", json);
+        }
+
+        [Fact]
+        public void SerializeSemanticTokens()
+        {
+            var obj = new SemanticTokens() { Data = new uint[] { 0, 1, 2, 3, 4 } };
+            var json = SerializeObject(obj);
+            Assert.Equal(@"{""data"":[0,1,2,3,4]}", json);
         }
     }
 }

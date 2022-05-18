@@ -117,5 +117,28 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var hover = server.TextDocumentHover(new HoverParams(new TextDocumentIdentifier("file:///some-uri"), new Position(0, 3)));
             Assert.Contains("(DEFMACRO DEFMACRO (...) ...)", hover.Contents.Value);
         }
+
+        [Fact]
+        public void SemanticTokenEncoding()
+        {
+            var server = GetServerWithFileContent("file:///some-uri", " 42 \"abc\" ");
+            var tokens = server.TextDocumentSemanticTokensFull(new SemanticTokensParams() { TextDocument = new TextDocumentIdentifier("file:///some-uri") });
+            var expected = new uint[]
+            {
+                // 42
+                0, // line offset
+                1, // character offset
+                2, // length
+                18, // token type (number)
+                0, // token modifiers
+                // "abc"
+                0, // line offset
+                3, // character offset
+                5, // length
+                17, // token type (string)
+                0, // token modifiers
+            };
+            Assert.Equal(expected, tokens.Data);
+        }
     }
 }

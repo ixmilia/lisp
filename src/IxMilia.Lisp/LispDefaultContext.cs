@@ -76,21 +76,29 @@ namespace IxMilia.Lisp
         {
             codeMacro = default;
 
-            // TODO: validate arg types and count
-            var macroNameSymbol = ((LispSymbol)items[0]).Resolve(currentPackage);
-            var macroArgs = ((LispList)items[1]).ToList();
-            if (!LispArgumentCollection.TryBuildArgumentCollection(macroArgs.ToArray(), out var argumentCollection, out error))
+            if (items.Length >= 2 &&
+                items[0] is LispSymbol symbol &&
+                items[1] is LispList arguments)
             {
-                return false;
+                var macroNameSymbol = symbol.Resolve(currentPackage);
+                var macroArgs = arguments.ToList();
+                if (!LispArgumentCollection.TryBuildArgumentCollection(macroArgs.ToArray(), out var argumentCollection, out error))
+                {
+                    return false;
+                }
+
+                ExtractDocumentationString(items.Skip(2), out var macroBody, out var documentation);
+                codeMacro = new LispCodeMacro(macroNameSymbol, documentation, argumentCollection, macroBody)
+                {
+                    SourceLocation = macroNameSymbol.SourceLocation,
+                };
+
+                return true;
             }
 
-            ExtractDocumentationString(items.Skip(2), out var macroBody, out var documentation);
-            codeMacro = new LispCodeMacro(macroNameSymbol, documentation, argumentCollection, macroBody)
-            {
-                SourceLocation = macroNameSymbol.SourceLocation,
-            };
-
-            return true;
+            codeMacro = default;
+            error = default;
+            return false;
         }
 
         [LispMacro("DEFUN")]
@@ -110,18 +118,26 @@ namespace IxMilia.Lisp
         {
             codeFunction = default;
 
-            // TODO: properly validate types and arg counts
-            var name = ((LispSymbol)items[0]).Resolve(currentPackage).Value;
-            var argumentList = ((LispList)items[1]).ToList();
-            if (!LispArgumentCollection.TryBuildArgumentCollection(argumentList.ToArray(), out var argumentCollection, out error))
+            if (items.Length >= 2 &&
+                items[0] is LispSymbol symbol &&
+                items[1] is LispList arguments)
             {
-                return false;
+                var name = symbol.Resolve(currentPackage).Value;
+                var argumentList = arguments.ToList();
+                if (!LispArgumentCollection.TryBuildArgumentCollection(argumentList.ToArray(), out var argumentCollection, out error))
+                {
+                    return false;
+                }
+
+                ExtractDocumentationString(items.Skip(2), out var commands, out var documentation);
+                var nameSymbol = LispSymbol.CreateFromString(name).Resolve(currentPackage);
+                codeFunction = new LispCodeFunction(nameSymbol, documentation, argumentCollection, commands);
+                return true;
             }
 
-            ExtractDocumentationString(items.Skip(2), out var commands, out var documentation);
-            var nameSymbol = LispSymbol.CreateFromString(name).Resolve(currentPackage);
-            codeFunction = new LispCodeFunction(nameSymbol, documentation, argumentCollection, commands);
-            return true;
+            codeFunction = default;
+            error = default;
+            return false;
         }
 
         internal static void ExtractDocumentationString(IEnumerable<LispObject> bodyObjects, out IEnumerable<LispObject> resultBody, out string documentation)
