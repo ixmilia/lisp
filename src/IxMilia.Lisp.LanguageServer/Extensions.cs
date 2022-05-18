@@ -13,6 +13,7 @@ namespace IxMilia.Lisp.LanguageServer
                 LispTokenType.Function => SemanticTokenTypes.Function,
                 LispTokenType.Macro => SemanticTokenTypes.Macro,
                 LispTokenType.Number => SemanticTokenTypes.Number,
+                LispTokenType.Package => SemanticTokenTypes.Type,
                 LispTokenType.Parameter => SemanticTokenTypes.Parameter,
                 LispTokenType.String => SemanticTokenTypes.String,
                 LispTokenType.Variable => SemanticTokenTypes.Variable,

@@ -6,6 +6,7 @@
         Function,
         Macro,
         Number,
+        Package,
         Parameter,
         String,
         Variable,

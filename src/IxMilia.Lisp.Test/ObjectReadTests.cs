@@ -547,5 +547,19 @@ namespace IxMilia.Lisp.Test
             };
             Assert.Equal(expected, tokens);
         }
+
+        [Fact]
+        public void FullyQualifiedSymbolTokens()
+        {
+            var code = "kernel:+/2";
+            //          1234567890
+            var tokens = ReadTokens(code);
+            var expected = new[]
+            {
+                new LispToken(LispTokenType.Package, new LispSourcePosition(1, 1), new LispSourcePosition(1, 7)), // `kernel`
+                new LispToken(LispTokenType.Function, new LispSourcePosition(1, 8), new LispSourcePosition(1, 11)), // `+/2`
+            };
+            Assert.Equal(expected, tokens);
+        }
     }
 }

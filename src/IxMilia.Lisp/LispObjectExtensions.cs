@@ -149,17 +149,36 @@ namespace IxMilia.Lisp
                 case LispString _:
                     tokens.Add(new LispToken(LispTokenType.String, start, end));
                     break;
-                case LispSymbol s:
-                    var resolvedSymbol = s.Resolve(host.CurrentPackage);
-                    var resolvedValue = host.RootFrame.GetValue(resolvedSymbol);
-                    switch (resolvedValue)
+                case LispUnresolvedSymbol us:
                     {
-                        case LispFunction _:
-                            tokens.Add(new LispToken(LispTokenType.Function, start, end));
-                            break;
-                        case LispMacro _:
-                            tokens.Add(new LispToken(LispTokenType.Macro, start, end));
-                            break;
+                        var resolvedSymbol = us.Resolve(host.CurrentPackage);
+                        var resolvedValue = host.RootFrame.GetValue(resolvedSymbol);
+                        switch (resolvedValue)
+                        {
+                            case LispFunction _:
+                                tokens.Add(new LispToken(LispTokenType.Function, start, end));
+                                break;
+                            case LispMacro _:
+                                tokens.Add(new LispToken(LispTokenType.Macro, start, end));
+                                break;
+                        }
+                    }
+                    break;
+                case LispResolvedSymbol rs:
+                    {
+                        var packageEnd = new LispSourcePosition(start.Line, start.Column + rs.PackageName.Length);
+                        var symbolStart = new LispSourcePosition(end.Line, end.Column - rs.LocalName.Length);
+                        tokens.Add(new LispToken(LispTokenType.Package, start, packageEnd));
+                        var resolvedValue = host.RootFrame.GetValue(rs);
+                        switch (resolvedValue)
+                        {
+                            case LispFunction _:
+                                tokens.Add(new LispToken(LispTokenType.Function, symbolStart, end));
+                                break;
+                            case LispMacro _:
+                                tokens.Add(new LispToken(LispTokenType.Macro, symbolStart, end));
+                                break;
+                        }
                     }
                     break;
             }
