@@ -1,5 +1,8 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
+using System.Reactive.Subjects;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.DotNet.Interactive;
@@ -66,6 +69,15 @@ namespace IxMilia.Lisp.Interactive
 
         public Task HandleAsync(SubmitCode command, KernelInvocationContext context)
         {
+            var writer = new ListeningTextWriter();
+            using var subscription = writer.LineWritten.Subscribe(line =>
+            {
+                var formatted = new FormattedValue("text/plain", line);
+                context.Publish(new StandardOutputValueProduced(command, new[] { formatted }));
+            });
+            var consoleStream = new LispTextStream("", TextReader.Null, writer);
+            _repl.Host.SetValue("*TERMINAL-IO*", consoleStream);
+
             var result = _repl.Eval(command.Code, consumeIncompleteInput: false);
             switch (result.ExecutionState.LastResult)
             {
@@ -106,6 +118,29 @@ namespace IxMilia.Lisp.Interactive
             }
 
             return Task.CompletedTask;
+        }
+
+        private class ListeningTextWriter : TextWriter
+        {
+            private StringBuilder _sb = new StringBuilder();
+
+            public Subject<string> LineWritten { get; } = new Subject<string>();
+            public override Encoding Encoding => Encoding.UTF8;
+
+            public override void Write(char value)
+            {
+                _sb.Append(value);
+                if (value == '\n')
+                {
+                    Flush();
+                }
+            }
+
+            public override void Flush()
+            {
+                LineWritten.OnNext(_sb.ToString());
+                _sb.Clear();
+            }
         }
     }
 }

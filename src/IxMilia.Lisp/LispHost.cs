@@ -24,9 +24,9 @@ namespace IxMilia.Lisp
 
         internal LispObjectReader ObjectReader => _objectReader;
         public bool UseTailCalls { get; }
-        public LispObject T { get; }
-        public LispObject Nil { get; }
-        public LispTextStream TerminalIO { get; }
+        public LispObject T => RootFrame.T;
+        public LispObject Nil => RootFrame.Nil;
+        public LispTextStream TerminalIO => RootFrame.TerminalIO;
         public LispPackage CurrentPackage
         {
             get => _currentPackage;
@@ -50,9 +50,6 @@ namespace IxMilia.Lisp
             var commonLispPackage = RootFrame.GetPackage(LispRootStackFrame.CommonLispPackageName);
             CurrentPackage = commonLispPackage;
             UseTailCalls = useTailCalls;
-            T = RootFrame.T;
-            Nil = RootFrame.Nil;
-            TerminalIO = RootFrame.TerminalIO;
             AddContextObject(new LispSpecialOperatorsContext());
             AddContextObject(new LispDefaultContext());
 
