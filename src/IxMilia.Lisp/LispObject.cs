@@ -72,6 +72,7 @@ namespace IxMilia.Lisp
                 // these get no replacement
                 case LispError _:
                 case LispNumber _:
+                case LispCharacter _:
                 case LispString _:
                 case LispNativeMacro _:
                 case LispNativeFunction _:

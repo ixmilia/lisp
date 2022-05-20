@@ -48,6 +48,21 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public void BackQuotedWithCommaImmediate()
+        {
+            var host = new LispHost();
+            Assert.Equal(new LispInteger(3), host.Eval("`,(+ 1 2)").LastResult);
+        }
+
+
+        [Fact]
+        public void BackQuotedWithCommaNested()
+        {
+            var host = new LispHost();
+            Assert.Equal(LispList.FromItems(new LispInteger(1), new LispInteger(5)), host.Eval("`(1 ,(+ 2 3))").LastResult);
+        }
+
+        [Fact]
         public void Variables()
         {
             var host = new LispHost();
