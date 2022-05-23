@@ -3,19 +3,11 @@
 (setf *double-quote-character*      (code-char 34)) ; "
 (setf *hash-character*              (code-char 35)) ; #
 (setf *single-quote-character*      (code-char 39)) ; '
-(setf *left-paren-character*        (code-char 40)) ; (
-(setf *right-paren-character*       (code-char 41)) ; )
 (setf *digit-zero-character*        (code-char 48)) ; 0
 (setf *digit-nine-character*        (code-char 57)) ; 9
 (setf *upper-case-c*                (code-char 67)) ; C
 (setf *backslash-character*         (code-char 92)) ; \
 (setf *lower-case-c*                (code-char 99)) ; c
-
-;; whitespace
-(setf *space-character*             (code-char 32)) ; space
-(setf *newline-character*           (code-char 10)) ; newline
-(setf *tab-character*               (code-char 9))  ; tab
-(setf *carriage-return-character*   (code-char 13)) ; carriage return
 
 ;; read double-quoted strings
 (defun build-double-quoted-string (stream output-stream)
@@ -76,33 +68,32 @@
 
 ;;; from here on forward we can do things like `'some-symbol`, `'(1 2 3)`, etc.
 
-(defun peek-char-swallow-whitespace (stream error-eof-p eof-value recursive-p)
-    "Swallow whitespace characters from `STREAM` and return the next character."
-    (let ((next-char (peek-char nil stream error-eof-p eof-value recursive-p)))
-        (cond
-            ((or (char= next-char *space-character*)
-                 (char= next-char *newline-character*)
-                 (char= next-char *tab-character*)
-                 (char= next-char *carriage-return-character*)) (progn (read-char stream error-eof-p eof-value recursive-p) ; swallow it
-                                                                       (peek-char-swallow-whitespace stream error-eof-p eof-value recursive-p)))
-            (t                                                  next-char))))
-
-(defun back-quote-list-reader (stream items)
-    (let ((next-char (peek-char-swallow-whitespace stream t nil t)))
-        (cond
-            ((char= next-char *right-paren-character*)  (progn (read-char stream t nil t)       ; swallow close paren
-                                                               (cons 'list (reverse items))))   ; return list
-            (t                                          (back-quote-list-reader stream (cons (back-quote-item-reader stream) items))))))
-(defun back-quote-item-reader (stream)
-    (let ((next-char (peek-char-swallow-whitespace stream t nil t)))
-        (cond
-            ((char= next-char #\,)                      (progn (read-char stream t nil t)           ; swallow comma
-                                                               (read stream t nil t)))              ; read item as normal
-            ((char= next-char *left-paren-character*)   (progn (read-char stream t nil t)           ; swallow open paren
-                                                               (back-quote-list-reader stream ()))) ; read list
-            (t                                          (list 'quote (read stream t nil t))))))     ; quote a regular item
+(defun back-quote-list-handler (items)
+    (cond
+        ((eq nil items)                                 nil) ; special case, end of list
+        ((and (symbolp (car items))
+              (equal (symbol-name (car items)) ","))    ;; skip comma, include bare next item, keep processing remainder
+                                                        (list 'cons
+                                                              (car (cdr items))
+                                                              (back-quote-list-handler (cdr (cdr items)))))
+        ((listp (car items))                            ;; recurse into sublist
+                                                        (list 'cons
+                                                              (back-quote-list-handler (car items))
+                                                              (back-quote-list-handler (cdr items))))
+        (t                                              ;; quote item and move on
+                                                        (list 'cons
+                                                              (list 'quote (car items))
+                                                              (back-quote-list-handler (cdr items))))))
+(defun back-quote-item-handler (item)
+    (cond
+        ((listp item)                                   (back-quote-list-handler item))
+        (t                                              (list 'quote item))))
 (defun back-quote-reader (stream char)
-    (back-quote-item-reader stream))
+    (let ((next-char (peek-char nil stream t nil t)))
+        (cond
+            ((char= next-char #\,)                      (progn (read-char stream t nil t)   ; swallow comma
+                                                               (read stream t nil t)))      ; read item as normal
+            (t                                          (back-quote-item-handler (read stream t nil t))))))
 (set-macro-character #\` #'back-quote-reader)
 
 ;;; from here on forward we can do things like ``(1 ,(+ 2 3))`, etc.

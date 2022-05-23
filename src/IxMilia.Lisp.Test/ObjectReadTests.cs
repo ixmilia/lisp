@@ -407,6 +407,19 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(new LispInteger(500), evalResult.LastResult);
         }
 
+        [Theory]
+        [InlineData("`(1 ,(+ 2 3) (b))", "(CONS (QUOTE 1) (CONS (+ 2 3) (CONS (CONS (QUOTE B) ()) ())))")]
+        [InlineData("`,(+ 1 2)", "(+ 1 2)")]
+        [InlineData("`a", "(QUOTE A)")]
+        public void BackQuoteRead(string code, string expected)
+        {
+            var host = new LispHost();
+            var input = new LispTextStream("", new StringReader(code), TextWriter.Null);
+            host.ObjectReader.SetReaderStream(input);
+            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            Assert.Equal(expected, result.LastResult.ToString());
+        }
+
         [Fact]
         public void PeekCharPeekTypeIsNotGiven()
         {

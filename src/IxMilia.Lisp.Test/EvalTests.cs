@@ -47,19 +47,16 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("(QUOTE A)", host.Eval("(eval '''a)").LastResult.ToString());
         }
 
-        [Fact]
-        public void BackQuotedWithCommaImmediate()
+        [Theory]
+        [InlineData("`(1 ,(+ 2 3) (b))", "(1 5 (B))")]
+        [InlineData("`,(+ 1 2)", "3")]
+        [InlineData("`a", "A")]
+        public void BackQuoteEval(string code, string expected)
         {
             var host = new LispHost();
-            Assert.Equal(new LispInteger(3), host.Eval("`,(+ 1 2)").LastResult);
-        }
-
-
-        [Fact]
-        public void BackQuotedWithCommaNested()
-        {
-            var host = new LispHost();
-            Assert.Equal(LispList.FromItems(new LispInteger(1), new LispInteger(5)), host.Eval("`(1 ,(+ 2 3))").LastResult);
+            var evalResult = host.Eval(code);
+            Assert.Null(evalResult.ReadError);
+            Assert.Equal(expected, evalResult.LastResult.ToString());
         }
 
         [Fact]

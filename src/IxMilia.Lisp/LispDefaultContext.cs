@@ -1024,6 +1024,18 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("SYMBOL-NAME")]
+        public LispObject SymbolName(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 1 &&
+                args[0] is LispSymbol symbol)
+            {
+                return new LispString(symbol.LocalName);
+            }
+
+            return new LispError("Expected exactly 1 symbol.");
+        }
+
         [LispFunction("ZEROP")]
         public LispObject ZeroP(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
