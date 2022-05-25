@@ -3,6 +3,7 @@
 (setf *double-quote-character*      (code-char 34)) ; "
 (setf *hash-character*              (code-char 35)) ; #
 (setf *single-quote-character*      (code-char 39)) ; '
+(setf *left-paren-character*        (code-char 40)) ; (
 (setf *digit-zero-character*        (code-char 48)) ; 0
 (setf *digit-nine-character*        (code-char 57)) ; 9
 (setf *upper-case-c*                (code-char 67)) ; C
@@ -43,9 +44,12 @@
                                                                    ; TODO: handle `#\SPACE`, etc.
               ;; prepare reader for:
               ;;   #'some-function-reference
-              ;;   #(lambda ...)
+              ;;   #'(lambda ...)
               ((char= next-char *single-quote-character*)   (progn (read-char stream t nil t) ; swallow single quote (code 39 = ')
                                                                    (process-function-reference (read stream t nil t))))
+              ;; prepare reader for:
+              ;;   #(1 2 3)
+              ((char= next-char *left-paren-character*)     (apply (function vector) (read stream t nil t)))
               ;; prepare reader for:
               ;;   #C(1 2)
               ((or (char= next-char *upper-case-c*)
@@ -57,7 +61,7 @@
                     (<= (char-code next-char) (char-code *digit-nine-character*)))
                                                             (kernel:process-list-forward-reference)) ; `kernel:process-list-forward-reference` is defined internally
               ;; not a supported character
-              (t                                            (error "Expected back slash, single quote, 'c', or digit")))))
+              (t                                            (error "Expected back slash, single quote, '(', 'c', or digit")))))
 (set-macro-character *hash-character* (function single-hash-reader)) ; code 35 = #
 
 ;;; from here on forward we can do things like `#\X`, `#'function-ref`, etc.

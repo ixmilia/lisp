@@ -88,6 +88,7 @@ namespace IxMilia.Lisp
                                 case LispNumber _:
                                 case LispCharacter _:
                                 case LispString _:
+                                case LispVector _:
                                 case LispLambdaListKeyword _:
                                 case LispCodeFunction _:
                                 case LispQuotedNamedFunctionReference _:

@@ -105,5 +105,39 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(Tuple.Create("KEYWORD", "SOME-SYMBOL", true), LispSymbol.SplitPackageAndSymbolName(":SOME-SYMBOL"));
             Assert.Equal(Tuple.Create("KEYWORD", "SOME-SYMBOL", false), LispSymbol.SplitPackageAndSymbolName("::SOME-SYMBOL"));
         }
+
+        [Theory]
+        [InlineData("#(1 2 3)", false, 3, 3, "#(1 2 3)")]
+        [InlineData("(vector 1 2 3)", false, 3, 3, "#(1 2 3)")]
+        [InlineData("(make-array 3)", false, 3, 3, "#(() () ())")]
+        [InlineData("(make-array '(3))", false, 3, 3, "#(() () ())")]
+        [InlineData("(make-array 3 :initial-element 42)", false, 3, 3, "#(42 42 42)")]
+        [InlineData("(make-array 3 :fill-pointer 1)", false, 1, 1, "#(())")]
+        [InlineData("(make-array 3 :fill-pointer 1 :adjustable t)", true, 1, 3, "#(())")]
+        public void VectorProperties(string code, bool isAdjustable, int count, int size, string display)
+        {
+            var host = new LispHost();
+            var evalResult = host.Eval(code);
+            Assert.Null(evalResult.ReadError);
+            Assert.IsType<LispVector>(evalResult.LastResult);
+            var vector = (LispVector)evalResult.LastResult;
+            Assert.Equal(isAdjustable, vector.IsAdjustable);
+            Assert.Equal(count, vector.Count);
+            Assert.Equal(size, vector.Size);
+            Assert.Equal(display, vector.ToString());
+        }
+
+        [Theory]
+        [InlineData("(elt (vector 1 2 3) 1)", "2")] // get vector
+        [InlineData("(elt '(1 2 3) 1)", "2")] // get list
+        [InlineData("(setf v (vector 1 2 3))\n(setf (elt v 1) 42)\nv", "#(1 42 3)")] // set vector
+        [InlineData("(setf l '(1 2 3))\n(setf (elt l 1) 42)\nl", "(1 42 3)")] // set list
+        public void SequenceElement(string code, string expected)
+        {
+            var host = new LispHost();
+            var evalResult = host.Eval(code);
+            Assert.Null(evalResult.ReadError);
+            Assert.Equal(expected, evalResult.LastResult.ToString());
+        }
     }
 }

@@ -970,6 +970,85 @@ namespace IxMilia.Lisp
             return LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), last);
         }
 
+        [LispFunction("VECTOR")]
+        public LispObject Vector(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            return LispVector.CreateFixed(args);
+        }
+
+        [LispFunction("VECTOR-POP")]
+        public LispObject VectorPop(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 1 &&
+                args[0] is LispVector vector)
+            {
+                vector.TryPop(out var result);
+                return result;
+            }
+
+            return new LispError("Expected a vector");
+        }
+
+        [LispFunction("VECTOR-PUSH")]
+        public LispObject VectorPush(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 2 &&
+                args[0] is LispObject value &&
+                args[1] is LispVector vector)
+            {
+                var previousCount = vector.Count;
+                if (vector.TryAdd(value, out var error))
+                {
+                    return new LispInteger(previousCount);
+                }
+
+                return error;
+            }
+
+            return new LispError("Expected value and vector");
+        }
+
+        [LispFunction("MAKE-ARRAY")]
+        public LispObject MakeArray(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 0)
+            {
+                return new LispError("Expected array dimensions");
+            }
+
+            int size;
+            switch (args[0])
+            {
+                case LispInteger i:
+                    size = i.Value;
+                    break;
+                case LispList l when l.Value is LispInteger i:
+                    // TODO: multidimensional arrays
+                    size = i.Value;
+                    break;
+                default:
+                    return new LispError("Expected array dimensions");
+            }
+            
+            var initialElement = GetKeywordArgument(args.Skip(1), ":INITIAL-ELEMENT");
+            var isAdjustable = GetKeywordArgument(args.Skip(1), ":ADJUSTABLE").IsTLike();
+            var count = size;
+            if (GetKeywordArgument(args.Skip(1), ":FILL-POINTER") is LispInteger fillPointer)
+            {
+                count = fillPointer.Value;
+            }
+
+            var items = new LispObject[count];
+            for (int i = 0; i < count; i++)
+            {
+                items[i] = initialElement;
+            }
+
+            return isAdjustable
+                ? LispVector.CreateAdjustable(size, items)
+                : LispVector.CreateFixed(items);
+        }
+
         [LispFunction("NUMBERP")]
         public LispObject NumberP(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
@@ -1161,15 +1240,50 @@ namespace IxMilia.Lisp
         [LispFunction("LENGTH")]
         public LispObject Length(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
-            // TODO: validate single argument
-            if (args[0] is LispList list)
+            if (args.Length == 1)
             {
-                return new LispInteger(list.Length);
+                switch (args[0])
+                {
+                    case LispList list:
+                        return new LispInteger(list.Length);
+                    case LispVector vector:
+                        return new LispInteger(vector.Count);
+                }
             }
-            else
+
+            return new LispError("Expected a single sequence");
+        }
+
+        [LispFunction("ELT")]
+        public LispObject Elt(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            if (args.Length == 2 &&
+                args[1] is LispInteger indexValue)
             {
-                return new LispError("Expected a list");
+                var index = indexValue.Value;
+                switch (args[0])
+                {
+                    case LispList list when index < list.Length:
+                        {
+                            var result = list;
+                            for (int i = 0; i < index; i++)
+                            {
+                                result = (LispList)result.Next;
+                            }
+
+                            result.Value.SetPointerValue = (value) => result.Value = value;
+                            return result.Value;
+                        }
+                    case LispVector vector when index < vector.Count:
+                        {
+                            var result = vector[index];
+                            result.SetPointerValue = (value) => vector[index] = value;
+                            return result;
+                        }
+                }
             }
+
+            return new LispError("Expected a sequence and an index");
         }
 
         [LispFunction("CAR")]

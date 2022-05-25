@@ -1203,6 +1203,101 @@ namespace IxMilia.Lisp
         }
     }
 
+    public class LispVector : LispObject
+    {
+        private List<LispObject> _items;
+
+        public bool IsAdjustable { get; }
+        public int Size { get; }
+        public int Count => _items.Count;
+
+        private LispVector(int size, bool isAdjustable, IEnumerable<LispObject> items)
+        {
+            Size = size;
+            IsAdjustable = isAdjustable;
+            _items = items.ToList();
+        }
+
+        public LispObject this[int index]
+        {
+            get => _items[index];
+            internal set => _items[index] = value;
+        }
+
+        public bool TryAdd(LispObject value, out LispError error)
+        {
+            if (!IsAdjustable)
+            {
+                error = new LispError("Vector is not adjustable");
+                return false;
+            }
+
+            if (_items.Count >= Size)
+            {
+                error = new LispError("Vector is full");
+                return false;
+            }
+
+            error = default;
+            _items.Add(value);
+            return true;
+        }
+
+        public bool TryPop(out LispObject value)
+        {
+            if (!IsAdjustable)
+            {
+                value = new LispError("Vector is not adjustable");
+                return false;
+            }
+
+            if (Count == 0)
+            {
+                value = new LispError("Vector is empty");
+                return false;
+            }
+
+            value = _items[_items.Count - 1];
+            _items.RemoveAt(_items.Count - 1);
+            return true;
+        }
+
+        public static LispVector CreateFixed(IEnumerable<LispObject> items)
+        {
+            return new LispVector(items.Count(), false, items);
+        }
+
+        public static LispVector CreateAdjustable(int size, IEnumerable<LispObject> items)
+        {
+            if (size < items.Count())
+            {
+                throw new ArgumentException(nameof(size), "Maximum size cannot be less than the number of items.");
+            }
+
+            return new LispVector(size, true, items);
+        }
+
+        protected override LispObject CloneProtected()
+        {
+            return new LispVector(Size, IsAdjustable, _items);
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+
+        public override string ToString()
+        {
+            return $"#({string.Join(" ", _items.Select(i => i.ToString()))})";
+        }
+
+        public override string ToDisplayString(LispPackage currentPackage)
+        {
+            return $"#({string.Join(" ", _items.Select(i => i.ToDisplayString(currentPackage)))})";
+        }
+    }
+
     public class LispList : LispObject
     {
         public virtual LispObject Value { get; internal set; }
@@ -1565,9 +1660,19 @@ namespace IxMilia.Lisp
             return "()";
         }
 
+        public override string ToDisplayString(LispPackage currentPackage)
+        {
+            return ToString();
+        }
+
         protected override string ToStringTail()
         {
             return ")";
+        }
+
+        protected override string ToDisplayStringTail(LispPackage currentPackage)
+        {
+            return ToStringTail();
         }
 
         internal static LispNilList CreateForParser()

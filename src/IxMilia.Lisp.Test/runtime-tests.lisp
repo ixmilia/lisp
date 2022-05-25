@@ -101,6 +101,8 @@
 
 (defun list-helpers ()
     (setq l '(4 5 6))
+    (setq v #(4 5 6))
+    (assert-eql 3 (length v) "vector length")
     (assert-eql 3 (length l) "list length")
     (assert-eql 4 (first l) "list first")
     (assert-eql 5 (second l) "list second")
