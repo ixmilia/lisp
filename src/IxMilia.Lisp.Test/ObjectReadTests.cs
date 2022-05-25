@@ -408,16 +408,14 @@ namespace IxMilia.Lisp.Test
         }
 
         [Theory]
-        [InlineData("`(1 ,(+ 2 3) (b))", "(CONS (QUOTE 1) (CONS (+ 2 3) (CONS (CONS (QUOTE B) ()) ())))")]
-        [InlineData("`,(+ 1 2)", "(+ 1 2)")]
+        [InlineData("`(1 ,(+ 2 3) (b))", "(CONS (QUOTE 1) (CONS (QUOTE 5) (CONS (CONS (QUOTE B) ()) ())))")]
+        [InlineData("`,(+ 1 2)", "(QUOTE 3)")]
+        [InlineData("`#(1 2 ,(+ 1 2) ,#(4))", "(QUOTE #(1 2 3 #(4)))")]
         [InlineData("`a", "(QUOTE A)")]
         public void BackQuoteRead(string code, string expected)
         {
-            var host = new LispHost();
-            var input = new LispTextStream("", new StringReader(code), TextWriter.Null);
-            host.ObjectReader.SetReaderStream(input);
-            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
-            Assert.Equal(expected, result.LastResult.ToString());
+            var result = Read(code);
+            Assert.Equal(expected, result.ToString());
         }
 
         [Fact]

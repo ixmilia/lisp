@@ -50,6 +50,7 @@ namespace IxMilia.Lisp.Test
         [Theory]
         [InlineData("`(1 ,(+ 2 3) (b))", "(1 5 (B))")]
         [InlineData("`,(+ 1 2)", "3")]
+        [InlineData("`#(1 2 ,(+ 1 2) ,#(4))", "#(1 2 3 #(4))")]
         [InlineData("`a", "A")]
         public void BackQuoteEval(string code, string expected)
         {

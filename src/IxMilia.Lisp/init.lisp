@@ -74,12 +74,8 @@
 
 (defun back-quote-list-handler (items)
     (cond
-        ((eq nil items)                                 nil) ; special case, end of list
-        ((and (symbolp (car items))
-              (equal (symbol-name (car items)) ","))    ;; skip comma, include bare next item, keep processing remainder
-                                                        (list 'cons
-                                                              (car (cdr items))
-                                                              (back-quote-list-handler (cdr (cdr items)))))
+        ((eq nil items)                                 ;; special case, end of list
+                                                        nil)
         ((listp (car items))                            ;; recurse into sublist
                                                         (list 'cons
                                                               (back-quote-list-handler (car items))
@@ -88,16 +84,14 @@
                                                         (list 'cons
                                                               (list 'quote (car items))
                                                               (back-quote-list-handler (cdr items))))))
-(defun back-quote-item-handler (item)
-    (cond
-        ((listp item)                                   (back-quote-list-handler item))
-        (t                                              (list 'quote item))))
+(defun back-quote-comma-reader (stream char)
+    (eval (read stream t nil t)))
 (defun back-quote-reader (stream char)
-    (let ((next-char (peek-char nil stream t nil t)))
+    (let ((item (read stream t nil t)))
         (cond
-            ((char= next-char #\,)                      (progn (read-char stream t nil t)   ; swallow comma
-                                                               (read stream t nil t)))      ; read item as normal
-            (t                                          (back-quote-item-handler (read stream t nil t))))))
+            ((listp item)                                   (back-quote-list-handler item))
+            (t                                              (list 'quote item)))))
+(set-macro-character #\, #'back-quote-comma-reader)
 (set-macro-character #\` #'back-quote-reader)
 
 ;;; from here on forward we can do things like ``(1 ,(+ 2 3))`, etc.
