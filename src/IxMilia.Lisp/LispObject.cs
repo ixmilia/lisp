@@ -1684,21 +1684,20 @@ namespace IxMilia.Lisp
     public abstract class LispInvocableObject : LispObject
     {
         public LispResolvedSymbol NameSymbol { get; }
+        public string Documentation { get; }
 
-        protected LispInvocableObject(LispResolvedSymbol nameSymbol)
+        protected LispInvocableObject(LispResolvedSymbol nameSymbol, string documentation)
         {
             NameSymbol = nameSymbol;
+            Documentation = documentation;
         }
     }
 
     public abstract class LispFunction : LispInvocableObject
     {
-        public string Documentation { get; }
-
         public LispFunction(LispResolvedSymbol nameSymbol, string documentation)
-            : base(nameSymbol)
+            : base(nameSymbol, documentation)
         {
-            Documentation = documentation;
         }
     }
 
@@ -1766,11 +1765,13 @@ namespace IxMilia.Lisp
 
     public class LispNativeFunction : LispFunction
     {
+        public string Signature { get; }
         public LispFunctionDelegate Function { get; }
 
-        public LispNativeFunction(LispResolvedSymbol nameSymbol, string documentation, LispFunctionDelegate function)
+        public LispNativeFunction(LispResolvedSymbol nameSymbol, string documentation, string signature, LispFunctionDelegate function)
             : base(nameSymbol, documentation)
         {
+            Signature = signature;
             Function = function;
         }
 
@@ -1781,7 +1782,7 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispNativeFunction(NameSymbol, Documentation, Function);
+            return new LispNativeFunction(NameSymbol, Documentation, Signature, Function);
         }
 
         public override string ToString() => $"{NameSymbol.LocalName} <native>";
@@ -1845,11 +1846,13 @@ namespace IxMilia.Lisp
 
     public class LispSpecialOperator : LispInvocableObject
     {
+        public string Signature { get; }
         public LispSpecialOperatorDelegate Delegate { get; }
 
-        public LispSpecialOperator(LispResolvedSymbol nameSymbol, LispSpecialOperatorDelegate del)
-            : base(nameSymbol)
+        public LispSpecialOperator(LispResolvedSymbol nameSymbol, string documentation, string signature, LispSpecialOperatorDelegate del)
+            : base(nameSymbol, documentation)
         {
+            Signature = signature;
             Delegate = del;
         }
 
@@ -1860,7 +1863,7 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispSpecialOperator(NameSymbol, Delegate);
+            return new LispSpecialOperator(NameSymbol, Documentation, Signature, Delegate);
         }
 
         public override string ToString() => $"{NameSymbol.LocalName} <native-special-op>";
@@ -1870,12 +1873,9 @@ namespace IxMilia.Lisp
 
     public abstract class LispMacro : LispInvocableObject
     {
-        public string Documentation { get; }
-
         public LispMacro(LispResolvedSymbol nameSymbol, string documentation)
-            : base(nameSymbol)
+            : base(nameSymbol, documentation)
         {
-            Documentation = documentation;
         }
     }
 
@@ -1908,11 +1908,13 @@ namespace IxMilia.Lisp
 
     public class LispNativeMacro : LispMacro
     {
+        public string Signature { get; }
         public LispMacroDelegate Macro { get; }
 
-        public LispNativeMacro(LispResolvedSymbol nameSymbol, string documentation, LispMacroDelegate macro)
+        public LispNativeMacro(LispResolvedSymbol nameSymbol, string documentation, string signature, LispMacroDelegate macro)
             : base(nameSymbol, documentation)
         {
+            Signature = signature;
             Macro = macro;
         }
 
@@ -1923,7 +1925,7 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispNativeMacro(NameSymbol, Documentation, Macro);
+            return new LispNativeMacro(NameSymbol, Documentation, Signature, Macro);
         }
 
         public override string ToString() => $"{NameSymbol} <native>";

@@ -83,15 +83,15 @@ namespace IxMilia.Lisp
 ```
 
 {codeFunction.Documentation}".Trim();
-                case LispFunction function:
+                case LispNativeFunction nativeFunction:
                     return $@"
 ``` lisp
 ; <native function>
-; <in module {function.NameSymbol.PackageName}>
-(DEFUN {function.NameSymbol.ToDisplayString(host.CurrentPackage)} (...) ...)
+; <in module {nativeFunction.NameSymbol.PackageName}>
+(DEFUN {nativeFunction.NameSymbol.ToDisplayString(host.CurrentPackage)} ({nativeFunction.Signature}) ...)
 ```
 
-{function.Documentation}".Trim();
+{nativeFunction.Documentation}".Trim();
                 case LispCodeMacro codeMacro:
                     return $@"
 ``` lisp
@@ -100,15 +100,24 @@ namespace IxMilia.Lisp
 ```
 
 {codeMacro.Documentation}".Trim();
-                case LispMacro macro:
+                case LispNativeMacro nativeMacro:
                     return $@"
 ``` lisp
 ; <native macro>
-; <in module {macro.NameSymbol.PackageName}>
-(DEFMACRO {macro.NameSymbol.ToDisplayString(host.CurrentPackage)} (...) ...)
+; <in module {nativeMacro.NameSymbol.PackageName}>
+(DEFMACRO {nativeMacro.NameSymbol.ToDisplayString(host.CurrentPackage)} ({nativeMacro.Signature}) ...)
 ```
 
-{macro.Documentation}".Trim();
+{nativeMacro.Documentation}".Trim();
+                case LispSpecialOperator specialOperator:
+                    return $@"
+``` lisp
+; <special operator>
+; <in module {specialOperator.NameSymbol.PackageName}>
+(DEFSPECIAL {specialOperator.NameSymbol.ToDisplayString(host.CurrentPackage)} ({specialOperator.Signature}) ...)
+```
+
+{specialOperator.Documentation}".Trim();
                 case LispResolvedSymbol symbol:
                     // TODO: don't display current package qualifier
                     return $"`{symbol.Value}`: {host.GetValue(symbol.Value)}";

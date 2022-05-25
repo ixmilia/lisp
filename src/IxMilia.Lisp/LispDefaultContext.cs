@@ -7,7 +7,7 @@ namespace IxMilia.Lisp
 {
     public class LispDefaultContext
     {
-        [LispFunction("ERROR")]
+        [LispFunction("ERROR", Documentation = "Raise an error.")]
         public LispObject Error(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             if (args.Length >= 1)
@@ -60,7 +60,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected format string");
         }
 
-        [LispMacro("DEFMACRO")]
+        [LispMacro("DEFMACRO", Documentation = "Defines a macro.")]
         public LispObject DefineMacro(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             if (!TryGetCodeMacroFromItems(args, host.CurrentPackage, out var codeMacro, out var error))
@@ -101,7 +101,7 @@ namespace IxMilia.Lisp
             return false;
         }
 
-        [LispMacro("DEFUN")]
+        [LispMacro("DEFUN", Documentation = "Defines a function.")]
         public LispObject DefineFunction(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             if (!TryGetCodeFunctionFromItems(args, host.CurrentPackage, out var codeFunction, out var error))
@@ -388,7 +388,7 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        [LispFunction("APPLY")]
+        [LispFunction("APPLY", Signature = "FUNCTION-REFERENCE FUNCTION-ARGUMENTS", Documentation = "Applies a function to a list of arguments.")]
         public LispObject Apply(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             if (args.Length == 2 &&
@@ -976,7 +976,7 @@ namespace IxMilia.Lisp
             return LispVector.CreateFixed(args);
         }
 
-        [LispFunction("VECTOR-POP")]
+        [LispFunction("VECTOR-POP", Signature = "THE-VECTOR", Documentation = "Removes the last item from `THE-VECTOR` and returns the value.")]
         public LispObject VectorPop(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             if (args.Length == 1 &&
@@ -989,7 +989,7 @@ namespace IxMilia.Lisp
             return new LispError("Expected a vector");
         }
 
-        [LispFunction("VECTOR-PUSH")]
+        [LispFunction("VECTOR-PUSH", Signature = "VALUE THE-VECTOR", Documentation = "Adds `VALUE` to the end of `THE-VECTOR`.")]
         public LispObject VectorPush(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
             if (args.Length == 2 &&

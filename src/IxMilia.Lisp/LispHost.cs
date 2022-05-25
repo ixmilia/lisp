@@ -64,32 +64,32 @@ namespace IxMilia.Lisp
 
         public LispPackage AddPackage(string packageName, IEnumerable<LispPackage> inheritedPackages = null) => RootFrame.AddPackage(packageName, inheritedPackages);
 
-        public void AddSpecialOperator(LispSymbol symbol, LispSpecialOperatorDelegate del)
+        public void AddSpecialOperator(LispSymbol symbol, string documentation, string signature, LispSpecialOperatorDelegate del)
         {
             var resolvedSymbol = symbol.Resolve(CurrentPackage);
-            var op = new LispSpecialOperator(resolvedSymbol, del);
+            var op = new LispSpecialOperator(resolvedSymbol, documentation, signature, del);
             SetValue(resolvedSymbol.Value, op, createPackage: true);
         }
 
         public void AddMacro(string name, LispMacroDelegate del) => AddMacro(LispSymbol.CreateFromString(name), del);
 
-        public void AddMacro(LispSymbol symbol, LispMacroDelegate del) => AddMacro(symbol, null, del);
+        public void AddMacro(LispSymbol symbol, LispMacroDelegate del) => AddMacro(symbol, null, null, del);
 
-        public void AddMacro(LispSymbol symbol, string documentation, LispMacroDelegate del)
+        public void AddMacro(LispSymbol symbol, string documentation, string signature, LispMacroDelegate del)
         {
             var resolvedSymbol = symbol.Resolve(CurrentPackage);
-            var macro = new LispNativeMacro(resolvedSymbol, documentation, del);
+            var macro = new LispNativeMacro(resolvedSymbol, documentation, signature, del);
             SetValue(resolvedSymbol.Value, macro, createPackage: true);
         }
 
         public void AddFunction(string name, LispFunctionDelegate del) => AddFunction(LispSymbol.CreateFromString(name), del);
 
-        public void AddFunction(LispSymbol symbol, LispFunctionDelegate del) => AddFunction(symbol, null, del);
+        public void AddFunction(LispSymbol symbol, LispFunctionDelegate del) => AddFunction(symbol, null, null, del);
 
-        public void AddFunction(LispSymbol symbol, string documentation, LispFunctionDelegate del)
+        public void AddFunction(LispSymbol symbol, string documentation, string signature, LispFunctionDelegate del)
         {
             var resolvedSymbol = symbol.Resolve(CurrentPackage);
-            var function = new LispNativeFunction(resolvedSymbol, documentation, del);
+            var function = new LispNativeFunction(resolvedSymbol, documentation, signature, del);
             SetValue(resolvedSymbol.Value, function, createPackage: true);
         }
 
@@ -110,16 +110,16 @@ namespace IxMilia.Lisp
                     parameterInfo[2].ParameterType == typeof(LispObject[]))
                 {
                     // native special operators (unevaluated arguments, no result)
-                    var operatorNames = methodInfo.GetCustomAttributes<LispSpecialOperatorAttribute>(inherit: true).Select(a => a.Name).ToList();
-                    if (operatorNames.Any())
+                    var operators = methodInfo.GetCustomAttributes<LispSpecialOperatorAttribute>(inherit: true).ToList();
+                    if (operators.Any())
                     {
                         if (methodInfo.ReturnType == typeof(void))
                         {
                             var del = (LispSpecialOperatorDelegate)methodInfo.CreateDelegate(typeof(LispSpecialOperatorDelegate), context);
-                            foreach (var name in operatorNames)
+                            foreach (var op in operators)
                             {
-                                var symbol = LispSymbol.CreateFromString(name);
-                                AddSpecialOperator(symbol, del);
+                                var symbol = LispSymbol.CreateFromString(op.Name);
+                                AddSpecialOperator(symbol, op.Documentation, op.Signature ?? "...", del);
                             }
                         }
                         else
@@ -129,16 +129,16 @@ namespace IxMilia.Lisp
                     }
 
                     // native macros (unevaluated arguments, evaluated result)
-                    var macroNames = methodInfo.GetCustomAttributes<LispMacroAttribute>(inherit: true).Select(a => a.Name).ToList();
-                    if (macroNames.Any())
+                    var macros = methodInfo.GetCustomAttributes<LispMacroAttribute>(inherit: true).ToList();
+                    if (macros.Any())
                     {
                         if (methodInfo.ReturnType == typeof(LispObject))
                         {
                             var del = (LispMacroDelegate)methodInfo.CreateDelegate(typeof(LispMacroDelegate), context);
-                            foreach (var name in macroNames)
+                            foreach (var macro in macros)
                             {
-                                var symbol = LispSymbol.CreateFromString(name);
-                                AddMacro(symbol, del);
+                                var symbol = LispSymbol.CreateFromString(macro.Name);
+                                AddMacro(symbol, macro.Documentation, macro.Signature ?? "...", del);
                             }
                         }
                         else
@@ -148,16 +148,16 @@ namespace IxMilia.Lisp
                     }
 
                     // native functions (evaluated arguments, unevaluated result)
-                    var functionNames = methodInfo.GetCustomAttributes<LispFunctionAttribute>(inherit: true).Select(a => a.Name).ToList();
-                    if (functionNames.Any())
+                    var functions = methodInfo.GetCustomAttributes<LispFunctionAttribute>(inherit: true).ToList();
+                    if (functions.Any())
                     {
                         if (methodInfo.ReturnType == typeof(LispObject))
                         {
                             var del = (LispFunctionDelegate)methodInfo.CreateDelegate(typeof(LispFunctionDelegate), context);
-                            foreach (var name in functionNames)
+                            foreach (var function in functions)
                             {
-                                var symbol = LispSymbol.CreateFromString(name);
-                                AddFunction(symbol, del);
+                                var symbol = LispSymbol.CreateFromString(function.Name);
+                                AddFunction(symbol, function.Documentation, function.Signature ?? "...", del);
                             }
                         }
                         else

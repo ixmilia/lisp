@@ -2,8 +2,14 @@
 
 namespace IxMilia.Lisp
 {
+    public abstract class LispInvokableTargetAttribute : Attribute
+    {
+        public string Signature { get; set; }
+        public string Documentation { get; set; }
+    }
+
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-    public class LispSpecialOperatorAttribute : Attribute
+    public class LispSpecialOperatorAttribute : LispInvokableTargetAttribute
     {
         public string Name { get; }
 
@@ -14,7 +20,7 @@ namespace IxMilia.Lisp
     }
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-    public class LispMacroAttribute : Attribute
+    public class LispMacroAttribute : LispInvokableTargetAttribute
     {
         public string Name { get; }
 
@@ -25,7 +31,7 @@ namespace IxMilia.Lisp
     }
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-    public class LispFunctionAttribute : Attribute
+    public class LispFunctionAttribute : LispInvokableTargetAttribute
     {
         public string Name { get; }
 
