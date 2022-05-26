@@ -25,11 +25,6 @@
 ;;; from here on forward we can use double-quoted string literals like `"this is a string"`, etc.
 
 ;; read hash characters
-(defun process-function-reference (item)
-    (cond ((symbolp item)                           (eval (list (quote function) item))) ; #'some-function-reference
-          ((and (listp item)
-                (eql (car item) (quote lambda)))    (kernel:make-lambda-function item)) ; #'(lambda ...); `kernel:make-lambda-function` is defined internally
-          (t                                        (error "Expected function reference or lambda"))))
 (defun process-complex-number (number-list)
     (cond ((and (listp number-list)
                 (= (length number-list) 2))         (complex (car number-list) (car (cdr number-list))))
@@ -46,7 +41,7 @@
               ;;   #'some-function-reference
               ;;   #'(lambda ...)
               ((char= next-char *single-quote-character*)   (progn (read-char stream t nil t) ; swallow single quote (code 39 = ')
-                                                                   (process-function-reference (read stream t nil t))))
+                                                                   (eval (list (quote function) (read stream t nil t)))))
               ;; prepare reader for:
               ;;   #(1 2 3)
               ((char= next-char *left-paren-character*)     (apply (function vector) (read stream t nil t)))

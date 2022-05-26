@@ -114,6 +114,26 @@ namespace IxMilia.Lisp
             return host.Nil;
         }
 
+        [LispMacro("LAMBDA", Signature = "ARGUMENT-LIST &REST BODY", Documentation = "Defines a lambda function.")]
+        public LispObject Lambda(LispHost host, LispExecutionState executionState, LispObject[] args)
+        {
+            // TODO: validate shape
+            var lambdaName = $"(LAMBDA-{args[0].SourceLocation?.Start.Line}-{args[0].SourceLocation?.Start.Column})"; // surrounded by parens to make it un-utterable
+            var lambdaItems = new List<LispObject>();
+            lambdaItems.Add(new LispResolvedSymbol(host.CurrentPackage.Name, lambdaName, isPublic: true));
+            lambdaItems.AddRange(args);
+
+            if (!TryGetCodeFunctionFromItems(lambdaItems.ToArray(), host.CurrentPackage, out var codeFunction, out var error))
+            {
+                return error;
+            }
+
+            codeFunction.SourceLocation = executionState.StackFrame.SourceLocation;
+            var result = new LispQuotedLambdaFunctionReference(codeFunction);
+            result.SourceLocation = codeFunction.SourceLocation;
+            return result;
+        }
+
         internal static bool TryGetCodeFunctionFromItems(LispObject[] items, LispPackage currentPackage, out LispCodeFunction codeFunction, out LispError error)
         {
             codeFunction = default;
@@ -1217,6 +1237,11 @@ namespace IxMilia.Lisp
             {
                 var resolvedSymbol = symbol.Resolve(host.CurrentPackage);
                 return new LispQuotedNamedFunctionReference(resolvedSymbol.Value);
+            }
+            else if (args[0] is LispList list)
+            {
+                var potentialLambda = host.EvalAtStackFrame(executionState.StackFrame, list);
+                return potentialLambda;
             }
             else
             {

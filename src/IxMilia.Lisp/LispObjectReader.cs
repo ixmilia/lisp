@@ -62,30 +62,6 @@ namespace IxMilia.Lisp
 
                 return new LispError("Expected character and function reference");
             });
-            _host.AddFunction("KERNEL:MAKE-LAMBDA-FUNCTION", (__host, executionState, args) =>
-            {
-                if (args.Length == 1 &&
-                    args[0] is LispList lambdaList &&
-                    lambdaList.Value is LispUnresolvedSymbol lambdaSymbol &&
-                    lambdaSymbol.LocalName == "LAMBDA")
-                {
-                    var lambdaName = $"(LAMBDA-{lambdaList.SourceLocation?.Start.Line}-{lambdaList.SourceLocation?.Start.Column})"; // surrounded by parens to make it un-utterable
-                    var lambdaItems = new List<LispObject>();
-                    lambdaItems.Add(new LispResolvedSymbol(_host.CurrentPackage.Name, lambdaName, isPublic: true));
-                    lambdaItems.AddRange(lambdaList.ToList().Skip(1));
-
-                    if (!LispDefaultContext.TryGetCodeFunctionFromItems(lambdaItems.ToArray(), _host.CurrentPackage, out var lambdaFunction, out var error))
-                    {
-                        return error;
-                    }
-                    else
-                    {
-                        return new LispQuotedLambdaFunctionReference(lambdaFunction);
-                    }
-                }
-
-                return new LispError("Expected a lambda");
-            });
             _host.AddFunction("KERNEL:PROCESS-LIST-FORWARD-REFERENCE", (__host, executionState, args) =>
             {
                 var forwardReferenceId = ReadUntilCharMatches(c => IsEquals(c) || IsHash(c));
