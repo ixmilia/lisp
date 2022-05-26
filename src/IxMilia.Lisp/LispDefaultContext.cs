@@ -227,41 +227,60 @@ namespace IxMilia.Lisp
         [LispMacro("LET")]
         public LispObject Let(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
-            return Let(host, executionState.StackFrame, args, bindSequentially: false);
+            return Let(args, bindSequentially: false);
         }
 
         [LispMacro("LET*")]
         public LispObject LetStar(LispHost host, LispExecutionState executionState, LispObject[] args)
         {
-            return Let(host, executionState.StackFrame, args, bindSequentially: true);
+            return Let(args, bindSequentially: true);
         }
 
-        private LispObject Let(LispHost host, LispStackFrame frame, LispObject[] args, bool bindSequentially)
+        internal static LispObject Let(LispObject[] args, bool bindSequentially)
         {
-            // TODO: validate arguments
             var values = ((LispList)args[0]).ToList();
-            var replacements = new Dictionary<string, LispObject>();
             var body = args.Skip(1);
+
+            // possibly convert values into `(setf value-name (computed-value))`
+            var valueSetters = new List<LispObject>();
+            var functionParameters = new List<LispObject>();
+            var functionArguments = new List<LispObject>()
+            {
+                new LispUnresolvedSymbol("LIST"),
+            };
             foreach (var valuePair in values)
             {
                 // TODO: validate shape
                 var valuePairList = (LispList)valuePair;
-                var varName = ((LispSymbol)valuePairList.Value).Resolve(host.CurrentPackage).Value;
+                var varName = (LispSymbol)valuePairList.Value;
                 var varRawValue = ((LispList)valuePairList.Next).Value;
-                var replacedRawValue = bindSequentially
-                    ? varRawValue.PerformMacroReplacements(host.CurrentPackage, replacements)
-                    : varRawValue;
-                var varValue = host.EvalAtStackFrame(frame, replacedRawValue);
-                if (varValue is LispError error)
+                if (bindSequentially)
                 {
-                    return error;
+                    var setter = LispList.FromItems(
+                        new LispUnresolvedSymbol("SETF"),
+                        varName,
+                        varRawValue);
+                    valueSetters.Add(setter);
                 }
-
-                // quoted because lists shouldn't get force-evaluated
-                replacements[varName] = LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), varValue);
+                else
+                {
+                    functionParameters.Add(varName);
+                    functionArguments.Add(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), varRawValue));
+                }
             }
 
-            var result = body.PerformMacroReplacements(host.CurrentPackage, replacements);
+            var fullBody = valueSetters.Concat(body).ToList();
+            var lambdaFullForm = new List<LispObject>();
+            lambdaFullForm.Add(new LispUnresolvedSymbol("LAMBDA"));
+            lambdaFullForm.Add(LispList.FromEnumerable(functionParameters));
+            lambdaFullForm.AddRange(fullBody);
+
+            var applyFullForm = new List<LispObject>();
+            applyFullForm.Add(new LispUnresolvedSymbol("APPLY"));
+            applyFullForm.Add(LispList.FromEnumerable(lambdaFullForm));
+            applyFullForm.Add(LispList.FromEnumerable(functionArguments));
+
+            var result = LispList.FromEnumerable(applyFullForm);
             return result;
         }
 
@@ -841,7 +860,7 @@ namespace IxMilia.Lisp
             try
             {
                 host.ObjectReader.PushReaderStream(inputTextStream);
-                var readerResult = host.ObjectReader.Read(errorOnEof, eofValue, isRecursive);
+                var readerResult = host.ObjectReader.Read(executionState.StackFrame, errorOnEof, eofValue, isRecursive);
                 result = readerResult.LastResult;
             }
             finally

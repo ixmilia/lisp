@@ -2031,4 +2031,40 @@ namespace IxMilia.Lisp
             return new LispFileStream(Name, FileStream);
         }
     }
+
+    public class LispReadTable : LispObject
+    {
+        public Dictionary<char, LispFunctionReference> ReadMacros { get; }
+
+        public LispReadTable()
+        {
+            ReadMacros = new Dictionary<char, LispFunctionReference>();
+        }
+
+        public override string ToString()
+        {
+            return "#<READTABLE>";
+        }
+
+        public override string ToDisplayString(LispPackage currentPackage)
+        {
+            return ToString();
+        }
+
+        protected override LispObject CloneProtected()
+        {
+            var result = new LispReadTable();
+            foreach (var kvp in ReadMacros)
+            {
+                result.ReadMacros[kvp.Key] = kvp.Value;
+            }
+
+            return result;
+        }
+
+        public override IEnumerable<LispObject> GetChildren()
+        {
+            yield break;
+        }
+    }
 }

@@ -27,6 +27,7 @@ namespace IxMilia.Lisp
         public LispObject T => RootFrame.T;
         public LispObject Nil => RootFrame.Nil;
         public LispTextStream TerminalIO => RootFrame.TerminalIO;
+
         public LispPackage CurrentPackage
         {
             get => _currentPackage;
@@ -242,7 +243,7 @@ namespace IxMilia.Lisp
                 return evalResult;
             }
 
-            var readerResult = ReadWithoutDribbleStream();
+            var readerResult = ReadWithoutDribbleStream(executionState.StackFrame);
             while (!ReferenceEquals(readerResult.LastResult, _eofMarker))
             {
                 evalResult.ExpressionDepth = readerResult.ExpressionDepth;
@@ -262,7 +263,7 @@ namespace IxMilia.Lisp
                     break;
                 }
 
-                readerResult = ReadWithoutDribbleStream();
+                readerResult = ReadWithoutDribbleStream(executionState.StackFrame);
             }
 
             return evalResult;
@@ -275,11 +276,11 @@ namespace IxMilia.Lisp
             return evaluationState;
         }
 
-        private LispObjectReaderResult ReadWithoutDribbleStream()
+        private LispObjectReaderResult ReadWithoutDribbleStream(LispStackFrame stackFrame)
         {
             var dribbleStream = RootFrame.DribbleStream;
             RootFrame.DribbleStream = null;
-            var obj = _objectReader.Read(false, _eofMarker, false);
+            var obj = _objectReader.Read(stackFrame, false, _eofMarker, false);
             RootFrame.DribbleStream = dribbleStream;
             return obj;
         }

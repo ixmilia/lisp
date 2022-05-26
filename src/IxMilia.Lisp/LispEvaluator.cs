@@ -94,6 +94,7 @@ namespace IxMilia.Lisp
                                 case LispQuotedNamedFunctionReference _:
                                 case LispPackage _:
                                 case LispStream _:
+                                case LispReadTable _:
                                     executionState.PushArgument(expression.Expression);
                                     break;
                                 case LispQuotedLambdaFunctionReference lambda:

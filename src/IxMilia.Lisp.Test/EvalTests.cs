@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Xunit;
 
@@ -975,6 +976,24 @@ total
     (+ a b))
 ");
             Assert.Equal(22, ((LispInteger)evalResult.LastResult).Value);
+        }
+
+        [Theory]
+        [InlineData("(let ((x 42) (y 43)) (+ x y))", "(APPLY (LAMBDA (X Y) (+ X Y)) (LIST (QUOTE 42) (QUOTE 43)))")]
+        [InlineData("(let* ((x 42) (y 43)) (+ x y))", "(APPLY (LAMBDA () (SETF X 42) (SETF Y 43) (+ X Y)) (LIST))")]
+        public void LetMacroExpansion(string code, string expected)
+{
+            var host = new LispHost();
+            var input = new LispTextStream("", new StringReader(code), TextWriter.Null);
+            host.ObjectReader.SetReaderStream(input);
+            var readResult = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            Assert.IsType<LispList>(readResult.LastResult);
+            var list = ((LispList)readResult.LastResult).ToList();
+            var args = list.Skip(1).ToArray();
+            var bindSequentially = list[0].ToString() == "LET*";
+            var result = LispDefaultContext.Let(args, bindSequentially);
+            var actual = result.ToString();
+            Assert.Equal(expected, actual);
         }
 
         [Fact]

@@ -12,7 +12,6 @@ namespace IxMilia.Lisp
         private LispTextStream _input;
         private int _leftParenCount = 0;
         private StringBuilder _incompleteInput = null;
-        private Dictionary<char, LispFunctionReference> _macroFunctions = new Dictionary<char, LispFunctionReference>();
         private Stack<Tuple<LispTextStream, int>> _readerStack = new Stack<Tuple<LispTextStream, int>>();
 
         private static List<Tuple<Regex, Func<Match, LispObject>>> RegexMatchers = new List<Tuple<Regex, Func<Match, LispObject>>>();
@@ -50,13 +49,20 @@ namespace IxMilia.Lisp
         {
             _host = host;
 
+            _host.AddFunction("COPY-READTABLE", (__host, executionState, args) =>
+            {
+                // TODO: look at args
+                var result = GetCurrentReadTable(executionState.StackFrame).Clone();
+                return result;
+            });
             _host.AddFunction("SET-MACRO-CHARACTER", (__host, executionState, args) =>
             {
                 if (args.Length == 2 &&
                     args[0] is LispCharacter character &&
                     args[1] is LispFunctionReference functionRef)
                 {
-                    _macroFunctions.Add(character.Value, functionRef);
+                    var readTable = GetCurrentReadTable(executionState.StackFrame);
+                    readTable.ReadMacros[character.Value] = functionRef;
                     return __host.Nil;
                 }
 
@@ -77,7 +83,7 @@ namespace IxMilia.Lisp
                     case '#':
                         return new LispResolvedSymbol(_host.CurrentPackage.Name, symbolReference, isPublic: true);
                     case '=':
-                        var candidateInnerListReaderResult = Read(true, null, true);
+                        var candidateInnerListReaderResult = Read(executionState.StackFrame, true, null, true);
                         var candidateInnerList = candidateInnerListReaderResult.LastResult;
                         switch (candidateInnerList)
                         {
@@ -92,6 +98,13 @@ namespace IxMilia.Lisp
                         return new LispError($"Unexpected character '{trailingCharacter}'");
                 }
             });
+        }
+
+        private LispReadTable GetCurrentReadTable(LispStackFrame stackFrame)
+        {
+            var symbol = new LispResolvedSymbol("COMMON-LISP", "*READTABLE*", true);
+            var readTable = stackFrame.GetValue<LispReadTable>(symbol);
+            return readTable;
         }
 
         public void SetReaderStream(LispTextStream input)
@@ -113,7 +126,9 @@ namespace IxMilia.Lisp
             _leftParenCount = t.Item2;
         }
 
-        public LispObjectReaderResult Read(bool errorOnEof, LispObject eofValue, bool isRecursive)
+        public LispObjectReaderResult Read(bool errorOnEof, LispObject eofValue, bool isRecursive) => Read(_host.RootFrame, errorOnEof, eofValue, isRecursive);
+
+        public LispObjectReaderResult Read(LispStackFrame stackFrame, bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             var handler = new EventHandler<LispCharacter>((s, c) =>
             {
@@ -137,10 +152,10 @@ namespace IxMilia.Lisp
             else
             {
                 var c = lc.Value;
-                if (_macroFunctions.TryGetValue(c, out var readerFunction))
+                if (GetCurrentReadTable(stackFrame).ReadMacros.TryGetValue(c, out var readerFunction))
                 {
                     _input.Read();
-                    result = LispDefaultContext.FunCall(_host, _host.RootFrame, readerFunction, new LispObject[] { _input, lc });
+                    result = LispDefaultContext.FunCall(_host, stackFrame, readerFunction, new LispObject[] { _input, lc });
                 }
                 else if (IsTrivia(c))
                 {
@@ -148,7 +163,7 @@ namespace IxMilia.Lisp
                 }
                 else if (IsLeftParen(c))
                 {
-                    result = ReadList(errorOnEof, eofValue, isRecursive);
+                    result = ReadList(stackFrame, errorOnEof, eofValue, isRecursive);
                 }
                 else
                 {
@@ -210,7 +225,7 @@ namespace IxMilia.Lisp
             return new LispObjectReaderResult(result, incompleteInput, _leftParenCount);
         }
 
-        private LispObject ReadList(bool errorOnEof, LispObject eofValue, bool isRecursive)
+        private LispObject ReadList(LispStackFrame stackFrame, bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             var items = new List<LispObject>();
             var tailItems = new List<LispObject>();
@@ -253,7 +268,7 @@ namespace IxMilia.Lisp
                     dotLocation = currentLocation;
                 }
 
-                var nextItemResult = Read(errorOnEof, eofValue, isRecursive);
+                var nextItemResult = Read(stackFrame, errorOnEof, eofValue, isRecursive);
                 var nextItem = nextItemResult.LastResult;
                 if (nextItem is LispError)
                 {

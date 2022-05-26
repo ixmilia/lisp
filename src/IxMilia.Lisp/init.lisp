@@ -6,6 +6,7 @@
 (setf *left-paren-character*        (code-char 40)) ; (
 (setf *digit-zero-character*        (code-char 48)) ; 0
 (setf *digit-nine-character*        (code-char 57)) ; 9
+(setf *less-than-character*         (code-char 60)) ; <
 (setf *upper-case-c*                (code-char 67)) ; C
 (setf *backslash-character*         (code-char 92)) ; \
 (setf *lower-case-c*                (code-char 99)) ; c
@@ -32,6 +33,9 @@
 (defun single-hash-reader (stream char)
     (let ((next-char (peek-char nil stream t nil t)))
         (cond
+              ;; error on:
+              ;;   #<foo>
+              ((char= next-char *less-than-character*)      (error "Unreadable object"))
               ;; prepare reader for:
               ;;   #\A
               ((char= next-char *backslash-character*)      (progn (read-char stream t nil t) ; swallow backslash
@@ -82,11 +86,12 @@
 (defun back-quote-comma-reader (stream char)
     (eval (read stream t nil t)))
 (defun back-quote-reader (stream char)
-    (let ((item (read stream t nil t)))
-        (cond
-            ((listp item)                                   (back-quote-list-handler item))
-            (t                                              (list 'quote item)))))
-(set-macro-character #\, #'back-quote-comma-reader)
+    (let ((*readtable*  (copy-readtable)))
+        (set-macro-character #\, #'back-quote-comma-reader)
+        (let ((item     (read stream t nil t)))
+            (cond
+                ((listp item)     (back-quote-list-handler item))
+                (t                (list 'quote item))))))
 (set-macro-character #\` #'back-quote-reader)
 
 ;;; from here on forward we can do things like ``(1 ,(+ 2 3))`, etc.

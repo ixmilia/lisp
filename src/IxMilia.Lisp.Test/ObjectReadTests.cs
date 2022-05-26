@@ -1,7 +1,7 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using Xunit;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace IxMilia.Lisp.Test
 {
@@ -405,6 +405,52 @@ namespace IxMilia.Lisp.Test
 %5
 ");
             Assert.Equal(new LispInteger(500), evalResult.LastResult);
+        }
+
+        [Fact]
+        public void ReadTableCopying()
+        {
+            var host = new LispHost(useInitScript: false);
+            var enteredOriginalBangReader = false;
+            var enteredNewBangReader = false;
+            host.AddFunction("ORIGINAL-BANG-READER", (_host, _executionState, _args) =>
+            {
+                if (enteredOriginalBangReader)
+                {
+                    throw new Exception("Already entered the original bang reader.");
+                }
+
+                enteredOriginalBangReader = true;
+                return new LispInteger(42);
+            });
+            host.AddFunction("NEW-BANG-READER", (_host, _executionState, _args) =>
+            {
+                if (enteredNewBangReader)
+                {
+                    throw new Exception("Already entered the new bang reader");
+                }
+
+                enteredNewBangReader = true;
+                return _host.Nil;
+            });
+            var evalResult = host.Eval(@"
+(set-macro-character (code-char 33) (function original-bang-reader)) ; #\!
+(defun percent-reader (stream char)
+    (let ((*readtable* (copy-readtable)))
+        (set-macro-character (code-char 33) (function new-bang-reader))
+        (read stream t nil t)))
+(set-macro-character (code-char 37) (function percent-reader)) ; #\%
+
+; this will trigger the new bang reader
+%!
+
+; this will ensure the old bang reader still functions
+!
+");
+            Assert.Null(evalResult.ReadError);
+            Assert.True(enteredOriginalBangReader);
+            Assert.True(enteredNewBangReader);
+            Assert.Equal(42, ((LispInteger)evalResult.LastResult).Value);
         }
 
         [Theory]

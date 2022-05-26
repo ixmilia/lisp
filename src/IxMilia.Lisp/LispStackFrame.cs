@@ -9,6 +9,7 @@ namespace IxMilia.Lisp
         protected const string TString = "T";
         protected const string NilString = "NIL";
         protected const string TerminalIOString = "*TERMINAL-IO*";
+        protected const string ReadTableString = "*READTABLE*";
 
         public LispInvocableObject Function { get; }
         public LispResolvedSymbol FunctionSymbol { get; }
@@ -144,6 +145,11 @@ namespace IxMilia.Lisp
         public LispObject T => _commonLispPackage.GetValue<LispSymbol>(TString);
         public LispObject Nil => _commonLispPackage.GetValue<LispNilList>(NilString);
         public LispTextStream TerminalIO => _commonLispPackage.GetValue<LispTextStream>(TerminalIOString);
+        public LispReadTable CurrentReadTable
+        {
+            get => _commonLispPackage.GetValue<LispReadTable>(ReadTableString);
+            set => _commonLispPackage.SetValue(ReadTableString, value);
+        }
 
         internal LispRootStackFrame(TextReader input, TextWriter output)
             : base(new LispResolvedSymbol("(ROOT)", "(ROOT)", isPublic: true), null)
@@ -161,6 +167,10 @@ namespace IxMilia.Lisp
             var terminalIoSymbol = new LispResolvedSymbol(CommonLispPackageName, TerminalIOString, isPublic: true);
             var terminalIoStream = new LispTextStream(TerminalIOString, input, output);
             SetValue(terminalIoSymbol, terminalIoStream);
+
+            var currentReadTableSymbol = new LispResolvedSymbol(CommonLispPackageName, ReadTableString, isPublic: true);
+            var currentReadTable = new LispReadTable();
+            SetValue(currentReadTableSymbol, currentReadTable);
         }
 
         public LispPackage AddPackage(string packageName, IEnumerable<LispPackage> inheritedPackages = null)
