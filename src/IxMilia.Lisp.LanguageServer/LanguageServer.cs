@@ -53,13 +53,13 @@ namespace IxMilia.Lisp.LanguageServer
             return _documentContents[path];
         }
 
-        [JsonRpcMethod("initialize", UseSingleObjectParameterDeserialization = true)]
+        [LspMethod("initialize")]
         public InitializeResult Initialize(InitializeParams param)
         {
             return new InitializeResult(TextDocumentSyncKind.Incremental);
         }
 
-        [JsonRpcMethod("textDocument/completion", UseSingleObjectParameterDeserialization = true)]
+        [LspMethod("textDocument/completion")]
         public CompletionList TextDocumentCompletion(CompletionParams param)
         {
             var path = Converters.PathFromUri(param.TextDocument.Uri);
@@ -89,7 +89,7 @@ namespace IxMilia.Lisp.LanguageServer
             return new CompletionList(false, items);
         }
 
-        [JsonRpcMethod("textDocument/didChange", UseSingleObjectParameterDeserialization = true)]
+        [LspMethod("textDocument/didChange")]
         public void TextDocumentDidChange(DidChangeTextDocumentParams param)
         {
             var path = Converters.PathFromUri(param.TextDocument.Uri);
@@ -116,21 +116,21 @@ namespace IxMilia.Lisp.LanguageServer
             }
         }
 
-        [JsonRpcMethod("textDocument/didClose", UseSingleObjectParameterDeserialization = true)]
+        [LspMethod("textDocument/didClose")]
         public void TextDocumentDidClose(DidCloseTextDocumentParams param)
         {
             var path = Converters.PathFromUri(param.TextDocument.Uri);
             _documentContents.Remove(path);
         }
 
-        [JsonRpcMethod("textDocument/didOpen", UseSingleObjectParameterDeserialization = true)]
+        [LspMethod("textDocument/didOpen")]
         public void TextDocumentDidOpen(DidOpenTextDocumentParams param)
         {
             var path = Converters.PathFromUri(param.TextDocument.Uri);
             _documentContents[path] = param.TextDocument.Text;
         }
 
-        [JsonRpcMethod("textDocument/hover", UseSingleObjectParameterDeserialization = true)]
+        [LspMethod("textDocument/hover")]
         public Hover TextDocumentHover(HoverParams param)
         {
             var path = Converters.PathFromUri(param.TextDocument.Uri);
@@ -145,7 +145,7 @@ namespace IxMilia.Lisp.LanguageServer
             return null;
         }
 
-        [JsonRpcMethod("textDocument/semanticTokens/full", UseSingleObjectParameterDeserialization = true)]
+        [LspMethod("textDocument/semanticTokens/full")]
         public SemanticTokens TextDocumentSemanticTokensFull(SemanticTokensParams param)
         {
             var path = Converters.PathFromUri(param.TextDocument.Uri);
