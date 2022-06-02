@@ -5,15 +5,16 @@ import * as languageclient from 'vscode-languageclient/node';
 
 let client: languageclient.LanguageClient;
 let outputChannel: vscode.OutputChannel;
+let serverProcess: cp.ChildProcess;
+
+const exeSuffix = process.platform === 'win32' ? '.exe' : '';
+let dotnetPath = `dotnet${exeSuffix}`;
+let args: string[];
 
 const languageName = 'lisp';
 const outputChannelName = 'IxMilia.Lisp Language Server';
 
 export async function activate(context: vscode.ExtensionContext) {
-    registerCommands(context);
-
-    const exeSuffix = process.platform === 'win32' ? '.exe' : '';
-    let dotnetPath = `dotnet${exeSuffix}`;
     if (context.extensionMode === vscode.ExtensionMode.Production) {
         const acquireContext = {
             version: '6.0',
@@ -29,15 +30,17 @@ export async function activate(context: vscode.ExtensionContext) {
     const releaseArgs = [
         path.join(__dirname, '..', 'server', 'IxMilia.Lisp.LanguageServer.App.dll')
     ];
-    const args = context.extensionMode === vscode.ExtensionMode.Development ? debugArgs : releaseArgs;
+    args = context.extensionMode === vscode.ExtensionMode.Development ? debugArgs : releaseArgs;
     outputChannel = vscode.window.createOutputChannel(outputChannelName);
-    const serverProcess = startServer(dotnetPath, args, outputChannel);
+    serverProcess = startServer();
     serverProcess.stderr.on('data', (data) => {
         const message = data.toString('utf-8');
         outputChannel.appendLine(message);
     });
 
-    const serverOptions: languageclient.ServerOptions = () => Promise.resolve(serverProcess);
+    registerCommands(context);
+
+    const serverOptions: languageclient.ServerOptions = () => Promise.resolve(new ServerStreamWrapper());
     const clientOptions: languageclient.LanguageClientOptions = {
         documentSelector: [
             { scheme: 'file', language: languageName },
@@ -56,8 +59,8 @@ export function deactivate(): Thenable<void> | undefined {
     return client.stop();
 }
 
-function startServer(command: string, args: string[], outputChannel: vscode.OutputChannel): cp.ChildProcess {
-    const process = cp.spawn(command, args);
+function startServer(): cp.ChildProcess {
+    const process = cp.spawn(dotnetPath, args);
     outputChannel.appendLine(`Server PID ${process.pid} started with args ${args}`);
     return process;
 }
@@ -76,6 +79,24 @@ function registerCommands(context: vscode.ExtensionContext) {
         });
         const fullResult = resultLines.join('\n');
         outputChannel.appendLine(fullResult);
-        outputChannel.appendLine('-----');
     }));
+
+    context.subscriptions.push(vscode.commands.registerCommand('ixmilia-lisp.restart', async () => {
+        outputChannel.appendLine(`Killing server process ${serverProcess.pid}`);
+        serverProcess.kill();
+        serverProcess = startServer();
+    }));
+}
+
+class ServerStreamWrapper {
+    constructor() {
+    }
+
+    get writer(): NodeJS.WritableStream {
+        return serverProcess.stdin;
+    }
+
+    get reader(): NodeJS.ReadableStream {
+        return serverProcess.stdout;
+    }
 }

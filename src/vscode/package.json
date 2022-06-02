@@ -9,7 +9,8 @@
   },
   "activationEvents": [
     "onLanguage:lisp",
-    "onCommand:ixmilia-lisp.eval"
+    "onCommand:ixmilia-lisp.eval",
+    "onCommand:ixmilia-lisp.restart"
   ],
   "extensionDependencies": [
     "ms-dotnettools.vscode-dotnet-runtime",
@@ -20,6 +21,10 @@
       {
         "command": "ixmilia-lisp.eval",
         "title": "Evaluate LISP expression"
+      },
+      {
+        "command": "ixmilia-lisp.restart",
+        "title": "Restart LISP"
       }
     ],
     "keybindings": [
