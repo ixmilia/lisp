@@ -8,12 +8,28 @@
     "vscode": "^1.64.0"
   },
   "activationEvents": [
-    "onLanguage:lisp"
+    "onLanguage:lisp",
+    "onCommand:ixmilia-lisp.eval"
   ],
   "extensionDependencies": [
     "ms-dotnettools.vscode-dotnet-runtime",
     "mattn.Lisp"
   ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "ixmilia-lisp.eval",
+        "title": "Evaluate LISP expression"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "ixmilia-lisp.eval",
+        "key": "alt+enter",
+        "when": "editorLangId == lisp"
+      }
+    ]
+  },
   "scripts": {
     "compile": "tsc -p ./",
     "test": "echo \"Error: no test specified\" && exit 1",

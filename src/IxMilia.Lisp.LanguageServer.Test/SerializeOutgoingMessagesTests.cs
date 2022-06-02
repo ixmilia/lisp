@@ -29,6 +29,14 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
+        public void SerializeEvalResult()
+        {
+            var obj = new EvalResult(false, "some-result");
+            var json = SerializeObject(obj);
+            Assert.Equal(@"{""isError"":false,""content"":""some-result""}", json);
+        }
+
+        [Fact]
         public void SerializeHover()
         {
             var obj = new Hover(new MarkupContent(MarkupKind.Markdown, "some markdown"));

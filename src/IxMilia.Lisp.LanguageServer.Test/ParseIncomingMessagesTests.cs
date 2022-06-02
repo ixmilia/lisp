@@ -60,6 +60,13 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
+        public void ParseEvalTextDocumentParams()
+        {
+            var result = DeserializeObject<EvalTextDocumentParams>(@"{""textDocument"":{""uri"":""some-uri""}}");
+            Assert.Equal("some-uri", result.TextDocument.Uri);
+        }
+
+        [Fact]
         public void ParseHoverParams()
         {
             var result = DeserializeObject<HoverParams>(@"{""textDocument"":{""uri"":""some-text-document""},""position"":{""line"":12,""character"":34}}");

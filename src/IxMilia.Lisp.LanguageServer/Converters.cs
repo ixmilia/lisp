@@ -7,19 +7,30 @@ namespace IxMilia.Lisp.LanguageServer
     {
         public static string PathFromUri(string uriString)
         {
+            var result = uriString;
             var uri = new Uri(uriString);
             var localPath = uri.LocalPath;
-            if (localPath.Length >= 3 &&
-                localPath[0] == '/' &&
-                char.IsLetter(localPath[1]) &&
-                localPath[2] == ':')
+            if (uri.Scheme == "file" &&
+                localPath.Length >= 1 &&
+                localPath[0] == '/')
             {
-                // starts with something like:
-                //   /c:/Users...
-                localPath = localPath.Substring(1);
+                if (localPath.Length >= 3 &&
+                    char.IsLetter(localPath[1]) &&
+                    localPath[2] == ':')
+                {
+                    // looks like:
+                    //   file:///c:/Users...
+                    result = localPath.Substring(1);
+                }
+                else
+                {
+                    // looks like:
+                    //   file:///usr/test...
+                    result = localPath;
+                }
             }
 
-            return localPath;
+            return result;
         }
 
         public static Position PositionFromSourcePosition(LispSourcePosition position)

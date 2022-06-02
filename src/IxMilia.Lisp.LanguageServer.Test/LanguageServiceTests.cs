@@ -16,16 +16,25 @@ namespace IxMilia.Lisp.LanguageServer.Test
 
         private LanguageServer GetServerWithFileContent(string fileUri, string code)
         {
+            return GetServerWithFileContent((fileUri, code));
+        }
+
+        private LanguageServer GetServerWithFileContent(params (string fileUri, string code)[] pairs)
+        {
             var server = new LanguageServer();
             server.Initialize(new InitializeParams(0, Array.Empty<WorkspaceFolder>()));
-            server.TextDocumentDidOpen(new DidOpenTextDocumentParams(new TextDocumentItem(fileUri, "some-language-id", 1, code)));
+            foreach (var pair in pairs)
+            {
+                server.TextDocumentDidOpen(new DidOpenTextDocumentParams(new TextDocumentItem(pair.fileUri, "some-language-id", 1, pair.code)));
+            }
+
             return server;
         }
 
         [Theory]
         [InlineData("file:///c%3A/path/to/file.lisp", "c:/path/to/file.lisp")]
         [InlineData("file:///usr/test/path/to/file.lisp", "/usr/test/path/to/file.lisp")]
-        [InlineData("untitled:Untitled-1", "Untitled-1")]
+        [InlineData("untitled:Untitled-1", "untitled:Untitled-1")]
         public void PathCanBeExtractedFromUri(string uri, string expectedPath)
         {
             var actualPath = Converters.PathFromUri(uri);
@@ -139,6 +148,20 @@ namespace IxMilia.Lisp.LanguageServer.Test
                 0, // token modifiers
             };
             Assert.Equal(expected, tokens.Data);
+        }
+
+        [Fact]
+        public void EvalHasSeparateRuntimesForSeparatePaths()
+        {
+            var server = GetServerWithFileContent(
+                ("file:///some-uri-1", "42"),
+                ("file:///some-uri-2", "(setf x 43) x"));
+            var execResult1 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri-1")));
+            var execResult2 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri-2")));
+            Assert.False(execResult1.IsError);
+            Assert.False(execResult2.IsError);
+            Assert.Equal("42", execResult1.Content);
+            Assert.Equal("43", execResult2.Content);
         }
     }
 }

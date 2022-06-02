@@ -65,6 +65,21 @@ namespace IxMilia.Lisp.LanguageServer
             return new InitializeResult(TextDocumentSyncKind.Incremental);
         }
 
+        [LspMethod("textDocument/eval")]
+        public EvalResult TextDocumentEval(EvalTextDocumentParams param)
+        {
+            var path = Converters.PathFromUri(param.TextDocument.Uri);
+            if (_documentContents.TryGetValue(path, out var pair))
+            {
+                var evalResult = pair.Repl.Eval(pair.Content, consumeIncompleteInput: false);
+                var isError = evalResult.LastResult is LispError;
+                var result = new EvalResult(isError, evalResult.LastResult.ToString());
+                return result;
+            }
+
+            return new EvalResult(true, $"File '{path}' not found.");
+        }
+
         [LspMethod("textDocument/completion")]
         public CompletionList TextDocumentCompletion(CompletionParams param)
         {
