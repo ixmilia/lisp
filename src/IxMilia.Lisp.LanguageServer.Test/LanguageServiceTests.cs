@@ -156,12 +156,32 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var server = GetServerWithFileContent(
                 ("file:///some-uri-1", "42"),
                 ("file:///some-uri-2", "(setf x 43) x"));
-            var execResult1 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri-1")));
-            var execResult2 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri-2")));
-            Assert.False(execResult1.IsError);
-            Assert.False(execResult2.IsError);
-            Assert.Equal("42", execResult1.Content);
-            Assert.Equal("43", execResult2.Content);
+            var evalResult1 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri-1")));
+            var evalResult2 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri-2")));
+            Assert.False(evalResult1.IsError);
+            Assert.False(evalResult2.IsError);
+            Assert.Equal("42", evalResult1.Content);
+            Assert.Equal("43", evalResult2.Content);
+        }
+
+        [Fact]
+        public void EvalConsoleOutputIsReturnedPerEval()
+        {
+            var server = GetServerWithFileContent("file:///some-uri", @"(format t ""stdout"")");
+
+            var evalResult1 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
+            Assert.False(evalResult1.IsError);
+            Assert.Equal("stdout\n()", evalResult1.Content);
+
+            server.TextDocumentDidChange(new DidChangeTextDocumentParams(
+                new VersionedTextDocumentIdentifier("file:///some-uri", 2),
+                new[]
+                {
+                    new TextDocumentContentChangeEvent(null, null, "(+ 1 1)")
+                }));
+            var evalResult2 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
+            Assert.False(evalResult2.IsError);
+            Assert.Equal("2", evalResult2.Content); // previous `stdout` isn't returned again
         }
     }
 }

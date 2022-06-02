@@ -9,7 +9,9 @@ namespace IxMilia.Lisp
     {
         private string _location;
         private TextReader _input;
-        private TextWriter _output;
+
+        public TextWriter Output { get; }
+
         private TextWriter _traceWriter;
         private string _incompleteInput;
 
@@ -21,9 +23,9 @@ namespace IxMilia.Lisp
         {
             _location = location;
             _input = input ?? TextReader.Null;
-            _output = output ?? TextWriter.Null;
+            Output = output ?? TextWriter.Null;
             _traceWriter = traceWriter ?? TextWriter.Null;
-            Host = new LispHost(_location, _input, _output, useTailCalls);
+            Host = new LispHost(_location, _input, Output, useTailCalls);
             Host.RootFrame.FunctionEntered += FunctionEntered;
             Host.RootFrame.FunctionReturned += FunctionReturned;
 

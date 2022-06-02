@@ -55,7 +55,7 @@ namespace IxMilia.Lisp.LanguageServer
         {
             var repl = _documentContents.TryGetValue(path, out var pair)
                 ? pair.Repl
-                : new LispRepl();
+                : new LispRepl(output: new ResettableTextWriter());
             _documentContents[path] = (repl, newContent);
         }
 
@@ -71,9 +71,26 @@ namespace IxMilia.Lisp.LanguageServer
             var path = Converters.PathFromUri(param.TextDocument.Uri);
             if (_documentContents.TryGetValue(path, out var pair))
             {
+                var resettableTextWriter = pair.Repl.Output as ResettableTextWriter;
+                resettableTextWriter?.Reset();
+
                 var evalResult = pair.Repl.Eval(pair.Content, consumeIncompleteInput: false);
                 var isError = evalResult.LastResult is LispError;
-                var result = new EvalResult(isError, evalResult.LastResult.ToString());
+
+                var fullOutput = new StringBuilder();
+                var stdout = resettableTextWriter?.GetText();
+                if (stdout != null)
+                {
+                    fullOutput.Append(stdout);
+                    if (stdout.Length > 0 && !stdout.EndsWith("\n"))
+                    {
+                        fullOutput.Append('\n');
+                    }
+                }
+
+                fullOutput.Append(evalResult.LastResult.ToString());
+
+                var result = new EvalResult(isError, fullOutput.ToString());
                 return result;
             }
 
