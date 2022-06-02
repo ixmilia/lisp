@@ -29,6 +29,10 @@ export async function activate(context: vscode.ExtensionContext) {
     const args = context.extensionMode === vscode.ExtensionMode.Development ? debugArgs : releaseArgs;
     const outputChannel = vscode.window.createOutputChannel(outputChannelName);
     const serverProcess = startServer(dotnetPath, args, outputChannel);
+    serverProcess.stderr.on('data', (data) => {
+        const message = data.toString('utf-8');
+        outputChannel.appendLine(message);
+    });
 
     const serverOptions: languageclient.ServerOptions = () => Promise.resolve(serverProcess);
     const clientOptions: languageclient.LanguageClientOptions = {

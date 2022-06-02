@@ -7,6 +7,10 @@ namespace IxMilia.Lisp.LanguageServer.App
     {
         public static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.FirstChanceException += (_sender, e) =>
+            {
+                Console.Error.WriteLine(e.Exception.ToString());
+            };
             var server = new LanguageServer(Console.OpenStandardOutput(), Console.OpenStandardInput());
             server.Start();
             while (true)
