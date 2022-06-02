@@ -11,12 +11,10 @@ namespace IxMilia.Lisp.LanguageServer
     public class LanguageServer
     {
         private JsonRpc _rpc;
-        private LispRepl _repl;
-        private Dictionary<string, string> _documentContents = new Dictionary<string, string>();
+        private Dictionary<string, (LispRepl Repl, string Content)> _documentContents = new Dictionary<string, (LispRepl, string)>();
 
         internal LanguageServer()
         {
-            _repl = new LispRepl();
         }
 
         public LanguageServer(Stream sendingStream, Stream receivingStream)
@@ -50,7 +48,15 @@ namespace IxMilia.Lisp.LanguageServer
         internal string GetDocumentContents(string uri)
         {
             var path = Converters.PathFromUri(uri);
-            return _documentContents[path];
+            return _documentContents[path].Content;
+        }
+
+        private void SetDocumentContents(string path, string newContent)
+        {
+            var repl = _documentContents.TryGetValue(path, out var pair)
+                ? pair.Repl
+                : new LispRepl();
+            _documentContents[path] = (repl, newContent);
         }
 
         [LspMethod("initialize")]
@@ -65,9 +71,9 @@ namespace IxMilia.Lisp.LanguageServer
             var path = Converters.PathFromUri(param.TextDocument.Uri);
             var position = Converters.SourcePositionFromPosition(param.Position);
             var items = Enumerable.Empty<CompletionItem>();
-            if (_documentContents.TryGetValue(path, out var contents))
+            if (_documentContents.TryGetValue(path, out var pair))
             {
-                var parseResult = _repl.ParseUntilSourceLocation(contents, position);
+                var parseResult = pair.Repl.ParseUntilSourceLocation(pair.Content, position);
 
                 // don't return anything if we're in a string
                 if (!(parseResult.Object is LispString))
@@ -80,7 +86,7 @@ namespace IxMilia.Lisp.LanguageServer
 
                     items = visibleValues.Select(
                         v => new CompletionItem(
-                            v.Symbol.ToDisplayString(_repl.Host.CurrentPackage),
+                            v.Symbol.ToDisplayString(pair.Repl.Host.CurrentPackage),
                             v.Symbol.Value,
                             v.Value is LispFunction f ? new MarkupContent(MarkupKind.Markdown, f.Documentation) : null));
                 }
@@ -95,23 +101,26 @@ namespace IxMilia.Lisp.LanguageServer
             var path = Converters.PathFromUri(param.TextDocument.Uri);
             foreach (var contentChanges in param.ContentChanges)
             {
-                if (_documentContents.TryGetValue(path, out var contents))
+                if (_documentContents.TryGetValue(path, out var pair))
                 {
+                    string updatedContent;
                     if (contentChanges.Range is object)
                     {
                         // incremental update
+                        var contents = pair.Content;
                         var startIndex = contentChanges.Range.Start.GetIndex(contents);
                         var endIndex = contentChanges.Range.End.GetIndex(contents);
                         var preText = contents.Substring(0, startIndex);
                         var postText = contents.Substring(endIndex);
-                        var updatedContent = string.Concat(preText, contentChanges.Text, postText);
-                        _documentContents[path] = updatedContent;
+                        updatedContent = string.Concat(preText, contentChanges.Text, postText);
                     }
                     else
                     {
                         // full update
-                        _documentContents[path] = contentChanges.Text;
+                        updatedContent = contentChanges.Text;
                     }
+
+                    SetDocumentContents(path, updatedContent);
                 }
             }
         }
@@ -127,7 +136,7 @@ namespace IxMilia.Lisp.LanguageServer
         public void TextDocumentDidOpen(DidOpenTextDocumentParams param)
         {
             var path = Converters.PathFromUri(param.TextDocument.Uri);
-            _documentContents[path] = param.TextDocument.Text;
+            SetDocumentContents(path, param.TextDocument.Text);
         }
 
         [LspMethod("textDocument/hover")]
@@ -135,9 +144,9 @@ namespace IxMilia.Lisp.LanguageServer
         {
             var path = Converters.PathFromUri(param.TextDocument.Uri);
             var position = Converters.SourcePositionFromPosition(param.Position);
-            if (_documentContents.TryGetValue(path, out var code))
+            if (_documentContents.TryGetValue(path, out var pair))
             {
-                var parseResult = _repl.ParseUntilSourceLocation(code, position);
+                var parseResult = pair.Repl.ParseUntilSourceLocation(pair.Content, position);
                 var markdown = parseResult.GetMarkdownDisplay();
                 return new Hover(new MarkupContent(MarkupKind.Markdown, markdown));
             }
@@ -149,19 +158,19 @@ namespace IxMilia.Lisp.LanguageServer
         public SemanticTokens TextDocumentSemanticTokensFull(SemanticTokensParams param)
         {
             var path = Converters.PathFromUri(param.TextDocument.Uri);
-            if (_documentContents.TryGetValue(path, out var code))
+            if (_documentContents.TryGetValue(path, out var pair))
             {
                 var legend = new SemanticTokensLegend();
                 var builder = new SemanticTokensBuilder(legend.TokenTypes, legend.TokenModifiers);
-                var objects = _repl.ParseAll(code);
+                var objects = pair.Repl.ParseAll(pair.Content);
                 foreach (var obj in objects)
                 {
-                    foreach (var token in obj.GetSemanticTokens(_repl.Host))
+                    foreach (var token in obj.GetSemanticTokens(pair.Repl.Host))
                     {
                         var start = Converters.PositionFromSourcePosition(token.Start);
                         var end = Converters.PositionFromSourcePosition(token.End);
-                        var startIndex = start.GetIndex(code);
-                        var endIndex = end.GetIndex(code);
+                        var startIndex = start.GetIndex(pair.Content);
+                        var endIndex = end.GetIndex(pair.Content);
                         var length = endIndex - startIndex;
                         builder.AddToken(start.Line, start.Character, (uint)length, token.Type.AsTokenTypeString());
                     }
