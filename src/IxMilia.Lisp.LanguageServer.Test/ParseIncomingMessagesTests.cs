@@ -50,6 +50,13 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
+        public void ParseDocumentDiagnosticParams()
+        {
+            var result = DeserializeObject<DocumentDiagnosticParams>(@"{""textDocument"":{""uri"":""some-uri""}}");
+            Assert.Equal("some-uri", result.TextDocument.Uri);
+        }
+
+        [Fact]
         public void ParseDidOpenTextDocumentParams()
         {
             var result = DeserializeObject<DidOpenTextDocumentParams>(@"{""textDocument"":{""uri"":""some-uri"",""languageId"":""some-language-id"",""version"":123,""text"":""some-text""}}");

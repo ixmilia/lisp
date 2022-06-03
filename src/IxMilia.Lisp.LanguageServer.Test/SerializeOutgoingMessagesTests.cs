@@ -29,6 +29,14 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
+        public void SerializeFullDocumentDiagnosticReport()
+        {
+            var obj = new FullDocumentDiagnosticReport(new[] { new Diagnostic(new Range(new Position(1, 1), new Position(1, 5)), DiagnosticSeverity.Error, "some message") });
+            var json = SerializeObject(obj);
+            Assert.Equal(@"{""kind"":""full"",""items"":[{""range"":{""start"":{""line"":1,""character"":1},""end"":{""line"":1,""character"":5}},""severity"":1,""message"":""some message""}]}", json);
+        }
+
+        [Fact]
         public void SerializeEvalResult()
         {
             var obj = new EvalResult(false, "some-result");
@@ -49,7 +57,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
         {
             var obj = new InitializeResult(TextDocumentSyncKind.Full);
             var json = SerializeObject(obj);
-            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":1},""completionProvider"":{""triggerCharacters"":["" "",""("","":""]},""hoverProvider"":true,""semanticTokensProvider"":{""legend"":{""tokenTypes"":[""type"",""class"",""enum"",""interface"",""struct"",""typeParameter"",""parameter"",""variable"",""property"",""enumMember"",""event"",""function"",""method"",""macro"",""keyword"",""modifier"",""comment"",""string"",""number"",""regexp"",""operator""],""tokenModifiers"":[""declaration""]},""full"":true}}}", json);
+            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":1},""completionProvider"":{""triggerCharacters"":["" "",""("","":""]},""hoverProvider"":true,""semanticTokensProvider"":{""legend"":{""tokenTypes"":[""type"",""class"",""enum"",""interface"",""struct"",""typeParameter"",""parameter"",""variable"",""property"",""enumMember"",""event"",""function"",""method"",""macro"",""keyword"",""modifier"",""comment"",""string"",""number"",""regexp"",""operator""],""tokenModifiers"":[""declaration""]},""full"":true},""diagnosticProvider"":{""interFileDependencies"":false,""workspaceDiagnostics"":false}}}", json);
         }
 
         [Fact]
@@ -57,7 +65,15 @@ namespace IxMilia.Lisp.LanguageServer.Test
         {
             var obj = new InitializeResult(TextDocumentSyncKind.Incremental);
             var json = SerializeObject(obj);
-            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":2},""completionProvider"":{""triggerCharacters"":["" "",""("","":""]},""hoverProvider"":true,""semanticTokensProvider"":{""legend"":{""tokenTypes"":[""type"",""class"",""enum"",""interface"",""struct"",""typeParameter"",""parameter"",""variable"",""property"",""enumMember"",""event"",""function"",""method"",""macro"",""keyword"",""modifier"",""comment"",""string"",""number"",""regexp"",""operator""],""tokenModifiers"":[""declaration""]},""full"":true}}}", json);
+            Assert.Equal(@"{""capabilities"":{""textDocumentSync"":{""openClose"":true,""change"":2},""completionProvider"":{""triggerCharacters"":["" "",""("","":""]},""hoverProvider"":true,""semanticTokensProvider"":{""legend"":{""tokenTypes"":[""type"",""class"",""enum"",""interface"",""struct"",""typeParameter"",""parameter"",""variable"",""property"",""enumMember"",""event"",""function"",""method"",""macro"",""keyword"",""modifier"",""comment"",""string"",""number"",""regexp"",""operator""],""tokenModifiers"":[""declaration""]},""full"":true},""diagnosticProvider"":{""interFileDependencies"":false,""workspaceDiagnostics"":false}}}", json);
+        }
+
+        [Fact]
+        public void SerializePublishDiagnosticsParams()
+        {
+            var obj = new PublishDiagnosticsParams("some-uri", new[] { new Diagnostic(new Range(new Position(1, 1), new Position(1, 5)), DiagnosticSeverity.Error, "some message") });
+            var json = SerializeObject(obj);
+            Assert.Equal(@"{""uri"":""some-uri"",""diagnostics"":[{""range"":{""start"":{""line"":1,""character"":1},""end"":{""line"":1,""character"":5}},""severity"":1,""message"":""some message""}]}", json);
         }
 
         [Fact]

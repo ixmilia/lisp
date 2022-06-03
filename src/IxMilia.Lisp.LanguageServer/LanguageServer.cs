@@ -13,12 +13,7 @@ namespace IxMilia.Lisp.LanguageServer
         private JsonRpc _rpc;
         private Dictionary<string, (LispRepl Repl, string Content)> _documentContents = new Dictionary<string, (LispRepl, string)>();
 
-        internal LanguageServer()
-        {
-        }
-
         public LanguageServer(Stream sendingStream, Stream receivingStream)
-            : this()
         {
             var encoding = new UTF8Encoding(false);
             var formatter = new JsonMessageFormatter(encoding);
@@ -47,16 +42,17 @@ namespace IxMilia.Lisp.LanguageServer
 
         internal string GetDocumentContents(string uri)
         {
-            var path = Converters.PathFromUri(uri);
-            return _documentContents[path].Content;
+            return _documentContents[uri].Content;
         }
 
-        private void SetDocumentContents(string path, string newContent)
+        private void SetDocumentContents(string uri, string newContent)
         {
-            var repl = _documentContents.TryGetValue(path, out var pair)
+            var repl = _documentContents.TryGetValue(uri, out var pair)
                 ? pair.Repl
                 : new LispRepl(output: new ResettableTextWriter());
-            _documentContents[path] = (repl, newContent);
+            _documentContents[uri] = (repl, newContent);
+            var diagnostics = ComputeDiagnostics(uri);
+            TextDocumentPublishDiagnostics(uri, diagnostics);
         }
 
         [LspMethod("initialize")]
@@ -68,14 +64,19 @@ namespace IxMilia.Lisp.LanguageServer
         [LspMethod("textDocument/eval")]
         public EvalResult TextDocumentEval(EvalTextDocumentParams param)
         {
-            var path = Converters.PathFromUri(param.TextDocument.Uri);
-            if (_documentContents.TryGetValue(path, out var pair))
+            if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
+                var diagnostics = new List<Diagnostic>();
                 var resettableTextWriter = pair.Repl.Output as ResettableTextWriter;
                 resettableTextWriter?.Reset();
 
                 var evalResult = pair.Repl.Eval(pair.Content, consumeIncompleteInput: false);
-                var isError = evalResult.LastResult is LispError;
+                var error = evalResult.LastResult as LispError;
+
+                if (error is { })
+                {
+                    AddErrorToDiagnosticCollection(diagnostics, error);
+                }
 
                 var fullOutput = new StringBuilder();
                 var stdout = resettableTextWriter?.GetText();
@@ -90,20 +91,22 @@ namespace IxMilia.Lisp.LanguageServer
 
                 fullOutput.Append(evalResult.LastResult.ToString());
 
+                TextDocumentPublishDiagnostics(param.TextDocument.Uri, diagnostics.ToArray());
+
+                var isError = error is { };
                 var result = new EvalResult(isError, fullOutput.ToString());
                 return result;
             }
 
-            return new EvalResult(true, $"File '{path}' not found.");
+            return new EvalResult(true, $"File '{param.TextDocument.Uri}' not found.");
         }
 
         [LspMethod("textDocument/completion")]
         public CompletionList TextDocumentCompletion(CompletionParams param)
         {
-            var path = Converters.PathFromUri(param.TextDocument.Uri);
             var position = Converters.SourcePositionFromPosition(param.Position);
             var items = Enumerable.Empty<CompletionItem>();
-            if (_documentContents.TryGetValue(path, out var pair))
+            if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
                 var parseResult = pair.Repl.ParseUntilSourceLocation(pair.Content, position);
 
@@ -127,13 +130,20 @@ namespace IxMilia.Lisp.LanguageServer
             return new CompletionList(false, items);
         }
 
+        [LspMethod("textDocument/diagnostic")]
+        public DocumentDiagnosticReport TextDocumentDiagnostic(DocumentDiagnosticParams param)
+        {
+            var diagnostics = ComputeDiagnostics(param.TextDocument.Uri);
+            var result = new FullDocumentDiagnosticReport(diagnostics);
+            return result;
+        }
+
         [LspMethod("textDocument/didChange")]
         public void TextDocumentDidChange(DidChangeTextDocumentParams param)
         {
-            var path = Converters.PathFromUri(param.TextDocument.Uri);
             foreach (var contentChanges in param.ContentChanges)
             {
-                if (_documentContents.TryGetValue(path, out var pair))
+                if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
                 {
                     string updatedContent;
                     if (contentChanges.Range is object)
@@ -152,7 +162,7 @@ namespace IxMilia.Lisp.LanguageServer
                         updatedContent = contentChanges.Text;
                     }
 
-                    SetDocumentContents(path, updatedContent);
+                    SetDocumentContents(param.TextDocument.Uri, updatedContent);
                 }
             }
         }
@@ -160,23 +170,20 @@ namespace IxMilia.Lisp.LanguageServer
         [LspMethod("textDocument/didClose")]
         public void TextDocumentDidClose(DidCloseTextDocumentParams param)
         {
-            var path = Converters.PathFromUri(param.TextDocument.Uri);
-            _documentContents.Remove(path);
+            _documentContents.Remove(param.TextDocument.Uri);
         }
 
         [LspMethod("textDocument/didOpen")]
         public void TextDocumentDidOpen(DidOpenTextDocumentParams param)
         {
-            var path = Converters.PathFromUri(param.TextDocument.Uri);
-            SetDocumentContents(path, param.TextDocument.Text);
+            SetDocumentContents(param.TextDocument.Uri, param.TextDocument.Text);
         }
 
         [LspMethod("textDocument/hover")]
         public Hover TextDocumentHover(HoverParams param)
         {
-            var path = Converters.PathFromUri(param.TextDocument.Uri);
             var position = Converters.SourcePositionFromPosition(param.Position);
-            if (_documentContents.TryGetValue(path, out var pair))
+            if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
                 var parseResult = pair.Repl.ParseUntilSourceLocation(pair.Content, position);
                 var markdown = parseResult.GetMarkdownDisplay();
@@ -186,11 +193,54 @@ namespace IxMilia.Lisp.LanguageServer
             return null;
         }
 
+        private Diagnostic[] ComputeDiagnostics(string uri)
+        {
+            var diagnostics = new List<Diagnostic>();
+            if (_documentContents.TryGetValue(uri, out var pair))
+            {
+                foreach (var parsedObj in pair.Repl.ParseAll(pair.Content))
+                {
+                    if (parsedObj is LispError error)
+                    {
+                        AddErrorToDiagnosticCollection(diagnostics, error);
+                    }
+                }
+            }
+
+            return diagnostics.ToArray();
+        }
+
+        private static void AddErrorToDiagnosticCollection(List<Diagnostic> diagnostics, LispError error)
+        {
+            var range = RangeFromError(error);
+            if (range is { })
+            {
+                var diagnostic = new Diagnostic(range, DiagnosticSeverity.Error, error.Message);
+                diagnostics.Add(diagnostic);
+            }
+        }
+
+        private static Range RangeFromError(LispError error)
+        {
+            var sourceLocation = error.SourceLocation ?? error.StackFrame.Root.SourceLocation;
+            if (sourceLocation.HasValue)
+            {
+                return Converters.RangeFromSoureLocation(sourceLocation.Value);
+            }
+
+            return null;
+        }
+
+        private void TextDocumentPublishDiagnostics(string uri, Diagnostic[] diagnostics)
+        {
+            var param = new PublishDiagnosticsParams(uri, diagnostics);
+            var _ = _rpc.NotifyAsync("textDocument/publishDiagnostics", param);
+        }
+
         [LspMethod("textDocument/semanticTokens/full")]
         public SemanticTokens TextDocumentSemanticTokensFull(SemanticTokensParams param)
         {
-            var path = Converters.PathFromUri(param.TextDocument.Uri);
-            if (_documentContents.TryGetValue(path, out var pair))
+            if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
                 var legend = new SemanticTokensLegend();
                 var builder = new SemanticTokensBuilder(legend.TokenTypes, legend.TokenModifiers);

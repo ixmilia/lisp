@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Linq;
 using IxMilia.Lisp.LanguageServer.Protocol;
 using IxMilia.Lisp.Test;
 using Xunit;
@@ -21,7 +23,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
 
         private LanguageServer GetServerWithFileContent(params (string fileUri, string code)[] pairs)
         {
-            var server = new LanguageServer();
+            var server = new LanguageServer(new MemoryStream(), new MemoryStream());
             server.Initialize(new InitializeParams(0, Array.Empty<WorkspaceFolder>()));
             foreach (var pair in pairs)
             {
@@ -29,16 +31,6 @@ namespace IxMilia.Lisp.LanguageServer.Test
             }
 
             return server;
-        }
-
-        [Theory]
-        [InlineData("file:///c%3A/path/to/file.lisp", "c:/path/to/file.lisp")]
-        [InlineData("file:///usr/test/path/to/file.lisp", "/usr/test/path/to/file.lisp")]
-        [InlineData("untitled:Untitled-1", "untitled:Untitled-1")]
-        public void PathCanBeExtractedFromUri(string uri, string expectedPath)
-        {
-            var actualPath = Converters.PathFromUri(uri);
-            Assert.Equal(expectedPath, actualPath);
         }
 
         [Fact]
@@ -97,6 +89,18 @@ namespace IxMilia.Lisp.LanguageServer.Test
             Assert.All(
                 completionList.Items,
                 item => Assert.StartsWith("COMMON-LISP-USER:", item.Detail));
+        }
+
+        [Fact]
+        public void DiagnosticsCanBePulled()
+        {
+            var server = GetServerWithFileContent("file:///some-uri", @"""unclosed string");
+            var diagnosticReport = (FullDocumentDiagnosticReport)server.TextDocumentDiagnostic(new DocumentDiagnosticParams(new TextDocumentIdentifier("file:///some-uri")));
+            Assert.Equal(DocumentDiagnosticReportKind.Full, diagnosticReport.Kind);
+            var diagnostic = diagnosticReport.Items.Single();
+            Assert.Equal("(0, 0)-(0, 16)", diagnostic.Range.ToString());
+            Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.Equal("EOF", diagnostic.Message);
         }
 
         [Fact]

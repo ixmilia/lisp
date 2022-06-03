@@ -6,6 +6,7 @@ namespace IxMilia.Lisp.LanguageServer.Protocol
         public CompletionOptions CompletionProvider { get; set; }
         public bool HoverProvider { get; set; }
         public SemanticTokensOptions SemanticTokensProvider { get; set; }
+        public DiagnosticOptions DiagnosticProvider { get; set; }
 
         public ServerCapabilities(TextDocumentSyncKind syncKind)
         {
@@ -13,6 +14,7 @@ namespace IxMilia.Lisp.LanguageServer.Protocol
             CompletionProvider = new CompletionOptions();
             HoverProvider = true;
             SemanticTokensProvider = new SemanticTokensOptions();
+            DiagnosticProvider = new DiagnosticOptions();
         }
     }
 }
