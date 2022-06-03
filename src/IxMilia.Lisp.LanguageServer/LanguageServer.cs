@@ -15,13 +15,19 @@ namespace IxMilia.Lisp.LanguageServer
 
         public LanguageServer(Stream sendingStream, Stream receivingStream)
         {
+            var messageHandler = CreateMessageHandler(sendingStream, receivingStream);
+            _rpc = new JsonRpc(messageHandler, this);
+            _rpc.TraceSource = new TraceSource("debugging-trace-listener", SourceLevels.All);
+            _rpc.TraceSource.Listeners.Add(new DebuggingTraceListener());
+        }
+
+        internal static IJsonRpcMessageHandler CreateMessageHandler(Stream sendingStream, Stream receivingStream)
+        {
             var encoding = new UTF8Encoding(false);
             var formatter = new JsonMessageFormatter(encoding);
             Serializer.ConfigureSerializer(formatter.JsonSerializer);
             var messageHandler = new HeaderDelimitedMessageHandler(sendingStream, receivingStream, formatter);
-            _rpc = new JsonRpc(messageHandler, this);
-            _rpc.TraceSource = new TraceSource("debugging-trace-listener", SourceLevels.All);
-            _rpc.TraceSource.Listeners.Add(new DebuggingTraceListener());
+            return messageHandler;
         }
 
         private class DebuggingTraceListener : TraceListener

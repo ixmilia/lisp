@@ -1,8 +1,11 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using IxMilia.Lisp.LanguageServer.Protocol;
 using IxMilia.Lisp.Test;
+using Nerdbank.Streams;
+using StreamJsonRpc;
 using Xunit;
 
 namespace IxMilia.Lisp.LanguageServer.Test
@@ -186,6 +189,105 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var evalResult2 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
             Assert.False(evalResult2.IsError);
             Assert.Equal("2", evalResult2.Content); // previous `stdout` isn't returned again
+        }
+
+        [Fact]
+        public async Task TextDocumentDidOpenPublishesDiagnosticsAsync()
+        {
+            var (stream1, stream2) = FullDuplexStream.CreatePair();
+            var server = new LanguageServer(stream1, stream1);
+            server.Start();
+
+            var messageHandler = LanguageServer.CreateMessageHandler(stream2, stream2);
+            var client = new JsonRpc(messageHandler);
+            var publishDiagnosticsCompletionSource = new TaskCompletionSource<Diagnostic[]>();
+            var diagnosticPublishEntryCount = 0;
+            client.AddLocalRpcMethod("textDocument/publishDiagnostics", (PublishDiagnosticsParams param) =>
+            {
+                diagnosticPublishEntryCount++;
+                if (diagnosticPublishEntryCount >= 1)
+                {
+                    publishDiagnosticsCompletionSource.SetResult(param.Diagnostics);
+                }
+            });
+            client.StartListening();
+            server.TextDocumentDidOpen(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"""unterminated string")));
+            await Task.Yield();
+            var publishDiagnosticsTimeout = Task.Delay(1000);
+            var result = await Task.WhenAny(publishDiagnosticsCompletionSource.Task, publishDiagnosticsTimeout);
+            Assert.NotStrictEqual(result, publishDiagnosticsTimeout);
+            var diagnostics = await publishDiagnosticsCompletionSource.Task;
+            var diagnostic = diagnostics.Single();
+            Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.Equal("EOF", diagnostic.Message);
+            Assert.Equal("(0, 0)-(0, 20)", diagnostic.Range.ToString());
+        }
+
+        [Fact]
+        public async Task TextDocumentDidChangePublishesDiagnosticsAsync()
+        {
+            var (stream1, stream2) = FullDuplexStream.CreatePair();
+            var server = new LanguageServer(stream1, stream1);
+            server.Start();
+
+            var messageHandler = LanguageServer.CreateMessageHandler(stream2, stream2);
+            var client = new JsonRpc(messageHandler);
+            var publishDiagnosticsCompletionSource = new TaskCompletionSource<Diagnostic[]>();
+            var diagnosticPublishEntryCount = 0;
+            client.AddLocalRpcMethod("textDocument/publishDiagnostics", (PublishDiagnosticsParams param) =>
+            {
+                diagnosticPublishEntryCount++;
+                if (diagnosticPublishEntryCount >= 2)
+                {
+                    publishDiagnosticsCompletionSource.SetResult(param.Diagnostics);
+                }
+            });
+            client.StartListening();
+            server.TextDocumentDidOpen(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"()")));
+            server.TextDocumentDidChange(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(null, null, @"""unterminated string") }));
+            await Task.Yield();
+            var publishDiagnosticsTimeout = Task.Delay(1000);
+            var result = await Task.WhenAny(publishDiagnosticsCompletionSource.Task, publishDiagnosticsTimeout);
+            Assert.NotStrictEqual(result, publishDiagnosticsTimeout);
+            var diagnostics = await publishDiagnosticsCompletionSource.Task;
+            var diagnostic = diagnostics.Single();
+            Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.Equal("EOF", diagnostic.Message);
+            Assert.Equal("(0, 0)-(0, 20)", diagnostic.Range.ToString());
+        }
+
+        [Fact]
+        public async Task EvalPublishesDiagnosticsAsync()
+        {
+            var (stream1, stream2) = FullDuplexStream.CreatePair();
+            var server = new LanguageServer(stream1, stream1);
+            server.Start();
+
+            var messageHandler = LanguageServer.CreateMessageHandler(stream2, stream2);
+            var client = new JsonRpc(messageHandler);
+            var publishDiagnosticsCompletionSource = new TaskCompletionSource<Diagnostic[]>();
+            var diagnosticPublishEntryCount = 0;
+            client.AddLocalRpcMethod("textDocument/publishDiagnostics", (PublishDiagnosticsParams param) =>
+            {
+                diagnosticPublishEntryCount++;
+                if (diagnosticPublishEntryCount >= 2)
+                {
+                    publishDiagnosticsCompletionSource.SetResult(param.Diagnostics);
+                }
+            });
+            client.StartListening();
+            server.TextDocumentDidOpen(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"(+ 1 ())")));
+            var evalResult = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
+            await Task.Yield();
+            var publishDiagnosticsTimeout = Task.Delay(1000);
+            var result = await Task.WhenAny(publishDiagnosticsCompletionSource.Task, publishDiagnosticsTimeout);
+            Assert.NotStrictEqual(result, publishDiagnosticsTimeout);
+            Assert.True(evalResult.IsError);
+            var diagnostics = await publishDiagnosticsCompletionSource.Task;
+            var diagnostic = diagnostics.Single();
+            Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.Equal("Expected exactly two numbers", diagnostic.Message);
+            Assert.Equal("(0, 5)-(0, 7)", diagnostic.Range.ToString());
         }
     }
 }
