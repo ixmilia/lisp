@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
@@ -7,40 +8,40 @@ namespace IxMilia.Lisp.Test
     public class ReplTests : TestBase
     {
         [Fact]
-        public void Simple()
+        public async Task Simple()
         {
-            var repl = new LispRepl();
-            var result = repl.Eval("(+ (+ 1 2) (+ 3 4");
+            var repl = await LispRepl.CreateAsync();
+            var result = await repl.EvalAsync("(+ (+ 1 2) (+ 3 4");
             Assert.Null(result.LastResult);
             Assert.Equal(2, result.ExpressionDepth);
 
-            result = repl.Eval(")");
+            result = await repl.EvalAsync(")");
             Assert.Null(result.LastResult);
             Assert.Equal(1, result.ExpressionDepth);
 
-            result = repl.Eval(")");
+            result = await repl.EvalAsync(")");
             Assert.Equal(new LispInteger(10), result.LastResult);
             Assert.Equal(0, result.ExpressionDepth);
         }
 
         [Fact]
-        public void CompleteAndIncompleteSubmission()
+        public async Task CompleteAndIncompleteSubmission()
         {
-            var repl = new LispRepl();
-            var result = repl.Eval("(+ 1 2)(+ 5 6");
+            var repl = await LispRepl.CreateAsync();
+            var result = await repl.EvalAsync("(+ 1 2)(+ 5 6");
             Assert.Equal(new LispInteger(3), result.LastResult);
             Assert.Equal(1, result.ExpressionDepth);
 
-            result = repl.Eval(")");
+            result = await repl.EvalAsync(")");
             Assert.Equal(new LispInteger(11), result.LastResult);
             Assert.Equal(0, result.ExpressionDepth);
         }
 
         [Fact]
-        public void ReplErrorsArePropagated()
+        public async Task ReplErrorsArePropagated()
         {
-            var repl = new LispRepl();
-            var result = repl.Eval("(+ 1 abcd)(+ 2 3)");
+            var repl = await LispRepl.CreateAsync();
+            var result = await repl.EvalAsync("(+ 1 abcd)(+ 2 3)");
             var error = (LispError)result.LastResult;
             Assert.Equal("Symbol 'ABCD' not found", error.Message);
             Assert.Equal(1, error.SourceLocation?.Start.Line);
@@ -48,17 +49,17 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void FunctionTracing()
+        public async Task FunctionTracing()
         {
             var traceWriter = new StringWriter();
-            var repl = new LispRepl(traceWriter: traceWriter);
-            repl.Eval(@"
+            var repl = await LispRepl.CreateAsync(traceWriter: traceWriter);
+            await repl.EvalAsync(@"
 (defun half (n) (* n 0.5))
 (defun average (x y)
     (+ (half x) (half y)))
 (trace half average)
 ");
-            repl.Eval("(average 3 7)");
+            await repl.EvalAsync("(average 3 7)");
             var actual = NormalizeNewlines(traceWriter.ToString().Trim('\r', '\n'));
             var expected = NormalizeNewlines(@"
 0: (AVERAGE 3 7)
@@ -72,13 +73,13 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void DribbleLogging()
+        public async Task DribbleLogging()
         {
             var output = new StringWriter();
-            var repl = new LispRepl(output: output);
+            var repl = await LispRepl.CreateAsync(output: output);
             using (var tempFile = new TemporaryFile(createFile: false))
             {
-                var result = repl.Eval($@"
+                var result = await repl.EvalAsync($@"
 (+ 1 1) ; this shouldn't be in the log
 (dribble ""{tempFile.FilePath.Replace("\\", "\\\\")}"") ; start recording
 (+ 3 3) ; this should be in the log
@@ -109,7 +110,7 @@ Finished recording in file {tempFile.FilePath}
         }
 
         [Fact]
-        public void GetObjectAtLocationGetsNarrowestObject()
+        public async Task GetObjectAtLocationGetsNarrowestObject()
         {
             var markedCode = @"
 (+ 1 2)
@@ -117,14 +118,14 @@ Finished recording in file {tempFile.FilePath}
 (- 1 2)
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var repl = new LispRepl();
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var repl = await LispRepl.CreateAsync();
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.IsType<LispInteger>(parseResult.Object);
             Assert.Equal(34, ((LispInteger)parseResult.Object).Value);
         }
 
         [Fact]
-        public void GetObjectAtLocationGetsParentObjectIfNoNarrowChildExists()
+        public async Task GetObjectAtLocationGetsParentObjectIfNoNarrowChildExists()
         {
             var markedCode = @"
 (+ 1 2)
@@ -132,14 +133,14 @@ Finished recording in file {tempFile.FilePath}
 (- 1 2)
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var repl = new LispRepl();
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var repl = await LispRepl.CreateAsync();
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.IsType<LispList>(parseResult.Object);
             Assert.Equal("(+ (* 12 34) (/ 56 78))", parseResult.Object.ToString());
         }
 
         [Fact]
-        public void GetObjectAtLocationReturnsNullIfNothingIsAvailable()
+        public async Task GetObjectAtLocationReturnsNullIfNothingIsAvailable()
         {
             var markedCode = @"
 (+ 1 2)
@@ -147,21 +148,21 @@ $$
 (- 1 2)
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var repl = new LispRepl();
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var repl = await LispRepl.CreateAsync();
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.Null(parseResult.Object);
         }
 
         [Fact]
-        public void GetMarkdownDisplayFromFunctionSourceObject()
+        public async Task GetMarkdownDisplayFromFunctionSourceObject()
         {
             var markedCode = @"
 (add-2-num$$bers 3 5)
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var repl = new LispRepl();
-            repl.Eval("(defun add-2-numbers (a b) \"Adds 2 numbers.\" (+ a b))");
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var repl = await LispRepl.CreateAsync();
+            await repl.EvalAsync("(defun add-2-numbers (a b) \"Adds 2 numbers.\" (+ a b))");
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             var expected = @"
 ``` lisp
@@ -175,33 +176,33 @@ Adds 2 numbers.
         }
 
         [Fact]
-        public void GetMarkdownDisplayFromNumberSourceObject()
+        public async Task GetMarkdownDisplayFromNumberSourceObject()
         {
             var markedCode = @"
 3.14$$159
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var repl = new LispRepl();
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var repl = await LispRepl.CreateAsync();
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             Assert.Equal("3.14159", markdown);
         }
 
         [Fact]
-        public void GetMarkdownDisplayFromUndefinedObject()
+        public async Task GetMarkdownDisplayFromUndefinedObject()
         {
             var markedCode = @"
 as$$df
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var repl = new LispRepl();
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var repl = await LispRepl.CreateAsync();
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             var markdown = parseResult.GetMarkdownDisplay();
             Assert.Null(markdown);
         }
 
         [Fact]
-        public void GetMarkdownDisplayFromUnevaluatedParsedFunction()
+        public async Task GetMarkdownDisplayFromUnevaluatedParsedFunction()
         {
             var markedCode = @"
 (defun some-function (a b)
@@ -209,14 +210,14 @@ as$$df
 (some-$$function 1 2)
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var repl = new LispRepl();
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var repl = await LispRepl.CreateAsync();
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             Assert.Contains("DEFUN SOME-FUNCTION", markdown);
         }
 
         [Fact]
-        public void GetMarkdownDisplayFromUnevaludatedParsedMacro()
+        public async Task GetMarkdownDisplayFromUnevaludatedParsedMacro()
         {
             var markedCode = @"
 (defmacro some-macro (a b)
@@ -224,28 +225,28 @@ as$$df
 (some-$$macro 1 2)
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var repl = new LispRepl();
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var repl = await LispRepl.CreateAsync();
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             Assert.Contains("DEFMACRO SOME-MACRO", markdown);
         }
 
         [Fact]
-        public void GetMarkdownDisplayFromUnevaludatedParsedSet()
+        public async Task GetMarkdownDisplayFromUnevaludatedParsedSet()
         {
             var markedCode = @"
 (setf some-value (+ 1 1))
 some-$$value
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var repl = new LispRepl();
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var repl = await LispRepl.CreateAsync();
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             Assert.Contains("(+ 1 1)", markdown);
         }
 
         [Fact]
-        public void GetMarkdownDisplayFromUnevaluatedShadowedValues()
+        public async Task GetMarkdownDisplayFromUnevaluatedShadowedValues()
         {
             var markedCode = @"
 (defun some-value () ; this is shadowed
@@ -255,16 +256,16 @@ some-$$value
 (setf some-value 3333) ; this is ignored
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var repl = new LispRepl();
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var repl = await LispRepl.CreateAsync();
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             Assert.Contains("2222", markdown);
         }
 
         [Fact]
-        public void GetMarkdownDisplayFromUnevaluatedParsedSetInUnevaluatedFunction()
+        public async Task GetMarkdownDisplayFromUnevaluatedParsedSetInUnevaluatedFunction()
         {
-            var repl = new LispRepl();
+            var repl = await LispRepl.CreateAsync();
             repl.Host.SetValue("some-value", new LispInteger(111)); // top-level value that's shadowed
             var markedCode = @"
 (setf some-value 222) ; this is also shadowed
@@ -274,45 +275,45 @@ some-$$value
 (setf some-value 444) ; this is never reached
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             var markdown = parseResult.GetMarkdownDisplay().Replace("\r", "");
             Assert.Contains("333", markdown);
         }
 
         [Fact]
-        public void BoundValuesCanBeDeterminedFromAlreadyExecutedCode()
+        public async Task BoundValuesCanBeDeterminedFromAlreadyExecutedCode()
         {
-            var repl = new LispRepl();
-            var result = repl.Eval("(setf the-answer 42)");
+            var repl = await LispRepl.CreateAsync();
+            var result = await repl.EvalAsync("(setf the-answer 42)");
             Assert.IsNotType<LispError>(result.LastResult);
             var markedCode = @"the-$$answer";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.Contains(
                 parseResult.VisibleValues.Values,
                 boundSymbol => boundSymbol.Symbol.Value == "COMMON-LISP-USER:THE-ANSWER" && boundSymbol.Value is LispInteger i && i.Value == 42);
         }
 
         [Fact]
-        public void BoundValuesCanBeDeterminedAtTheRoot()
+        public async Task BoundValuesCanBeDeterminedAtTheRoot()
         {
-            var repl = new LispRepl();
+            var repl = await LispRepl.CreateAsync();
             var markedCode = @"
 (setf the-answer 42)
 the-$$answer
 (setf then-answer 84)
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.Contains(
                 parseResult.VisibleValues.Values,
                 boundSymbol => boundSymbol.Symbol.Value == "COMMON-LISP-USER:THE-ANSWER" && boundSymbol.Value is LispInteger i && i.Value == 42);
         }
 
         [Fact]
-        public void BoundValuesCanBeDeterminedFromWithinAFunctionDefinition()
+        public async Task BoundValuesCanBeDeterminedFromWithinAFunctionDefinition()
         {
-            var repl = new LispRepl();
+            var repl = await LispRepl.CreateAsync();
             var markedCode = @"
 (setf the-answer 11)
 (defun some-function ()
@@ -323,95 +324,95 @@ the-$$answer
 (setf the-answer 44)
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.Contains(
                 parseResult.VisibleValues.Values,
                 boundSymbol => boundSymbol.Symbol.Value == "COMMON-LISP-USER:THE-ANSWER" && boundSymbol.Value is LispInteger i && i.Value == 42);
         }
 
         [Fact]
-        public void BoundValuesCanBeDeterminedFromFunctionArguments()
+        public async Task BoundValuesCanBeDeterminedFromFunctionArguments()
         {
-            var repl = new LispRepl();
+            var repl = await LispRepl.CreateAsync();
             var markedCode = @"
 (defun incomplete-function (some-parameter some-other-parameter)
     $$())
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.Contains(
                 parseResult.VisibleValues.Values,
                 boundSymbol => boundSymbol.Value is LispSymbol s && s.LocalName == "SOME-PARAMETER");
         }
 
         [Fact]
-        public void BoundValuesCanBeDeterminedFromMacroArguments()
+        public async Task BoundValuesCanBeDeterminedFromMacroArguments()
         {
-            var repl = new LispRepl();
+            var repl = await LispRepl.CreateAsync();
             var markedCode = @"
 (defmacro incomplete-function (some-parameter some-other-parameter)
     $$())
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.Contains(
                 parseResult.VisibleValues.Values,
                 boundSymbol => boundSymbol.Value is LispSymbol s && s.LocalName == "SOME-PARAMETER");
         }
 
         [Fact]
-        public void BoundValuesCanBeDeterminedFromWithinAnIncompleteList()
+        public async Task BoundValuesCanBeDeterminedFromWithinAnIncompleteList()
         {
-            var repl = new LispRepl();
+            var repl = await LispRepl.CreateAsync();
             var markedCode = @"
 (defun some-function ()
     ())
 '(some list $$
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.Contains(
                 parseResult.VisibleValues.Values,
                 boundSymbol => boundSymbol.Value is LispFunction f && f.NameSymbol.LocalName == "SOME-FUNCTION");
         }
 
         [Fact]
-        public void BoundValueOfFunctionParameterCanBeReturnedFromAnIncompleteDefinition()
+        public async Task BoundValueOfFunctionParameterCanBeReturnedFromAnIncompleteDefinition()
         {
-            var repl = new LispRepl();
+            var repl = await LispRepl.CreateAsync();
             var markedCode = @"
 (defun incomplete-function (some-parameter some-other-parameter)
     $$
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.Contains(
                 parseResult.VisibleValues.Values,
                 boundSymbol => boundSymbol.Value is LispSymbol s && s.LocalName == "SOME-PARAMETER");
         }
 
         [Fact]
-        public void VisibleValuesAreHandledAfterAColonCharacter()
+        public async Task VisibleValuesAreHandledAfterAColonCharacter()
         {
-            var repl = new LispRepl();
+            var repl = await LispRepl.CreateAsync();
             var markedCode = @"
 (setf some-value 0)
 common-lisp-user:$$
 ";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             Assert.Contains(
                 parseResult.VisibleValues.Values,
                 boundSymbol => boundSymbol.Symbol.LocalName == "SOME-VALUE");
         }
 
         [Fact]
-        public void ParsedObjectCanBeAnIncompleteResolvedSymbol()
+        public async Task ParsedObjectCanBeAnIncompleteResolvedSymbol()
         {
-            var repl = new LispRepl();
+            var repl = await LispRepl.CreateAsync();
             var markedCode = @"common-lisp-user:$$";
             GetCodeAndPosition(markedCode, out var code, out var position);
-            var parseResult = repl.ParseUntilSourceLocation(code, position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
             var resolvedSymbol = (LispResolvedSymbol)parseResult.Object;
             Assert.Equal("COMMON-LISP-USER", resolvedSymbol.PackageName);
             Assert.Equal("", resolvedSymbol.LocalName);

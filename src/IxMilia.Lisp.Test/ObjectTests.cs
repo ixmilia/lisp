@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
@@ -114,10 +115,10 @@ namespace IxMilia.Lisp.Test
         [InlineData("(make-array 3 :initial-element 42)", false, 3, 3, "#(42 42 42)")]
         [InlineData("(make-array 3 :fill-pointer 1)", false, 1, 1, "#(())")]
         [InlineData("(make-array 3 :fill-pointer 1 :adjustable t)", true, 1, 3, "#(())")]
-        public void VectorProperties(string code, bool isAdjustable, int count, int size, string display)
+        public async Task VectorProperties(string code, bool isAdjustable, int count, int size, string display)
         {
-            var host = new LispHost();
-            var evalResult = host.Eval(code);
+            var host = await LispHost.CreateAsync();
+            var evalResult = await host.EvalAsync(code);
             Assert.Null(evalResult.ReadError);
             Assert.IsType<LispVector>(evalResult.LastResult);
             var vector = (LispVector)evalResult.LastResult;
@@ -132,10 +133,10 @@ namespace IxMilia.Lisp.Test
         [InlineData("(elt '(1 2 3) 1)", "2")] // get list
         [InlineData("(setf v (vector 1 2 3))\n(setf (elt v 1) 42)\nv", "#(1 42 3)")] // set vector
         [InlineData("(setf l '(1 2 3))\n(setf (elt l 1) 42)\nl", "(1 42 3)")] // set list
-        public void SequenceElement(string code, string expected)
+        public async Task SequenceElement(string code, string expected)
         {
-            var host = new LispHost();
-            var evalResult = host.Eval(code);
+            var host = await LispHost.CreateAsync();
+            var evalResult = await host.EvalAsync(code);
             Assert.Null(evalResult.ReadError);
             Assert.Equal(expected, evalResult.LastResult.ToString());
         }

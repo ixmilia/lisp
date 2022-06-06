@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace IxMilia.Lisp
 {
@@ -1728,11 +1730,11 @@ namespace IxMilia.Lisp
 
         public override string ToDisplayString(LispPackage currentPackage) => $"{NameSymbol.ToDisplayString(currentPackage)} ({ArgumentCollection})";
 
-        public bool TryBindArguments(LispObject[] args, LispHost host, LispStackFrame frame, out LispError error)
+        public async Task<(bool Success, LispError Error)> TryBindArgumentsAsync(LispObject[] args, LispHost host, LispStackFrame frame, CancellationToken cancellationToken = default)
         {
-            if (!ArgumentCollection.TryMatchInvocationArguments(args, out var matchedArguments, out error))
+            if (!ArgumentCollection.TryMatchInvocationArguments(args, out var matchedArguments, out var error))
             {
-                return false;
+                return (false, error);
             }
 
             foreach (var matchedArgument in matchedArguments)
@@ -1745,21 +1747,20 @@ namespace IxMilia.Lisp
                     case LispKeywordInvocationArgument _:
                     case LispOptionalInvocationArgument _:
                         // `&aux`, `&key`, and `&optional` arguments need to be evaluated
-                        argumentValue = host.EvalAtStackFrame(frame, argumentValue);
+                        argumentValue = await host.EvalAtStackFrameAsync(frame, argumentValue, cancellationToken);
                         break;
                 }
 
                 if (argumentValue is LispError argumentError)
                 {
-                    error = argumentError;
-                    return false;
+                    return (false, argumentError);
                 }
 
                 var resolvedArgument = LispSymbol.CreateFromString(argumentName).Resolve(host.CurrentPackage);
                 frame.SetValue(resolvedArgument, argumentValue);
             }
 
-            return true;
+            return (true, default);
         }
     }
 

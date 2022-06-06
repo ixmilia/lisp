@@ -12,25 +12,25 @@ namespace IxMilia.Lisp.LanguageServer.Test
 {
     public class LanguageServiceTests : TestBase
     {
-        private LanguageServer GetServerWithFileContent(string fileUri, string markedCode, out Position position)
+        private Task<LanguageServer> GetServerWithFileContentAsync(string fileUri, string markedCode, out Position position)
         {
             GetCodeAndPosition(markedCode, out var code, out var lispPosition);
             position = Converters.PositionFromSourcePosition(lispPosition);
-            return GetServerWithFileContent(fileUri, code);
+            return GetServerWithFileContentAsync(fileUri, code);
         }
 
-        private LanguageServer GetServerWithFileContent(string fileUri, string code)
+        private Task<LanguageServer> GetServerWithFileContentAsync(string fileUri, string code)
         {
-            return GetServerWithFileContent((fileUri, code));
+            return GetServerWithFileContentAsync((fileUri, code));
         }
 
-        private LanguageServer GetServerWithFileContent(params (string fileUri, string code)[] pairs)
+        private async Task<LanguageServer> GetServerWithFileContentAsync(params (string fileUri, string code)[] pairs)
         {
             var server = new LanguageServer(new MemoryStream(), new MemoryStream());
             server.Initialize(new InitializeParams(0, Array.Empty<WorkspaceFolder>()));
             foreach (var pair in pairs)
             {
-                server.TextDocumentDidOpen(new DidOpenTextDocumentParams(new TextDocumentItem(pair.fileUri, "some-language-id", 1, pair.code)));
+                await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem(pair.fileUri, "some-language-id", 1, pair.code)));
             }
 
             return server;
@@ -48,57 +48,57 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
-        public void GetHoverTextFromDocument()
+        public async Task GetHoverTextFromDocument()
         {
-            var server = GetServerWithFileContent("file:///some-uri", "(se$$tf sum (+ 1 1))", out var position);
-            var hover = server.TextDocumentHover(new HoverParams(new TextDocumentIdentifier("file:///some-uri"), position));
+            var server = await GetServerWithFileContentAsync("file:///some-uri", "(se$$tf sum (+ 1 1))", out var position);
+            var hover = await server.TextDocumentHoverAsync(new HoverParams(new TextDocumentIdentifier("file:///some-uri"), position));
             Assert.Contains("(DEFMACRO SETF (...) ...)", hover.Contents.Value);
         }
 
         [Fact]
-        public void DocumentIsUpdatedWithFullChangeEvent()
+        public async Task DocumentIsUpdatedWithFullChangeEvent()
         {
-            var server = GetServerWithFileContent("file:///some-uri", "(defun add (a b) (+ a b))");
+            var server = await GetServerWithFileContentAsync("file:///some-uri", "(defun add (a b) (+ a b))");
             // full update sets `Range` and `RangeLength` to null
-            server.TextDocumentDidChange(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(null, null, "(defmacro add (a b) (+ a b))") }));
+            await server.TextDocumentDidChangeAsync(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(null, null, "(defmacro add (a b) (+ a b))") }));
             var contents = server.GetDocumentContents("file:///some-uri");
             Assert.Equal("(defmacro add (a b) (+ a b))", contents);
         }
 
         [Fact]
-        public void DocumentIsUpdatedWithIncrementalChangeEvent()
+        public async Task DocumentIsUpdatedWithIncrementalChangeEvent()
         {
-            var server = GetServerWithFileContent("file:///some-uri", "(defun add (a b) (+ a b))");
+            var server = await GetServerWithFileContentAsync("file:///some-uri", "(defun add (a b) (+ a b))");
             // incremental update sets `Range` and `RangeLength` to non-null values
-            server.TextDocumentDidChange(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(new Protocol.Range(new Position(0, 1), new Position(0, 6)), 5, "defmacro") }));
+            await server.TextDocumentDidChangeAsync(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(new Protocol.Range(new Position(0, 1), new Position(0, 6)), 5, "defmacro") }));
             var contents = server.GetDocumentContents("file:///some-uri");
             Assert.Equal("(defmacro add (a b) (+ a b))", contents);
         }
 
         [Fact]
-        public void GetCompletionItems()
+        public async Task GetCompletionItems()
         {
-            var server = GetServerWithFileContent("file:///some-uri", "(def$$", out var position);
-            var completionList = server.TextDocumentCompletion(new CompletionParams(new CompletionContext(CompletionTriggerKind.TriggerCharacter, '('), new TextDocumentIdentifier("file:///some-uri"), position));
+            var server = await GetServerWithFileContentAsync("file:///some-uri", "(def$$", out var position);
+            var completionList = await server.TextDocumentCompletionAsync(new CompletionParams(new CompletionContext(CompletionTriggerKind.TriggerCharacter, '('), new TextDocumentIdentifier("file:///some-uri"), position));
             Assert.False(completionList.IsIncomplete);
             Assert.Contains(completionList.Items, item => item.Label == "DEFUN" && item.Detail == "COMMON-LISP:DEFUN");
         }
 
         [Fact]
-        public void CompletionItemsAreScopedToTheSpecifiedPackage()
+        public async Task CompletionItemsAreScopedToTheSpecifiedPackage()
         {
-            var server = GetServerWithFileContent("file:///some-uri", "common-lisp-user:$$", out var position);
-            var completionList = server.TextDocumentCompletion(new CompletionParams(new CompletionContext(CompletionTriggerKind.TriggerCharacter, ':'), new TextDocumentIdentifier("file:///some-uri"), position));
+            var server = await GetServerWithFileContentAsync("file:///some-uri", "common-lisp-user:$$", out var position);
+            var completionList = await server.TextDocumentCompletionAsync(new CompletionParams(new CompletionContext(CompletionTriggerKind.TriggerCharacter, ':'), new TextDocumentIdentifier("file:///some-uri"), position));
             Assert.All(
                 completionList.Items,
                 item => Assert.StartsWith("COMMON-LISP-USER:", item.Detail));
         }
 
         [Fact]
-        public void DiagnosticsCanBePulled()
+        public async Task DiagnosticsCanBePulled()
         {
-            var server = GetServerWithFileContent("file:///some-uri", @"""unclosed string");
-            var diagnosticReport = (FullDocumentDiagnosticReport)server.TextDocumentDiagnostic(new DocumentDiagnosticParams(new TextDocumentIdentifier("file:///some-uri")));
+            var server = await GetServerWithFileContentAsync("file:///some-uri", @"""unclosed string");
+            var diagnosticReport = (FullDocumentDiagnosticReport)await server.TextDocumentDiagnosticAsync(new DocumentDiagnosticParams(new TextDocumentIdentifier("file:///some-uri")));
             Assert.Equal(DocumentDiagnosticReportKind.Full, diagnosticReport.Kind);
             var diagnostic = diagnosticReport.Items.Single();
             Assert.Equal("(0, 0)-(0, 16)", diagnostic.Range.ToString());
@@ -107,38 +107,38 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
-        public void NoCompletionItemsInATerminatedString()
+        public async Task NoCompletionItemsInATerminatedString()
         {
-            var server = GetServerWithFileContent("file:///some-uri", "\"in a string $$\"", out var position);
-            var completionList = server.TextDocumentCompletion(new CompletionParams(new CompletionContext(CompletionTriggerKind.TriggerCharacter, ' '), new TextDocumentIdentifier("file:///some-uri"), position));
+            var server = await GetServerWithFileContentAsync("file:///some-uri", "\"in a string $$\"", out var position);
+            var completionList = await server.TextDocumentCompletionAsync(new CompletionParams(new CompletionContext(CompletionTriggerKind.TriggerCharacter, ' '), new TextDocumentIdentifier("file:///some-uri"), position));
             Assert.Empty(completionList.Items);
         }
 
         [Fact]
-        public void GetHoverTextAfterFullUpdate()
+        public async Task GetHoverTextAfterFullUpdate()
         {
-            var server = GetServerWithFileContent("file:///some-uri", "(defun add (a b) (+ a b))");
+            var server = await GetServerWithFileContentAsync("file:///some-uri", "(defun add (a b) (+ a b))");
             // full update sets `Range` and `RangeLength` to null
-            server.TextDocumentDidChange(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(null, null, "(defmacro add (a b) (+ a b))") }));
-            var hover = server.TextDocumentHover(new HoverParams(new TextDocumentIdentifier("file:///some-uri"), new Position(0, 3)));
+            await server.TextDocumentDidChangeAsync(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(null, null, "(defmacro add (a b) (+ a b))") }));
+            var hover = await server.TextDocumentHoverAsync(new HoverParams(new TextDocumentIdentifier("file:///some-uri"), new Position(0, 3)));
             Assert.Contains("(DEFMACRO DEFMACRO (...) ...)", hover.Contents.Value);
         }
 
         [Fact]
-        public void GetHoverTextAfterIncrementalUpdate()
+        public async Task GetHoverTextAfterIncrementalUpdate()
         {
-            var server = GetServerWithFileContent("file:///some-uri", "(defun add (a b) (+ a b))");
+            var server = await GetServerWithFileContentAsync("file:///some-uri", "(defun add (a b) (+ a b))");
             // incremental update sets `Range` and `RangeLength` to non-null values
-            server.TextDocumentDidChange(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(new Protocol.Range(new Position(0, 1), new Position(0, 6)), 5, "defmacro") }));
-            var hover = server.TextDocumentHover(new HoverParams(new TextDocumentIdentifier("file:///some-uri"), new Position(0, 3)));
+            await server.TextDocumentDidChangeAsync(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(new Protocol.Range(new Position(0, 1), new Position(0, 6)), 5, "defmacro") }));
+            var hover = await server.TextDocumentHoverAsync(new HoverParams(new TextDocumentIdentifier("file:///some-uri"), new Position(0, 3)));
             Assert.Contains("(DEFMACRO DEFMACRO (...) ...)", hover.Contents.Value);
         }
 
         [Fact]
-        public void SemanticTokenEncoding()
+        public async Task SemanticTokenEncoding()
         {
-            var server = GetServerWithFileContent("file:///some-uri", " 42 \"abc\" ");
-            var tokens = server.TextDocumentSemanticTokensFull(new SemanticTokensParams() { TextDocument = new TextDocumentIdentifier("file:///some-uri") });
+            var server = await GetServerWithFileContentAsync("file:///some-uri", " 42 \"abc\" ");
+            var tokens = await server.TextDocumentSemanticTokensFullAsync(new SemanticTokensParams() { TextDocument = new TextDocumentIdentifier("file:///some-uri") });
             var expected = new uint[]
             {
                 // 42
@@ -158,13 +158,13 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
-        public void EvalHasSeparateRuntimesForSeparatePaths()
+        public async Task EvalHasSeparateRuntimesForSeparatePaths()
         {
-            var server = GetServerWithFileContent(
+            var server = await GetServerWithFileContentAsync(
                 ("file:///some-uri-1", "42"),
                 ("file:///some-uri-2", "(setf x 43) x"));
-            var evalResult1 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri-1")));
-            var evalResult2 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri-2")));
+            var evalResult1 = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri-1")));
+            var evalResult2 = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri-2")));
             Assert.False(evalResult1.IsError);
             Assert.False(evalResult2.IsError);
             Assert.Equal("42", evalResult1.Content);
@@ -172,27 +172,26 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
-        public void EvalConsoleOutputIsReturnedPerEval()
+        public async Task EvalConsoleOutputIsReturnedPerEval()
         {
-            var server = GetServerWithFileContent("file:///some-uri", @"(format t ""stdout"")");
-
-            var evalResult1 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
+            var server = await GetServerWithFileContentAsync("file:///some-uri", @"(format t ""stdout"")");
+            var evalResult1 = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
             Assert.False(evalResult1.IsError);
             Assert.Equal("stdout\n()", evalResult1.Content);
 
-            server.TextDocumentDidChange(new DidChangeTextDocumentParams(
+            await server.TextDocumentDidChangeAsync(new DidChangeTextDocumentParams(
                 new VersionedTextDocumentIdentifier("file:///some-uri", 2),
                 new[]
                 {
                     new TextDocumentContentChangeEvent(null, null, "(+ 1 1)")
                 }));
-            var evalResult2 = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
+            var evalResult2 = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
             Assert.False(evalResult2.IsError);
             Assert.Equal("2", evalResult2.Content); // previous `stdout` isn't returned again
         }
 
         [Fact]
-        public async Task TextDocumentDidOpenPublishesDiagnosticsAsync()
+        public async Task TextDocumentDidOpenPublishesDiagnostics()
         {
             var (stream1, stream2) = FullDuplexStream.CreatePair();
             var server = new LanguageServer(stream1, stream1);
@@ -211,7 +210,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
                 }
             });
             client.StartListening();
-            server.TextDocumentDidOpen(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"""unterminated string")));
+            await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"""unterminated string")));
             await Task.Yield();
             var publishDiagnosticsTimeout = Task.Delay(1000);
             var result = await Task.WhenAny(publishDiagnosticsCompletionSource.Task, publishDiagnosticsTimeout);
@@ -224,7 +223,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
-        public async Task TextDocumentDidChangePublishesDiagnosticsAsync()
+        public async Task TextDocumentDidChangePublishesDiagnostics()
         {
             var (stream1, stream2) = FullDuplexStream.CreatePair();
             var server = new LanguageServer(stream1, stream1);
@@ -243,8 +242,8 @@ namespace IxMilia.Lisp.LanguageServer.Test
                 }
             });
             client.StartListening();
-            server.TextDocumentDidOpen(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"()")));
-            server.TextDocumentDidChange(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(null, null, @"""unterminated string") }));
+            await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"()")));
+            await server.TextDocumentDidChangeAsync(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(null, null, @"""unterminated string") }));
             await Task.Yield();
             var publishDiagnosticsTimeout = Task.Delay(1000);
             var result = await Task.WhenAny(publishDiagnosticsCompletionSource.Task, publishDiagnosticsTimeout);
@@ -257,7 +256,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
-        public async Task EvalPublishesDiagnosticsAsync()
+        public async Task EvalPublishesDiagnostics()
         {
             var (stream1, stream2) = FullDuplexStream.CreatePair();
             var server = new LanguageServer(stream1, stream1);
@@ -276,8 +275,8 @@ namespace IxMilia.Lisp.LanguageServer.Test
                 }
             });
             client.StartListening();
-            server.TextDocumentDidOpen(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"(+ 1 ())")));
-            var evalResult = server.TextDocumentEval(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
+            await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"(+ 1 ())")));
+            var evalResult = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
             await Task.Yield();
             var publishDiagnosticsTimeout = Task.Delay(1000);
             var result = await Task.WhenAny(publishDiagnosticsCompletionSource.Task, publishDiagnosticsTimeout);

@@ -1,4 +1,6 @@
 ﻿using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace IxMilia.Lisp.Repl
 {
@@ -21,15 +23,15 @@ namespace IxMilia.Lisp.Repl
             Error = error;
         }
 
-        public void Run()
+        public async Task RunAsync(CancellationToken cancellationToken = default)
         {
-            _repl = new LispRepl(location: Location, input: Input, output: Output, traceWriter: Output);
+            _repl = await LispRepl.CreateAsync(location: Location, input: Input, output: Output, traceWriter: Output);
             _repl.Host.RootFrame.EvaluationHalted += (s, e) =>
             {
                 if (e.EvaluationState != LispEvaluationState.FatalHalt)
                 {
                     Output.WriteLine($"Non-fatal break.  Type '{DebugContinueCommand}' to resume evaluation.");
-                    RunInHaltedState();
+                    RunInHaltedStateAsync(cancellationToken).GetAwaiter().GetResult();
                 }
             };
 
@@ -37,19 +39,19 @@ namespace IxMilia.Lisp.Repl
             string line;
             while ((line = Input.ReadLine()) != "#quit")
             {
-                var result = EvalAndPrint(line);
+                var result = await EvalAndPrintAsync(line, cancellationToken: cancellationToken);
                 while (!result.ExecutionState.IsExecutionComplete && !(result.LastResult is LispError))
                 {
-                    _repl.Eval(result.ExecutionState);
+                    await _repl.EvalAsync(result.ExecutionState, cancellationToken);
                 }
 
                 PrintPrompt(result.ExpressionDepth);
             }
         }
 
-        private LispReplResult EvalAndPrint(string line, bool consumeIncompleteInput = true)
+        private async Task<LispReplResult> EvalAndPrintAsync(string line, bool consumeIncompleteInput = true, CancellationToken cancellationToken = default)
         {
-            var result = _repl.Eval(line, consumeIncompleteInput);
+            var result = await _repl.EvalAsync(line, consumeIncompleteInput, cancellationToken);
             if (result.LastResult != null)
             {
                 Output.WriteLine(result.LastResult.ToDisplayString(_repl.Host.CurrentPackage));
@@ -68,7 +70,7 @@ namespace IxMilia.Lisp.Repl
             Output.Write("_> ");
         }
 
-        private void RunInHaltedState()
+        private async Task RunInHaltedStateAsync(CancellationToken cancellationToken)
         {
             var inDebug = true;
             while (inDebug)
@@ -81,7 +83,7 @@ namespace IxMilia.Lisp.Repl
                         inDebug = false;
                         break;
                     default:
-                        EvalAndPrint(line, consumeIncompleteInput: false);
+                        await EvalAndPrintAsync(line, consumeIncompleteInput: false, cancellationToken: cancellationToken);
                         break;
                 }
             }

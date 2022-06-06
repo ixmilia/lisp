@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace IxMilia.Lisp
 {
@@ -49,13 +51,13 @@ namespace IxMilia.Lisp
         {
             _host = host;
 
-            _host.AddFunction("COPY-READTABLE", (__host, executionState, args) =>
+            _host.AddFunction("COPY-READTABLE", (__host, executionState, args, cancellationToken) =>
             {
                 // TODO: look at args
                 var result = GetCurrentReadTable(executionState.StackFrame).Clone();
-                return result;
+                return Task.FromResult(result);
             });
-            _host.AddFunction("SET-MACRO-CHARACTER", (__host, executionState, args) =>
+            _host.AddFunction("SET-MACRO-CHARACTER", (__host, executionState, args, cancellationToken) =>
             {
                 if (args.Length == 2 &&
                     args[0] is LispCharacter character &&
@@ -63,12 +65,12 @@ namespace IxMilia.Lisp
                 {
                     var readTable = GetCurrentReadTable(executionState.StackFrame);
                     readTable.ReadMacros[character.Value] = functionRef;
-                    return __host.Nil;
+                    return Task.FromResult(__host.Nil);
                 }
 
-                return new LispError("Expected character and function reference");
+                return Task.FromResult<LispObject>(new LispError("Expected character and function reference"));
             });
-            _host.AddFunction("KERNEL:PROCESS-LIST-FORWARD-REFERENCE", (__host, executionState, args) =>
+            _host.AddFunction("KERNEL:PROCESS-LIST-FORWARD-REFERENCE", async (__host, executionState, args, cancellationToken) =>
             {
                 var forwardReferenceId = ReadUntilCharMatches(c => IsEquals(c) || IsHash(c));
                 var trailingCharacter = _input.Read();
@@ -83,7 +85,7 @@ namespace IxMilia.Lisp
                     case '#':
                         return new LispResolvedSymbol(_host.CurrentPackage.Name, symbolReference, isPublic: true);
                     case '=':
-                        var candidateInnerListReaderResult = Read(executionState.StackFrame, true, null, true);
+                        var candidateInnerListReaderResult = await ReadAsync(executionState.StackFrame, true, null, true, cancellationToken);
                         var candidateInnerList = candidateInnerListReaderResult.LastResult;
                         switch (candidateInnerList)
                         {
@@ -126,9 +128,9 @@ namespace IxMilia.Lisp
             _leftParenCount = t.Item2;
         }
 
-        public LispObjectReaderResult Read(bool errorOnEof, LispObject eofValue, bool isRecursive) => Read(_host.RootFrame, errorOnEof, eofValue, isRecursive);
+        public Task<LispObjectReaderResult> ReadAsync(bool errorOnEof, LispObject eofValue, bool isRecursive, CancellationToken cancellationToken = default) => ReadAsync(_host.RootFrame, errorOnEof, eofValue, isRecursive, cancellationToken);
 
-        public LispObjectReaderResult Read(LispStackFrame stackFrame, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        public async Task<LispObjectReaderResult> ReadAsync(LispStackFrame stackFrame, bool errorOnEof, LispObject eofValue, bool isRecursive, CancellationToken cancellationToken = default)
         {
             var handler = new EventHandler<LispCharacter>((s, c) =>
             {
@@ -155,7 +157,7 @@ namespace IxMilia.Lisp
                 if (GetCurrentReadTable(stackFrame).ReadMacros.TryGetValue(c, out var readerFunction))
                 {
                     _input.Read();
-                    result = LispDefaultContext.FunCall(_host, stackFrame, readerFunction, new LispObject[] { _input, lc });
+                    result = await LispDefaultContext.FunCallAsync(_host, stackFrame, readerFunction, new LispObject[] { _input, lc }, cancellationToken);
                 }
                 else if (IsTrivia(c))
                 {
@@ -163,7 +165,7 @@ namespace IxMilia.Lisp
                 }
                 else if (IsLeftParen(c))
                 {
-                    result = ReadList(stackFrame, errorOnEof, eofValue, isRecursive);
+                    result = await ReadListAsync(stackFrame, errorOnEof, eofValue, isRecursive, cancellationToken);
                 }
                 else
                 {
@@ -225,7 +227,7 @@ namespace IxMilia.Lisp
             return new LispObjectReaderResult(result, incompleteInput, _leftParenCount);
         }
 
-        private LispObject ReadList(LispStackFrame stackFrame, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        private async Task<LispObject> ReadListAsync(LispStackFrame stackFrame, bool errorOnEof, LispObject eofValue, bool isRecursive, CancellationToken cancellationToken)
         {
             var items = new List<LispObject>();
             var tailItems = new List<LispObject>();
@@ -268,7 +270,7 @@ namespace IxMilia.Lisp
                     dotLocation = currentLocation;
                 }
 
-                var nextItemResult = Read(stackFrame, errorOnEof, eofValue, isRecursive);
+                var nextItemResult = await ReadAsync(stackFrame, errorOnEof, eofValue, isRecursive, cancellationToken);
                 var nextItem = nextItemResult.LastResult;
                 if (nextItem is LispError)
                 {

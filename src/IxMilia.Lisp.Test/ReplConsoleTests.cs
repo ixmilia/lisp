@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Threading.Tasks;
 using IxMilia.Lisp.Repl;
 using Xunit;
 
@@ -8,7 +9,7 @@ namespace IxMilia.Lisp.Test
     public class ReplConsoleTests : TestBase
     {
         [Fact(Timeout = 3000)]
-        public void ReplConsoleBreakEvaluateAndContinue()
+        public async Task ReplConsoleBreakEvaluateAndContinue()
         {
             var input = new StringReader(@"
 ; evaluate code with a `break`
@@ -26,7 +27,7 @@ continue
             var output = new StringWriter();
             var error = new StringWriter();
             var replConsole = new ReplConsole("*test*", input, output, error);
-            replConsole.Run();
+            await replConsole.RunAsync();
             var expectedOutput = NormalizeNewlines(@"
 _> _> _> (_> (_> (_> (_> 
 about to break
@@ -43,7 +44,7 @@ _>
         }
 
         [Fact(Timeout = 3000)]
-        public void NoBreakOnFatalError()
+        public async Task NoBreakOnFatalError()
         {
             var input = new StringReader(@"
 ; evaluate code with an error
@@ -53,7 +54,7 @@ _>
             var output = new StringWriter();
             var error = new StringWriter();
             var replConsole = new ReplConsole("*test*", input, output, error);
-            replConsole.Run();
+            await replConsole.RunAsync();
             var expectedOutput = NormalizeNewlines(@"
 _> _> _> Symbol 'ASDF' not found:
   at (ROOT) in '*test*': (1, 6)

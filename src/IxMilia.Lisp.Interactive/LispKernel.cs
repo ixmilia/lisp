@@ -17,34 +17,38 @@ namespace IxMilia.Lisp.Interactive
         IKernelCommandHandler<RequestHoverText>,
         IKernelCommandHandler<SubmitCode>
     {
-        private LispRepl _repl;
+        private Lazy<Task<LispRepl>> _repl;
 
         public LispKernel()
             : base("lisp")
         {
-            _repl = new LispRepl(location: "*REPL*");
+            _repl = new Lazy<Task<LispRepl>>(async () =>
+            {
+                var repl = await LispRepl.CreateAsync(location: "*REPL*");
+                return repl;
+            });
         }
 
-        public Task HandleAsync(RequestCompletions command, KernelInvocationContext context)
+        public async Task HandleAsync(RequestCompletions command, KernelInvocationContext context)
         {
-            var parseResult = _repl.ParseUntilSourceLocation(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
+            var repl = await _repl.Value;
+            var parseResult = await repl.ParseUntilSourceLocationAsync(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
             if (parseResult.Object != null &&
                 !(parseResult.Object is LispString))
             {
                 var completionItems = parseResult.VisibleValues.Values.Select(
                     v => new CompletionItem(
-                        displayText: v.Symbol.ToDisplayString(_repl.Host.CurrentPackage),
+                        displayText: v.Symbol.ToDisplayString(repl.Host.CurrentPackage),
                         kind: "",
                         documentation: v.Value is LispFunction f ? f.Documentation : null));
                 context.Publish(new CompletionsProduced(completionItems, command));
             }
-
-            return Task.CompletedTask;
         }
 
-        public Task HandleAsync(RequestHoverText command, KernelInvocationContext context)
+        public async Task HandleAsync(RequestHoverText command, KernelInvocationContext context)
         {
-            var parseResult = _repl.ParseUntilSourceLocation(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
+            var repl = await _repl.Value;
+            var parseResult = await repl.ParseUntilSourceLocationAsync(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
             if (parseResult.Object != null)
             {
                 var markdown = parseResult.GetMarkdownDisplay();
@@ -63,12 +67,11 @@ namespace IxMilia.Lisp.Interactive
                     context.Publish(new HoverTextProduced(command, new[] { formatted }, span));
                 }
             }
-
-            return Task.CompletedTask;
         }
 
-        public Task HandleAsync(SubmitCode command, KernelInvocationContext context)
+        public async Task HandleAsync(SubmitCode command, KernelInvocationContext context)
         {
+            var repl = await _repl.Value;
             var writer = new ListeningTextWriter();
             using var subscription = writer.LineWritten.Subscribe(line =>
             {
@@ -76,9 +79,9 @@ namespace IxMilia.Lisp.Interactive
                 context.Publish(new StandardOutputValueProduced(command, new[] { formatted }));
             });
             var consoleStream = new LispTextStream("", TextReader.Null, writer);
-            _repl.Host.SetValue("*TERMINAL-IO*", consoleStream);
+            repl.Host.SetValue("*TERMINAL-IO*", consoleStream);
 
-            var result = _repl.Eval(command.Code, consumeIncompleteInput: false);
+            var result = await repl.EvalAsync(command.Code, consumeIncompleteInput: false);
             switch (result.ExecutionState.LastResult)
             {
                 case LispError err:
@@ -116,8 +119,6 @@ namespace IxMilia.Lisp.Interactive
                     context.Publish(new DiagnosticsProduced(new Microsoft.DotNet.Interactive.Diagnostic[0], command));
                     break;
             }
-
-            return Task.CompletedTask;
         }
 
         private class ListeningTextWriter : TextWriter

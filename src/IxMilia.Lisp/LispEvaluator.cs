@@ -2,16 +2,19 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace IxMilia.Lisp
 {
     internal class LispEvaluator
     {
-        public static LispEvaluationState Evaluate(LispHost host, LispExecutionState executionState)
+        public static async Task<LispEvaluationState> EvaluateAsync(LispHost host, LispExecutionState executionState, CancellationToken cancellationToken = default)
         {
             var shouldDribbleReturnValue = executionState.StackFrame.Root.DribbleStream != null;
             while (executionState.TryDequeueOperation(out var operation))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (executionState.LastResult is LispError error)
                 {
                     // re-queue, because we can never finish
@@ -107,13 +110,13 @@ namespace IxMilia.Lisp
                                         var finalList = new LispCircularList();
                                         executionState.StackFrame.SetValue(forwardRef.SymbolReference, finalList);
                                         var values = forwardRef.List.ToList();
-                                        var evaluatedValues = values.Select(v =>
+                                        var evaluatedValues = values.Select(async v =>
                                         {
                                             // TODO: evaluate using the operation queue
                                             var itemExecutionState = LispExecutionState.CreateExecutionState(executionState.StackFrame, "TODO: input name", v, executionState.UseTailCalls, allowHalting: false, createDribbleInstructions: false);
-                                            Evaluate(host, itemExecutionState);
+                                            await EvaluateAsync(host, itemExecutionState, cancellationToken);
                                             return itemExecutionState.LastResult;
-                                        });
+                                        }).Select(t => t.Result);
                                         var firstError = evaluatedValues.OfType<LispError>().FirstOrDefault();
                                         if (firstError != null)
                                         {
@@ -308,6 +311,7 @@ namespace IxMilia.Lisp
                         break;
                     case LispEvaluatorInvocation invocation:
                         {
+                            await Task.Yield();
                             var arguments = new LispObject[invocation.ArgumentCount];
                             var foundArgumentCount = 0;
                             for (int i = invocation.ArgumentCount - 1; i >= 0; i--)
@@ -324,7 +328,7 @@ namespace IxMilia.Lisp
                             switch (invocation.InvocationObject)
                             {
                                 case LispSpecialOperator specialOperator:
-                                    specialOperator.Delegate.Invoke(host, executionState, arguments);
+                                    await specialOperator.Delegate.Invoke(host, executionState, arguments, cancellationToken);
                                     break;
                                 case LispMacro macro:
                                     {
@@ -349,7 +353,7 @@ namespace IxMilia.Lisp
                                                 break;
                                             case LispNativeMacro nativeMacro:
                                                 captureValueSetHalt = true;
-                                                result = nativeMacro.Macro.Invoke(host, executionState, arguments);
+                                                result = await nativeMacro.Macro.Invoke(host, executionState, arguments, cancellationToken);
                                                 break;
                                             default:
                                                 throw new NotImplementedException($"Unsupported macro object {invocation.InvocationObject.GetType().Name}");
@@ -376,7 +380,8 @@ namespace IxMilia.Lisp
                                         switch (function)
                                         {
                                             case LispCodeFunction codeFunction:
-                                                if (!codeFunction.TryBindArguments(arguments, host, executionState.StackFrame, out var bindError))
+                                                var (success, bindError) = await codeFunction.TryBindArgumentsAsync(arguments, host, executionState.StackFrame, cancellationToken);
+                                                if (!success)
                                                 {
                                                     executionState.ReportError(bindError, invocation.InvocationObject);
                                                     goto invocation_done;
@@ -384,7 +389,7 @@ namespace IxMilia.Lisp
                                                 break;
                                             case LispNativeFunction nativeFunction:
                                                 captureValueSetHalt = true;
-                                                var evaluationResult = nativeFunction.Function.Invoke(host, executionState, arguments);
+                                                var evaluationResult = await nativeFunction.Function.Invoke(host, executionState, arguments, cancellationToken);
 
                                                 executionState.PushArgument(evaluationResult);
                                                 break;

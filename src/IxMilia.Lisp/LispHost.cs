@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace IxMilia.Lisp
 {
     // https://gist.github.com/chaitanyagupta/9324402
-    public delegate void LispSpecialOperatorDelegate(LispHost host, LispExecutionState executionState, LispObject[] args); // args unevaluated, no result
-    public delegate LispObject LispMacroDelegate(LispHost host, LispExecutionState executionState, LispObject[] args); // args unevaluated, result evaluated
-    public delegate LispObject LispFunctionDelegate(LispHost host, LispExecutionState executionState, LispObject[] args); // args evaluated, result unevaluated
+    public delegate Task LispSpecialOperatorDelegate(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken); // args unevaluated, no result
+    public delegate Task<LispObject> LispMacroDelegate(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken); // args unevaluated, result evaluated
+    public delegate Task<LispObject> LispFunctionDelegate(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken); // args evaluated, result unevaluated
 
     public class LispHost
     {
@@ -44,7 +46,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        public LispHost(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false, bool useInitScript = true)
+        private LispHost(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false)
         {
             _initialFilePath = filePath;
             RootFrame = new LispRootStackFrame(input ?? TextReader.Null, output ?? TextWriter.Null);
@@ -57,10 +59,17 @@ namespace IxMilia.Lisp
             var nullStream = new LispTextStream("<null>", TextReader.Null, TextWriter.Null);
             _objectReader = new LispObjectReader(this);
             _objectReader.SetReaderStream(nullStream);
+        }
+
+        public static async Task<LispHost> CreateAsync(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false, bool useInitScript = true, CancellationToken cancellationToken = default)
+        {
+            var host = new LispHost(filePath, input, output, useTailCalls);
             if (useInitScript)
             {
-                ApplyInitScript();
+                await host.ApplyInitScriptAsync(cancellationToken);
             }
+
+            return host;
         }
 
         public LispPackage AddPackage(string packageName, IEnumerable<LispPackage> inheritedPackages = null) => RootFrame.AddPackage(packageName, inheritedPackages);
@@ -105,16 +114,17 @@ namespace IxMilia.Lisp
             foreach (var methodInfo in context.GetType().GetTypeInfo().DeclaredMethods)
             {
                 var parameterInfo = methodInfo.GetParameters();
-                if (parameterInfo.Length == 3 &&
+                if (parameterInfo.Length == 4 &&
                     parameterInfo[0].ParameterType == typeof(LispHost) &&
                     parameterInfo[1].ParameterType == typeof(LispExecutionState) &&
-                    parameterInfo[2].ParameterType == typeof(LispObject[]))
+                    parameterInfo[2].ParameterType == typeof(LispObject[]) &&
+                    parameterInfo[3].ParameterType == typeof(CancellationToken))
                 {
                     // native special operators (unevaluated arguments, no result)
                     var operators = methodInfo.GetCustomAttributes<LispSpecialOperatorAttribute>(inherit: true).ToList();
                     if (operators.Any())
                     {
-                        if (methodInfo.ReturnType == typeof(void))
+                        if (methodInfo.ReturnType == typeof(Task))
                         {
                             var del = (LispSpecialOperatorDelegate)methodInfo.CreateDelegate(typeof(LispSpecialOperatorDelegate), context);
                             foreach (var op in operators)
@@ -133,7 +143,7 @@ namespace IxMilia.Lisp
                     var macros = methodInfo.GetCustomAttributes<LispMacroAttribute>(inherit: true).ToList();
                     if (macros.Any())
                     {
-                        if (methodInfo.ReturnType == typeof(LispObject))
+                        if (methodInfo.ReturnType == typeof(Task<LispObject>))
                         {
                             var del = (LispMacroDelegate)methodInfo.CreateDelegate(typeof(LispMacroDelegate), context);
                             foreach (var macro in macros)
@@ -152,7 +162,7 @@ namespace IxMilia.Lisp
                     var functions = methodInfo.GetCustomAttributes<LispFunctionAttribute>(inherit: true).ToList();
                     if (functions.Any())
                     {
-                        if (methodInfo.ReturnType == typeof(LispObject))
+                        if (methodInfo.ReturnType == typeof(Task<LispObject>))
                         {
                             var del = (LispFunctionDelegate)methodInfo.CreateDelegate(typeof(LispFunctionDelegate), context);
                             foreach (var function in functions)
@@ -170,7 +180,7 @@ namespace IxMilia.Lisp
             }
         }
 
-        private void ApplyInitScript()
+        private async Task ApplyInitScriptAsync(CancellationToken cancellationToken)
         {
             var type = GetType();
             var lastDotIndex = type.FullName.LastIndexOf('.');
@@ -180,7 +190,7 @@ namespace IxMilia.Lisp
             using (var reader = new StreamReader(initStream))
             {
                 var content = reader.ReadToEnd();
-                var evalResult = Eval("init.lisp", content);
+                var evalResult = await EvalAsync("init.lisp", content, cancellationToken);
                 if (evalResult.ExecutionState?.LastResult != T)
                 {
                     var message = $"Expected 'T' but found '{evalResult.ExecutionState?.LastResult}' at ({evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Line}, {evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Column}).";
@@ -214,36 +224,35 @@ namespace IxMilia.Lisp
             return (TObject)result;
         }
 
-        public LispEvalResult Eval(string code)
+        public Task<LispEvalResult> EvalAsync(string code, CancellationToken cancellationToken = default)
         {
-            return Eval(_initialFilePath, code);
+            return EvalAsync(_initialFilePath, code, cancellationToken);
         }
 
-        public LispEvalResult Eval(string filePath, string code)
+        public async Task<LispEvalResult> EvalAsync(string filePath, string code, CancellationToken cancellationToken = default)
         {
             var executionState = LispExecutionState.CreateExecutionState(RootFrame, filePath, code, UseTailCalls, allowHalting: true);
             _objectReader.SetReaderStream(executionState.CodeInputStream);
-            return EvalContinue(executionState);
+            return await EvalContinueAsync(executionState, cancellationToken);
         }
 
-        public LispEvalResult Eval(LispObject obj)
+        public async Task<LispEvalResult> EvalAsync(LispObject obj, CancellationToken cancellationToken = default)
         {
             var executionState = LispExecutionState.CreateExecutionState(RootFrame, "TODO: input name", obj, UseTailCalls, allowHalting: true, createDribbleInstructions: true);
-            return EvalContinue(executionState);
+            return await EvalContinueAsync(executionState, cancellationToken);
         }
 
-        public LispEvalResult EvalContinue(LispExecutionState executionState)
+        public async Task<LispEvalResult> EvalContinueAsync(LispExecutionState executionState, CancellationToken cancellationToken = default)
         {
             var evalResult = new LispEvalResult(executionState);
-
-            var evaluationState = RunQueuedOperations(executionState);
+            var evaluationState = await RunQueuedOperationsAsync(executionState, cancellationToken);
             if (evaluationState != LispEvaluationState.Complete ||
                 (executionState.LastResult is object && executionState.IsExecutionComplete))
             {
                 return evalResult;
             }
 
-            var readerResult = ReadWithoutDribbleStream(executionState.StackFrame);
+            var readerResult = await ReadWithoutDribbleStreamAsync(executionState.StackFrame, cancellationToken);
             while (!ReferenceEquals(readerResult.LastResult, _eofMarker))
             {
                 evalResult.ExpressionDepth = readerResult.ExpressionDepth;
@@ -256,43 +265,43 @@ namespace IxMilia.Lisp
 
                 executionState.TryPopArgument(out var _discard); // when evaluating multiple expressions, discard all but the last
                 executionState.InsertObjectOperations(readerResult.LastResult, createDribbleInstructions: true);
-                evaluationState = RunQueuedOperations(executionState);
+                evaluationState = await RunQueuedOperationsAsync(executionState, cancellationToken);
                 if (evaluationState != LispEvaluationState.Complete ||
                     evalResult.LastResult is LispError)
                 {
                     break;
                 }
 
-                readerResult = ReadWithoutDribbleStream(executionState.StackFrame);
+                readerResult = await ReadWithoutDribbleStreamAsync(executionState.StackFrame, cancellationToken);
             }
 
             return evalResult;
         }
 
-        private LispEvaluationState RunQueuedOperations(LispExecutionState executionState)
+        private async Task<LispEvaluationState> RunQueuedOperationsAsync(LispExecutionState executionState, CancellationToken cancellationToken)
         {
-            var evaluationState = LispEvaluator.Evaluate(this, executionState);
+            var evaluationState = await LispEvaluator.EvaluateAsync(this, executionState, cancellationToken);
             RootFrame.OnHalted(evaluationState);
             return evaluationState;
         }
 
-        private LispObjectReaderResult ReadWithoutDribbleStream(LispStackFrame stackFrame)
+        private async Task<LispObjectReaderResult> ReadWithoutDribbleStreamAsync(LispStackFrame stackFrame, CancellationToken cancellationToken)
         {
             var dribbleStream = RootFrame.DribbleStream;
             RootFrame.DribbleStream = null;
-            var obj = _objectReader.Read(stackFrame, false, _eofMarker, false);
+            var obj = await _objectReader.ReadAsync(stackFrame, false, _eofMarker, false, cancellationToken);
             RootFrame.DribbleStream = dribbleStream;
             return obj;
         }
 
-        public LispObject EvalAtStackFrame(LispStackFrame frame, LispObject obj)
+        public async Task<LispObject> EvalAtStackFrameAsync(LispStackFrame frame, LispObject obj, CancellationToken cancellationToken = default)
         {
             var executionState = LispExecutionState.CreateExecutionState(frame, "TODO: input name", obj, useTailCalls: false, allowHalting: false, createDribbleInstructions: false);
-            var evalResult = EvalContinue(executionState);
+            var evalResult = await EvalContinueAsync(executionState, cancellationToken);
             return evalResult.LastResult;
         }
 
-        public void StepOver(LispExecutionState executionState)
+        public async Task StepOverAsync(LispExecutionState executionState, CancellationToken cancellationToken = default)
         {
             // ref-count function exits...
             var functionEnteredCounter = 0;
@@ -329,7 +338,7 @@ namespace IxMilia.Lisp
             RootFrame.FunctionEntered += functionEnterEventHandler;
             RootFrame.FunctionReturned += functionExitedEventHandler;
             RootFrame.EvaluatingExpression += expressionHalter;
-            EvalContinue(executionState);
+            await EvalContinueAsync(executionState, cancellationToken);
             RootFrame.EvaluatingExpression -= expressionHalter;
             RootFrame.FunctionReturned -= functionExitedEventHandler;
             RootFrame.FunctionEntered -= functionEnterEventHandler;
@@ -337,17 +346,17 @@ namespace IxMilia.Lisp
             if (exitedViaFunctionRefCount)
             {
                 // if we were at the end of a function and actually stepped out, halt on the next expression
-                HaltOnNextExpression(executionState);
+                await HaltOnNextExpressionAsync(executionState, 0, cancellationToken);
             }
         }
 
-        public void StepIn(LispExecutionState executionState)
+        public async Task StepInAsync(LispExecutionState executionState, CancellationToken cancellationToken = default)
         {
             // halting without skipping will halt where we're already halted
-            HaltOnNextExpression(executionState, skipExpressionCount: 1);
+            await HaltOnNextExpressionAsync(executionState, 1, cancellationToken);
         }
 
-        public void StepOut(LispExecutionState executionState)
+        public async Task StepOutAsync(LispExecutionState executionState, CancellationToken cancellationToken = default)
         {
             // ref-count function exits...
             var functionEnteredCounter = 0;
@@ -368,15 +377,15 @@ namespace IxMilia.Lisp
             });
             RootFrame.FunctionEntered += functionEnterHandler;
             RootFrame.FunctionReturned += functionExitHalter;
-            EvalContinue(executionState);
+            await EvalContinueAsync(executionState, cancellationToken);
             RootFrame.FunctionReturned -= functionExitHalter;
             RootFrame.FunctionEntered -= functionEnterHandler;
 
             // ...then halt on the very next expression
-            HaltOnNextExpression(executionState);
+            await HaltOnNextExpressionAsync(executionState, 0, cancellationToken);
         }
 
-        private void HaltOnNextExpression(LispExecutionState executionState, int skipExpressionCount = 0)
+        private async Task HaltOnNextExpressionAsync(LispExecutionState executionState, int skipExpressionCount, CancellationToken cancellationToken)
         {
             // allows various pop and exit operations to be processed
             var skippedExpressions = 0;
@@ -392,7 +401,7 @@ namespace IxMilia.Lisp
                 }
             });
             RootFrame.EvaluatingExpression += nextExpressionHalter;
-            EvalContinue(executionState);
+            await EvalContinueAsync(executionState, cancellationToken);
             RootFrame.EvaluatingExpression -= nextExpressionHalter;
         }
     }

@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using IxMilia.Lisp.LanguageServer.Protocol;
 using StreamJsonRpc;
 
@@ -51,13 +53,20 @@ namespace IxMilia.Lisp.LanguageServer
             return _documentContents[uri].Content;
         }
 
-        private void SetDocumentContents(string uri, string newContent)
+        private async Task SetDocumentContentsAsync(string uri, string newContent, CancellationToken cancellationToken)
         {
-            var repl = _documentContents.TryGetValue(uri, out var pair)
-                ? pair.Repl
-                : new LispRepl(output: new ResettableTextWriter());
+            LispRepl repl;
+            if (_documentContents.TryGetValue(uri, out var pair))
+            {
+                repl = pair.Repl;
+            }
+            else
+            {
+                repl = await LispRepl.CreateAsync(output: new ResettableTextWriter());
+            }
+
             _documentContents[uri] = (repl, newContent);
-            var diagnostics = ComputeDiagnostics(uri);
+            var diagnostics = await ComputeDiagnosticsAsync(uri, cancellationToken);
             TextDocumentPublishDiagnostics(uri, diagnostics);
         }
 
@@ -68,7 +77,7 @@ namespace IxMilia.Lisp.LanguageServer
         }
 
         [LspMethod("textDocument/eval")]
-        public EvalResult TextDocumentEval(EvalTextDocumentParams param)
+        public async Task<EvalResult> TextDocumentEvalAsync(EvalTextDocumentParams param)
         {
             if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
@@ -76,7 +85,7 @@ namespace IxMilia.Lisp.LanguageServer
                 var resettableTextWriter = pair.Repl.Output as ResettableTextWriter;
                 resettableTextWriter?.Reset();
 
-                var evalResult = pair.Repl.Eval(pair.Content, consumeIncompleteInput: false);
+                var evalResult = await pair.Repl.EvalAsync(pair.Content, consumeIncompleteInput: false);
                 var error = evalResult.LastResult as LispError;
 
                 if (error is { })
@@ -108,13 +117,13 @@ namespace IxMilia.Lisp.LanguageServer
         }
 
         [LspMethod("textDocument/completion")]
-        public CompletionList TextDocumentCompletion(CompletionParams param)
+        public async Task<CompletionList> TextDocumentCompletionAsync(CompletionParams param)
         {
             var position = Converters.SourcePositionFromPosition(param.Position);
             var items = Enumerable.Empty<CompletionItem>();
             if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
-                var parseResult = pair.Repl.ParseUntilSourceLocation(pair.Content, position);
+                var parseResult = await pair.Repl.ParseUntilSourceLocationAsync(pair.Content, position);
 
                 // don't return anything if we're in a string
                 if (!(parseResult.Object is LispString))
@@ -137,15 +146,15 @@ namespace IxMilia.Lisp.LanguageServer
         }
 
         [LspMethod("textDocument/diagnostic")]
-        public DocumentDiagnosticReport TextDocumentDiagnostic(DocumentDiagnosticParams param)
+        public async Task<DocumentDiagnosticReport> TextDocumentDiagnosticAsync(DocumentDiagnosticParams param)
         {
-            var diagnostics = ComputeDiagnostics(param.TextDocument.Uri);
+            var diagnostics = await ComputeDiagnosticsAsync(param.TextDocument.Uri, CancellationToken.None);
             var result = new FullDocumentDiagnosticReport(diagnostics);
             return result;
         }
 
         [LspMethod("textDocument/didChange")]
-        public void TextDocumentDidChange(DidChangeTextDocumentParams param)
+        public async Task TextDocumentDidChangeAsync(DidChangeTextDocumentParams param)
         {
             foreach (var contentChanges in param.ContentChanges)
             {
@@ -168,7 +177,7 @@ namespace IxMilia.Lisp.LanguageServer
                         updatedContent = contentChanges.Text;
                     }
 
-                    SetDocumentContents(param.TextDocument.Uri, updatedContent);
+                    await SetDocumentContentsAsync(param.TextDocument.Uri, updatedContent, CancellationToken.None);
                 }
             }
         }
@@ -180,18 +189,18 @@ namespace IxMilia.Lisp.LanguageServer
         }
 
         [LspMethod("textDocument/didOpen")]
-        public void TextDocumentDidOpen(DidOpenTextDocumentParams param)
+        public Task TextDocumentDidOpenAsync(DidOpenTextDocumentParams param)
         {
-            SetDocumentContents(param.TextDocument.Uri, param.TextDocument.Text);
+            return SetDocumentContentsAsync(param.TextDocument.Uri, param.TextDocument.Text, CancellationToken.None);
         }
 
         [LspMethod("textDocument/hover")]
-        public Hover TextDocumentHover(HoverParams param)
+        public async Task<Hover> TextDocumentHoverAsync(HoverParams param)
         {
             var position = Converters.SourcePositionFromPosition(param.Position);
             if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
-                var parseResult = pair.Repl.ParseUntilSourceLocation(pair.Content, position);
+                var parseResult = await pair.Repl.ParseUntilSourceLocationAsync(pair.Content, position);
                 var markdown = parseResult.GetMarkdownDisplay();
                 return new Hover(new MarkupContent(MarkupKind.Markdown, markdown));
             }
@@ -199,12 +208,13 @@ namespace IxMilia.Lisp.LanguageServer
             return null;
         }
 
-        private Diagnostic[] ComputeDiagnostics(string uri)
+        private async Task<Diagnostic[]> ComputeDiagnosticsAsync(string uri, CancellationToken cancellationToken)
         {
             var diagnostics = new List<Diagnostic>();
             if (_documentContents.TryGetValue(uri, out var pair))
             {
-                foreach (var parsedObj in pair.Repl.ParseAll(pair.Content))
+                var parsedObjects = await pair.Repl.ParseAllAsync(pair.Content, cancellationToken);
+                foreach (var parsedObj in parsedObjects)
                 {
                     if (parsedObj is LispError error)
                     {
@@ -244,13 +254,13 @@ namespace IxMilia.Lisp.LanguageServer
         }
 
         [LspMethod("textDocument/semanticTokens/full")]
-        public SemanticTokens TextDocumentSemanticTokensFull(SemanticTokensParams param)
+        public async Task<SemanticTokens> TextDocumentSemanticTokensFullAsync(SemanticTokensParams param)
         {
             if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
                 var legend = new SemanticTokensLegend();
                 var builder = new SemanticTokensBuilder(legend.TokenTypes, legend.TokenModifiers);
-                var objects = pair.Repl.ParseAll(pair.Content);
+                var objects = await pair.Repl.ParseAllAsync(pair.Content);
                 foreach (var obj in objects)
                 {
                     foreach (var token in obj.GetSemanticTokens(pair.Repl.Host))

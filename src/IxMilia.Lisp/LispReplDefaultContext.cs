@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Threading;
+using System.Threading.Tasks;
 
 namespace IxMilia.Lisp
 {
@@ -12,17 +13,17 @@ namespace IxMilia.Lisp
         }
 
         [LispMacro("TRACE")]
-        public LispObject Trace(LispHost host, LispExecutionState executionState, LispObject[] args)
+        public Task<LispObject> Trace(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
             var tracedList = _repl.Trace(args);
-            return LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), tracedList);
+            return Task.FromResult<LispObject>(LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), tracedList));
         }
 
         [LispMacro("UNTRACE")]
-        public LispObject Untrace(LispHost host, LispExecutionState executionState, LispObject[] args)
+        public Task<LispObject> Untrace(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
             var untracedList = _repl.Untrace(args);
-            return LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), untracedList);
+            return Task.FromResult<LispObject>(LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), untracedList));
         }
     }
 }

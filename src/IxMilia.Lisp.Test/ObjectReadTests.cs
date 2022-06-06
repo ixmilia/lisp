@@ -1,97 +1,98 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
 {
     public class ObjectReadTests : TestBase
     {
-        private LispObject Read(string text)
+        private async Task<LispObject> ReadAsync(string text)
         {
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
             host.ObjectReader.SetReaderStream(input);
-            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
             return result.LastResult;
         }
 
-        private LispToken[] ReadTokens(string code)
+        private async Task<LispToken[]> ReadTokensAsync(string code)
         {
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(code), TextWriter.Null);
             host.ObjectReader.SetReaderStream(input);
-            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
             var tokens = result.LastResult.GetSemanticTokens(host).ToArray();
             return tokens;
         }
 
         [Fact]
-        public void EmptyLists()
+        public async Task EmptyLists()
         {
-            Assert.Equal(LispNilList.Instance, Read("()"));
-            Assert.Equal(LispNilList.Instance, Read(" ( ) "));
+            Assert.Equal(LispNilList.Instance, await ReadAsync("()"));
+            Assert.Equal(LispNilList.Instance, await ReadAsync(" ( ) "));
         }
 
         [Fact]
-        public void NestedLists()
+        public async Task NestedLists()
         {
-            Assert.Equal(LispList.FromItems(new LispString("a")), Read(" (\"a\") "));
-            Assert.Equal(LispList.FromItems(new LispString("a"), LispNilList.Instance, new LispString("b")), Read(" ( \"a\" () \"b\" ) "));
-            Assert.Equal(LispList.FromItems(new LispInteger(4), LispNilList.Instance), Read("(4())"));
+            Assert.Equal(LispList.FromItems(new LispString("a")), await ReadAsync(" (\"a\") "));
+            Assert.Equal(LispList.FromItems(new LispString("a"), LispNilList.Instance, new LispString("b")), await ReadAsync(" ( \"a\" () \"b\" ) "));
+            Assert.Equal(LispList.FromItems(new LispInteger(4), LispNilList.Instance), await ReadAsync("(4())"));
         }
 
         [Fact]
-        public void ForwardReferncedLists()
+        public async Task ForwardReferncedLists()
         {
-            var list = (LispForwardListReference)Read("#1=(1 2 #1#)");
+            var list = (LispForwardListReference)await ReadAsync("#1=(1 2 #1#)");
             Assert.True(list.List.IsProperList);
             Assert.Equal(3, list.List.Length);
             Assert.Equal("COMMON-LISP-USER:#1=(1 2 COMMON-LISP-USER:#1#)", list.ToString());
         }
 
         [Fact]
-        public void DottedList()
+        public async Task DottedList()
         {
-            var list = (LispList)Read("(1 . 2)");
+            var list = (LispList)await ReadAsync("(1 . 2)");
             Assert.Equal(1, list.Length);
             Assert.Equal(new[] { 1, 2 }, list.ToList().Cast<LispInteger>().Select(n => n.Value).ToArray());
             Assert.False(list.IsProperList);
         }
 
         [Fact]
-        public void BadDottedList()
+        public async Task BadDottedList()
         {
-            var error = (LispError)Read("(1 2 . 3 . 4)");
+            var error = (LispError)await ReadAsync("(1 2 . 3 . 4)");
             Assert.Equal(1, error.SourceLocation?.Start.Line);
             Assert.Equal(10, error.SourceLocation?.Start.Column);
             Assert.Equal("Unexpected duplicate '.' in list at (1, 10); first '.' at (1, 6)", error.Message);
         }
 
         [Fact]
-        public void UnmatchedLeftParen()
+        public async Task UnmatchedLeftParen()
         {
-            var error = (LispError)Read("(1 2 3");
+            var error = (LispError)await ReadAsync("(1 2 3");
             Assert.Equal("Unmatched '(' at (1, 1) (depth 1)", error.Message);
             Assert.Equal(1, error.SourceLocation?.Start.Line);
             Assert.Equal(1, error.SourceLocation?.Start.Column);
         }
 
         [Fact]
-        public void UnmatchedRightParen()
+        public async Task UnmatchedRightParen()
         {
-            var error = (LispError)Read(")");
+            var error = (LispError)await ReadAsync(")");
             Assert.Equal("Unexpected character ')' at position (1, 1)", error.Message);
             Assert.Equal(1, error.SourceLocation?.Start.Line);
             Assert.Equal(1, error.SourceLocation?.Start.Column);
         }
 
         [Fact]
-        public void Strings()
+        public async Task Strings()
         {
-            Assert.Equal("", ((LispString)Read("\"\"")).Value);
-            Assert.Equal("a", ((LispString)Read(" \"a\" ")).Value);
-            Assert.Equal("\\\"\\", ((LispString)Read(" \"\\\\\\\"\\\\\" ")).Value);
+            Assert.Equal("", ((LispString)await ReadAsync("\"\"")).Value);
+            Assert.Equal("a", ((LispString)await ReadAsync(" \"a\" ")).Value);
+            Assert.Equal("\\\"\\", ((LispString)await ReadAsync(" \"\\\\\\\"\\\\\" ")).Value);
         }
 
         [Theory]
@@ -99,9 +100,9 @@ namespace IxMilia.Lisp.Test
         [InlineData("3", 3)]
         [InlineData("+3", 3)]
         [InlineData("-31", -31)]
-        public void Integers(string code, int value)
+        public async Task Integers(string code, int value)
         {
-            var number = (LispInteger)Read(code);
+            var number = (LispInteger)await ReadAsync(code);
             Assert.Equal(value, number.Value);
         }
 
@@ -111,9 +112,9 @@ namespace IxMilia.Lisp.Test
         [InlineData("-1/2", "-1/2")]
         [InlineData("1/-2", "-1/2")]
         [InlineData("2/4", "1/2")]
-        public void Ratios(string code, string value)
+        public async Task Ratios(string code, string value)
         {
-            var ratio = (LispRatio)Read(code);
+            var ratio = (LispRatio)await ReadAsync(code);
             Assert.Equal(value, ratio.ToString());
         }
 
@@ -124,64 +125,64 @@ namespace IxMilia.Lisp.Test
         [InlineData("-3.5e4", -3.5e4)]
         [InlineData("3.5e+4", 3.5e4)]
         [InlineData("3.5e-4", 3.5e-4)]
-        public void Floats(string code, double value)
+        public async Task Floats(string code, double value)
         {
-            var number = (LispFloat)Read(code);
+            var number = (LispFloat)await ReadAsync(code);
             Assert.Equal(value, number.Value);
         }
 
         [Fact]
-        public void ComplexNumbers()
+        public async Task ComplexNumbers()
         {
-            Assert.Equal(new LispComplexNumber(new LispInteger(1), new LispInteger(2)), Read("#c(1 2)"));
-            Assert.Equal(new LispComplexNumber(new LispInteger(3), new LispInteger(4)), Read("#C(3 4)"));
-            Assert.Equal(new LispInteger(5), Read("#c(5 0)"));
+            Assert.Equal(new LispComplexNumber(new LispInteger(1), new LispInteger(2)), await ReadAsync("#c(1 2)"));
+            Assert.Equal(new LispComplexNumber(new LispInteger(3), new LispInteger(4)), await ReadAsync("#C(3 4)"));
+            Assert.Equal(new LispInteger(5), await ReadAsync("#c(5 0)"));
         }
 
         [Theory]
         [InlineData(@"#\a", 'a')]
         [InlineData(@"#\/", '/')]
         [InlineData(@"#\'", '\'')]
-        public void Characters(string code, char expected)
+        public async Task Characters(string code, char expected)
         {
-            var c = (LispCharacter)Read(code);
+            var c = (LispCharacter)await ReadAsync(code);
             Assert.Equal(expected, c.Value);
         }
 
         [Fact]
-        public void Keywords()
+        public async Task Keywords()
         {
-            Assert.Equal(":ABC", ((LispResolvedSymbol)Read(" :abc ")).Value);
-            Assert.Equal("&REST", ((LispLambdaListKeyword)Read(" &rest ")).Keyword);
+            Assert.Equal(":ABC", ((LispResolvedSymbol)await ReadAsync(" :abc ")).Value);
+            Assert.Equal("&REST", ((LispLambdaListKeyword)await ReadAsync(" &rest ")).Keyword);
         }
 
         [Fact]
-        public void QuotedNamedFunctions()
+        public async Task QuotedNamedFunctions()
         {
-            Assert.Equal("COMMON-LISP:READ", ((LispQuotedNamedFunctionReference)Read("#'read")).Name);
+            Assert.Equal("COMMON-LISP:READ", ((LispQuotedNamedFunctionReference)await ReadAsync("#'read")).Name);
         }
 
         [Fact]
-        public void Symbols()
+        public async Task Symbols()
         {
-            Assert.Equal("+", ((LispSymbol)Read("+")).LocalName);
-            Assert.Equal(">>", ((LispSymbol)Read(">>")).LocalName);
-            Assert.Equal("SOME:SYMBOL", ((LispResolvedSymbol)Read("some:symbol")).Value);
+            Assert.Equal("+", ((LispSymbol)await ReadAsync("+")).LocalName);
+            Assert.Equal(">>", ((LispSymbol)await ReadAsync(">>")).LocalName);
+            Assert.Equal("SOME:SYMBOL", ((LispResolvedSymbol)await ReadAsync("some:symbol")).Value);
         }
 
         [Fact]
-        public void Quoted()
+        public async Task Quoted()
         {
-            Assert.Equal(new LispUnresolvedSymbol("A"), Read("a"));
-            Assert.Equal(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), new LispUnresolvedSymbol("A")), Read("'a"));
-            Assert.Equal(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), new LispUnresolvedSymbol("A"))), Read("''a"));
-            Assert.Equal(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), new LispList(new LispInteger(1))), Read("'(1)"));
+            Assert.Equal(new LispUnresolvedSymbol("A"), await ReadAsync("a"));
+            Assert.Equal(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), new LispUnresolvedSymbol("A")), await ReadAsync("'a"));
+            Assert.Equal(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), new LispUnresolvedSymbol("A"))), await ReadAsync("''a"));
+            Assert.Equal(LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), new LispList(new LispInteger(1))), await ReadAsync("'(1)"));
         }
 
         [Fact]
-        public void SourceLocations()
+        public async Task SourceLocations()
         {
-            var list = (LispList)Read(" ( a b c ( 1 2 3 ) ) ");
+            var list = (LispList)await ReadAsync(" ( a b c ( 1 2 3 ) ) ");
             Assert.Equal(1, list.SourceLocation?.Start.Line);
             Assert.Equal(2, list.SourceLocation?.Start.Column);
 
@@ -199,14 +200,14 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 16), new LispSourcePosition(1, 17)), innerListValues[2].SourceLocation); // 3
 
             // after newline
-            var symbol = Read("\na");
+            var symbol = await ReadAsync("\na");
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(2, 1), new LispSourcePosition(2, 2)), symbol.SourceLocation);
         }
 
         [Fact]
-        public void ParsedObjectsHaveParentsSet()
+        public async Task ParsedObjectsHaveParentsSet()
         {
-            var rootList = Read(@"
+            var rootList = await ReadAsync(@"
 (defun test-function ()
     (+ 1 2)
     (* (- 3 4) (/ 5 6)))
@@ -232,60 +233,60 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void ReadStreamObjectsThenDefaultEofMarker()
+        public async Task ReadStreamObjectsThenDefaultEofMarker()
         {
             var input = new StringReader("(abc 2)\n14");
             var stream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             host.ObjectReader.SetReaderStream(stream);
 
-            var list = ((LispList)host.ObjectReader.Read(false, new LispError("EOF"), false).LastResult).ToList();
+            var list = ((LispList)(await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false)).LastResult).ToList();
             Assert.Equal(2, list.Count);
             Assert.Equal("ABC", ((LispSymbol)list[0]).LocalName);
             Assert.Equal(2, ((LispInteger)list[1]).Value);
 
-            var number = (LispInteger)host.ObjectReader.Read(false, new LispError("EOF"), false).LastResult;
+            var number = (LispInteger)(await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false)).LastResult;
             Assert.Equal(14, number.Value);
 
-            var eof = (LispError)host.ObjectReader.Read(false, new LispError("EOF"), false).LastResult;
+            var eof = (LispError)(await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false)).LastResult;
             Assert.Equal("EOF", eof.Message);
         }
 
         [Fact]
-        public void ReadStreamObjectsThenCustomEofMarker()
+        public async Task ReadStreamObjectsThenCustomEofMarker()
         {
             var input = new StringReader("14");
             var stream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             host.ObjectReader.SetReaderStream(stream);
 
-            var number = (LispInteger)host.ObjectReader.Read(false, new LispError("EOF"), false).LastResult;
+            var number = (LispInteger)(await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false)).LastResult;
             Assert.Equal(14, number.Value);
 
-            var eof = (LispInteger)host.ObjectReader.Read(false, new LispInteger(-54), false).LastResult;
+            var eof = (LispInteger)(await host.ObjectReader.ReadAsync(false, new LispInteger(-54), false)).LastResult;
             Assert.Equal(-54, eof.Value);
         }
 
         [Fact]
-        public void ReadFunctionDefaultEofMarker()
+        public async Task ReadFunctionDefaultEofMarker()
         {
             var input = new StringReader("14");
             var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
 
             host.SetValue("TEST-STREAM", testStream);
-            var result = host.Eval("(list (read test-stream) (read test-stream))").LastResult; // EOF propagates to the top
+            var result = (await host.EvalAsync("(list (read test-stream) (read test-stream))")).LastResult; // EOF propagates to the top
             Assert.Equal("EOF", ((LispError)result).Message);
         }
 
         [Fact]
-        public void ReadFunctionCustomEofMarker()
+        public async Task ReadFunctionCustomEofMarker()
         {
             var input = new StringReader("14");
             var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             host.SetValue("TEST-STREAM", testStream);
-            var result = host.Eval("(list (read test-stream) (read test-stream nil -54))").LastResult;
+            var result = (await host.EvalAsync("(list (read test-stream) (read test-stream nil -54))")).LastResult;
             var resultList = ((LispList)result).ToList();
             Assert.Equal(2, resultList.Count);
             Assert.Equal(14, ((LispInteger)resultList[0]).Value);
@@ -293,10 +294,10 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void FunctionDocumentationHandlesMultilineIndentedText()
+        public async Task FunctionDocumentationHandlesMultilineIndentedText()
         {
-            var host = new LispHost();
-            var result = host.Eval(@"
+            var host = await LispHost.CreateAsync();
+            var result = await host.EvalAsync(@"
 (defun test-function ()
     ""First line of doc string.
      Second line of doc string.""
@@ -307,10 +308,10 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void MacroDocumentationHandlesMultilineIndentedText()
+        public async Task MacroDocumentationHandlesMultilineIndentedText()
         {
-            var host = new LispHost();
-            var result = host.Eval(@"
+            var host = await LispHost.CreateAsync();
+            var result = await host.EvalAsync(@"
 (defmacro test-macro ()
     ""First line of doc string.
      Second line of doc string.""
@@ -321,9 +322,9 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void DocumentationStringsHandleBlankLinesInIndentedText()
+        public async Task DocumentationStringsHandleBlankLinesInIndentedText()
         {
-            var docString = (LispString)Read(@"
+            var docString = (LispString)await ReadAsync(@"
     ""First line.
 
      Third line.""
@@ -333,9 +334,9 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void DocumentationStringsHandleExtraWhitespaceBlankLinesInIndentedText()
+        public async Task DocumentationStringsHandleExtraWhitespaceBlankLinesInIndentedText()
         {
-            var docString = (LispString)Read(@"
+            var docString = (LispString)await ReadAsync(@"
     ; note, all of the whitespace between the lines
     ""First line.
             
@@ -346,9 +347,9 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void DocumentationStringsCanBeIndentedOneLessToAccountForTheLeadingDoubleQuote()
+        public async Task DocumentationStringsCanBeIndentedOneLessToAccountForTheLeadingDoubleQuote()
         {
-            var docString = (LispString)Read(@"
+            var docString = (LispString)await ReadAsync(@"
     ""First line.
 
     Third line.""
@@ -359,11 +360,11 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void WithOpenFile_Reading()
+        public async Task WithOpenFile_Reading()
         {
             var output = new StringWriter();
-            var host = new LispHost(output: output);
-            var result = host.Eval(@"
+            var host = await LispHost.CreateAsync(output: output);
+            var result = await host.EvalAsync(@"
 (with-open-file (file-stream ""test-file.dat"")
     (format t ""read: ~S~%"" (read file-stream))
     (format t ""evaluated: ~S~%"" (eval (read file-stream)))
@@ -375,12 +376,12 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void WithOpenFile_Writing()
+        public async Task WithOpenFile_Writing()
         {
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             using (var outputFile = new TemporaryFile(createFile: false))
             {
-                var result = host.Eval($@"
+                var result = await host.EvalAsync($@"
 (with-open-file (file-stream ""{outputFile.FilePath.Replace("\\", "\\\\")}"" :direction :output)
     (format file-stream ""wrote: ~S~%"" ""just-a-string"")
     (format file-stream ""wrote: ~S~%"" '(+ 2 3))
@@ -394,10 +395,10 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void SupportReaderMacros()
+        public async Task SupportReaderMacros()
         {
-            var host = new LispHost();
-            var evalResult = host.Eval(@"
+            var host = await LispHost.CreateAsync();
+            var evalResult = await host.EvalAsync(@"
 ; %5 -> (* 100 5)
 (defun percent-reader (stream char)
     (list (quote *) 100 (read stream t nil t)))
@@ -408,12 +409,12 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void ReadTableCopying()
+        public async Task ReadTableCopying()
         {
-            var host = new LispHost(useInitScript: false);
+            var host = await LispHost.CreateAsync();
             var enteredOriginalBangReader = false;
             var enteredNewBangReader = false;
-            host.AddFunction("ORIGINAL-BANG-READER", (_host, _executionState, _args) =>
+            host.AddFunction("ORIGINAL-BANG-READER", (_host, _executionState, _args, _cancellationToken) =>
             {
                 if (enteredOriginalBangReader)
                 {
@@ -421,9 +422,9 @@ namespace IxMilia.Lisp.Test
                 }
 
                 enteredOriginalBangReader = true;
-                return new LispInteger(42);
+                return Task.FromResult<LispObject>(new LispInteger(42));
             });
-            host.AddFunction("NEW-BANG-READER", (_host, _executionState, _args) =>
+            host.AddFunction("NEW-BANG-READER", (_host, _executionState, _args, _cancellationToken) =>
             {
                 if (enteredNewBangReader)
                 {
@@ -431,9 +432,9 @@ namespace IxMilia.Lisp.Test
                 }
 
                 enteredNewBangReader = true;
-                return _host.Nil;
+                return Task.FromResult(_host.Nil);
             });
-            var evalResult = host.Eval(@"
+            var evalResult = await host.EvalAsync(@"
 (set-macro-character (code-char 33) (function original-bang-reader)) ; #\!
 (defun percent-reader (stream char)
     (let ((*readtable* (copy-readtable)))
@@ -458,138 +459,138 @@ namespace IxMilia.Lisp.Test
         [InlineData("`,(+ 1 2)", "(QUOTE 3)")]
         [InlineData("`#(1 2 ,(+ 1 2) ,#(4))", "(QUOTE #(1 2 3 #(4)))")]
         [InlineData("`a", "(QUOTE A)")]
-        public void BackQuoteRead(string code, string expected)
+        public async Task BackQuoteReadAsync(string code, string expected)
         {
-            var result = Read(code);
+            var result = await ReadAsync(code);
             Assert.Equal(expected, result.ToString());
         }
 
         [Fact]
-        public void PeekCharPeekTypeIsNotGiven()
+        public async Task PeekCharPeekTypeIsNotGiven()
         {
             var input = new StringReader(" ab ");
             var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
 
             host.SetValue("TEST-STREAM", testStream);
-            var result = host.Eval("(peek-char test-stream)").LastResult;
+            var result = (await host.EvalAsync("(peek-char test-stream)")).LastResult;
             Assert.Equal(new LispCharacter(' '), result);
         }
 
         [Fact]
-        public void PeekCharPeekTypeIsNil()
+        public async Task PeekCharPeekTypeIsNil()
         {
             var input = new StringReader(" ab ");
             var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
 
             host.SetValue("TEST-STREAM", testStream);
-            var result = host.Eval("(peek-char nil test-stream)").LastResult;
+            var result = (await host.EvalAsync("(peek-char nil test-stream)")).LastResult;
             Assert.Equal(new LispCharacter(' '), result);
         }
 
         [Fact]
-        public void PeekCharPeekTypeIsTThenSymbol()
+        public async Task PeekCharPeekTypeIsTThenSymbol()
         {
             var input = new StringReader(" ab ");
             var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
 
             host.SetValue("TEST-STREAM", testStream);
-            var result = host.Eval("(peek-char t test-stream)").LastResult;
+            var result = (await host.EvalAsync("(peek-char t test-stream)")).LastResult;
             Assert.Equal(new LispCharacter('a'), result);
         }
 
         [Fact]
-        public void PeekCharPeekTypeIsTThenComment()
+        public async Task PeekCharPeekTypeIsTThenComment()
         {
             var input = new StringReader(" ;ab ");
             var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
 
             host.SetValue("TEST-STREAM", testStream);
-            var result = host.Eval("(peek-char t test-stream)").LastResult;
+            var result = (await host.EvalAsync("(peek-char t test-stream)")).LastResult;
             Assert.Equal(new LispCharacter(';'), result);
         }
 
         [Fact]
-        public void PeekCharPeekTypeIsCharacter()
+        public async Task PeekCharPeekTypeIsCharacter()
         {
             var input = new StringReader(" ab ");
             var testStream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
 
             host.SetValue("TEST-STREAM", testStream);
-            var result = host.Eval("(peek-char #\\b test-stream)").LastResult;
+            var result = (await host.EvalAsync("(peek-char #\\b test-stream)")).LastResult;
             Assert.Equal(new LispCharacter('b'), result);
         }
 
         [Fact]
-        public void ObjectsFromReaderMacrosHaveProperSourceSpansSet1()
+        public async Task ObjectsFromReaderMacrosHaveProperSourceSpansSet1()
         {
             var text = "\"some string\"";
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
             host.ObjectReader.SetReaderStream(input);
-            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 1), new LispSourcePosition(1, 14)), result.LastResult.SourceLocation);
         }
 
         [Fact]
-        public void ObjectsFromReaderMacrosHaveProperSourceSpansSet2()
+        public async Task ObjectsFromReaderMacrosHaveProperSourceSpansSet2()
         {
             var text = "#'asdf";
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
             host.ObjectReader.SetReaderStream(input);
-            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
             Assert.Equal("#'COMMON-LISP-USER:ASDF", result.LastResult.ToString());
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 1), new LispSourcePosition(1, 7)), result.LastResult.SourceLocation);
         }
 
         [Fact]
-        public void ObjectsAfterReaderMacroHaveProperSourceSpansSet1()
+        public async Task ObjectsAfterReaderMacroHaveProperSourceSpansSet1()
         {
             var text = "\"some string\" 42";
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
             host.ObjectReader.SetReaderStream(input);
-            var _ = host.ObjectReader.Read(false, new LispError("EOF"), false); // swallow the string
-            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            var _ = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false); // swallow the string
+            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 15), new LispSourcePosition(1, 17)), result.LastResult.SourceLocation);
         }
 
         [Fact]
-        public void ObjectsAfterReaderMacroHaveProperSourceSpansSet2()
+        public async Task ObjectsAfterReaderMacroHaveProperSourceSpansSet2()
         {
             var text = "#'asdf 42";
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
             host.ObjectReader.SetReaderStream(input);
-            var _ = host.ObjectReader.Read(false, new LispError("EOF"), false); // swallow the string
-            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            var _ = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false); // swallow the string
+            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 8), new LispSourcePosition(1, 10)), result.LastResult.SourceLocation);
         }
 
         [Fact]
-        public void IncompleteInputIsReturnedWhenReaderMacrosAreActive()
+        public async Task IncompleteInputIsReturnedWhenReaderMacrosAreActive()
         {
             var text = "\"this string is incomplete";
-            var host = new LispHost();
+            var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
             host.ObjectReader.SetReaderStream(input);
-            var result = host.ObjectReader.Read(false, new LispError("EOF"), false);
+            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
             Assert.Equal(text, result.IncompleteInput);
         }
 
         [Fact]
-        public void Tokens()
+        public async Task Tokens()
         {
             var code = @"(defun my-function (a b) (+ 11 22) ""some string"")";
             //            macro function     parameter
             //                                     function
             //                                       number string
-            var tokens = ReadTokens(code);
+            var tokens = await ReadTokensAsync(code);
             var expected = new[]
             {
                 new LispToken(LispTokenType.Macro, new LispSourcePosition(1, 2), new LispSourcePosition(1, 7)), // `defun`
@@ -606,11 +607,11 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
-        public void FullyQualifiedSymbolTokens()
+        public async Task FullyQualifiedSymbolTokens()
         {
             var code = "kernel:+/2";
             //          1234567890
-            var tokens = ReadTokens(code);
+            var tokens = await ReadTokensAsync(code);
             var expected = new[]
             {
                 new LispToken(LispTokenType.Package, new LispSourcePosition(1, 1), new LispSourcePosition(1, 7)), // `kernel`

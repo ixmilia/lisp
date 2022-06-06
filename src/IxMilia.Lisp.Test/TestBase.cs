@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
 {
     public abstract class TestBase
     {
-        protected static LispObject Eval(string code)
+        protected static async Task<LispObject> EvalAsync(string code)
         {
-            var host = new LispHost();
-            var evalResult = host.Eval(code);
+            var host = await LispHost.CreateAsync();
+            var evalResult = await host.EvalAsync(code);
             var result = evalResult.LastResult;
             Assert.NotNull(result);
             EnsureNotError(result);
