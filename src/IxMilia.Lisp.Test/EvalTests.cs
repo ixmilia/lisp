@@ -1370,5 +1370,59 @@ l
 ");
             Assert.Equal("(1 2 3)", result.LastResult.ToString());
         }
+
+        [Fact]
+        public async Task UnsetSymbolCanBeRetrievedFromNonExistantPackage()
+        {
+            var gotUnsetSymbol = false;
+            var host = await LispHost.CreateAsync(useInitScript: false, getUnsetSymbol: resolvedSymbol =>
+            {
+                if (resolvedSymbol.Value == "not-a-package:not-a-symbol")
+                {
+                    gotUnsetSymbol = true;
+                    return new LispInteger(42);
+                }
+
+                return null;
+            });
+            var result = host.GetValue("not-a-package:not-a-symbol");
+            Assert.True(gotUnsetSymbol);
+            Assert.Equal(new LispInteger(42), result);
+        }
+
+        [Fact]
+        public async Task UnsetSymbolCanBeRetrievedFromExistingPackage()
+        {
+            var gotUnsetSymbol = false;
+            LispHost host = null;
+            host = await LispHost.CreateAsync(useInitScript: false, getUnsetSymbol: resolvedSymbol =>
+            {
+                if (resolvedSymbol.Value == $"{host.CurrentPackage.Name}:not-a-symbol")
+                {
+                    gotUnsetSymbol = true;
+                    return new LispInteger(42);
+                }
+
+                return null;
+            });
+            var result = host.GetValue($"{host.CurrentPackage.Name}:not-a-symbol");
+            Assert.True(gotUnsetSymbol);
+            Assert.Equal(new LispInteger(42), result);
+        }
+
+        [Fact]
+        public async Task UnsetSymbolFunctionIsNotCalledWhenAnExistingValueIsFound()
+        {
+            var gotUnsetSymbol = false;
+            var host = await LispHost.CreateAsync(useInitScript: false, getUnsetSymbol: resolvedSymbol =>
+            {
+                gotUnsetSymbol = true;
+                return null;
+            });
+            host.SetValue("some-int", new LispInteger(42));
+            var result = host.GetValue("some-int");
+            Assert.False(gotUnsetSymbol);
+            Assert.Equal(new LispInteger(42), result);
+        }
     }
 }

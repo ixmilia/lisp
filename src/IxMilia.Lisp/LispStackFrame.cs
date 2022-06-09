@@ -122,6 +122,7 @@ namespace IxMilia.Lisp
         private Dictionary<string, LispPackage> _packages = new Dictionary<string, LispPackage>();
         private LispPackage _commonLispPackage;
         private LispPackage _keywordPackage;
+        private Func<LispResolvedSymbol, LispObject> _getUnsetSymbol = null;
 
         internal LispFileStream DribbleStream
         {
@@ -151,12 +152,13 @@ namespace IxMilia.Lisp
             set => _commonLispPackage.SetValue(ReadTableString, value);
         }
 
-        internal LispRootStackFrame(TextReader input, TextWriter output)
+        internal LispRootStackFrame(TextReader input, TextWriter output, Func<LispResolvedSymbol, LispObject> getUnsetSymbol)
             : base(new LispResolvedSymbol("(ROOT)", "(ROOT)", isPublic: true), null)
         {
             _commonLispPackage = AddPackage(CommonLispPackageName);
             _keywordPackage = new LispKeywordPackage();
             _packages.Add(_keywordPackage.Name, _keywordPackage);
+            _getUnsetSymbol = getUnsetSymbol;
 
             var tSymbol = new LispResolvedSymbol(CommonLispPackageName, TString, isPublic: true);
             SetValue(tSymbol, tSymbol);
@@ -219,10 +221,10 @@ namespace IxMilia.Lisp
         {
             if (!_packages.TryGetValue(symbol.PackageName, out var package))
             {
-                return null;
+                return _getUnsetSymbol?.Invoke(symbol);
             }
 
-            return package.GetValue(symbol.LocalName);
+            return package.GetValue(symbol.LocalName) ?? _getUnsetSymbol?.Invoke(symbol);
         }
 
         public override void DeleteValue(LispResolvedSymbol symbol)

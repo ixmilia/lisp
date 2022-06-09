@@ -46,10 +46,10 @@ namespace IxMilia.Lisp
             }
         }
 
-        private LispHost(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false)
+        private LispHost(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false, Func<LispResolvedSymbol, LispObject> getUnsetSymbol = null)
         {
             _initialFilePath = filePath;
-            RootFrame = new LispRootStackFrame(input ?? TextReader.Null, output ?? TextWriter.Null);
+            RootFrame = new LispRootStackFrame(input ?? TextReader.Null, output ?? TextWriter.Null, getUnsetSymbol);
             var commonLispPackage = RootFrame.GetPackage(LispRootStackFrame.CommonLispPackageName);
             CurrentPackage = commonLispPackage;
             UseTailCalls = useTailCalls;
@@ -61,9 +61,9 @@ namespace IxMilia.Lisp
             _objectReader.SetReaderStream(nullStream);
         }
 
-        public static async Task<LispHost> CreateAsync(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false, bool useInitScript = true, CancellationToken cancellationToken = default)
+        public static async Task<LispHost> CreateAsync(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false, bool useInitScript = true, Func<LispResolvedSymbol, LispObject> getUnsetSymbol = null, CancellationToken cancellationToken = default)
         {
-            var host = new LispHost(filePath, input, output, useTailCalls);
+            var host = new LispHost(filePath, input, output, useTailCalls, getUnsetSymbol);
             if (useInitScript)
             {
                 await host.ApplyInitScriptAsync(cancellationToken);
