@@ -19,12 +19,10 @@ namespace IxMilia.Lisp
         private const string TerminalIOString = "*TERMINAL-IO*";
 
         private string _initialFilePath;
-        private LispObjectReader _objectReader;
         private LispObject _eofMarker = new LispResolvedSymbol("(EOF-PACKAGE)", "(EOF)", isPublic: true);
         public readonly LispRootStackFrame RootFrame;
         private LispPackage _currentPackage;
 
-        internal LispObjectReader ObjectReader => _objectReader;
         public bool UseTailCalls { get; }
         public LispObject T => RootFrame.T;
         public LispObject Nil => RootFrame.Nil;
@@ -55,10 +53,6 @@ namespace IxMilia.Lisp
             UseTailCalls = useTailCalls;
             AddContextObject(new LispSpecialOperatorsContext());
             AddContextObject(new LispDefaultContext());
-
-            var nullStream = new LispTextStream("<null>", TextReader.Null, TextWriter.Null);
-            _objectReader = new LispObjectReader(this);
-            _objectReader.SetReaderStream(nullStream);
         }
 
         public static async Task<LispHost> CreateAsync(string filePath = null, TextReader input = null, TextWriter output = null, bool useTailCalls = false, bool useInitScript = true, Func<LispResolvedSymbol, LispObject> getUntrackedValue = null, Func<LispResolvedSymbol, LispObject, bool> trySetUntrackedValue = null, CancellationToken cancellationToken = default)
@@ -232,7 +226,6 @@ namespace IxMilia.Lisp
         public async Task<LispEvalResult> EvalAsync(string filePath, string code, CancellationToken cancellationToken = default)
         {
             var executionState = LispExecutionState.CreateExecutionState(RootFrame, filePath, code, UseTailCalls, allowHalting: true);
-            _objectReader.SetReaderStream(executionState.CodeInputStream);
             return await EvalContinueAsync(executionState, cancellationToken);
         }
 
@@ -251,8 +244,9 @@ namespace IxMilia.Lisp
             {
                 return evalResult;
             }
-
-            var readerResult = await ReadWithoutDribbleStreamAsync(executionState.StackFrame, cancellationToken);
+            
+            var objectReader = new LispObjectReader(this, executionState.CodeInputStream);
+            var readerResult = await ReadWithoutDribbleStreamAsync(objectReader, executionState.StackFrame, cancellationToken);
             while (!ReferenceEquals(readerResult.LastResult, _eofMarker))
             {
                 evalResult.ExpressionDepth = readerResult.ExpressionDepth;
@@ -272,7 +266,7 @@ namespace IxMilia.Lisp
                     break;
                 }
 
-                readerResult = await ReadWithoutDribbleStreamAsync(executionState.StackFrame, cancellationToken);
+                readerResult = await ReadWithoutDribbleStreamAsync(objectReader, executionState.StackFrame, cancellationToken);
             }
 
             return evalResult;
@@ -285,11 +279,11 @@ namespace IxMilia.Lisp
             return evaluationState;
         }
 
-        private async Task<LispObjectReaderResult> ReadWithoutDribbleStreamAsync(LispStackFrame stackFrame, CancellationToken cancellationToken)
+        private async Task<LispObjectReaderResult> ReadWithoutDribbleStreamAsync(LispObjectReader objectReader, LispStackFrame stackFrame, CancellationToken cancellationToken)
         {
             var dribbleStream = RootFrame.DribbleStream;
             RootFrame.DribbleStream = null;
-            var obj = await _objectReader.ReadAsync(stackFrame, false, _eofMarker, false, cancellationToken);
+            var obj = await objectReader.ReadAsync(stackFrame, false, _eofMarker, false, cancellationToken);
             RootFrame.DribbleStream = dribbleStream;
             return obj;
         }

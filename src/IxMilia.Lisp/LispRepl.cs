@@ -78,13 +78,10 @@ namespace IxMilia.Lisp
             var eofValue = new LispError("EOF");
             var textReader = new StringReader(code);
             var textStream = new LispTextStream("", textReader, TextWriter.Null);
-            Host.ObjectReader.SetReaderStream(textStream);
+            var objectReader = new LispObjectReader(Host, textStream, allowIncompleteObjects: true);
             while (true)
             {
-                var oldAllow = Host.ObjectReader.AllowIncompleteObjects;
-                Host.ObjectReader.AllowIncompleteObjects = true;
-                var result = await Host.ObjectReader.ReadAsync(false, eofValue, true, cancellationToken);
-                Host.ObjectReader.AllowIncompleteObjects = oldAllow;
+                var result = await objectReader.ReadAsync(Host.RootFrame, false, eofValue, true, cancellationToken);
                 if (ReferenceEquals(result.LastResult, eofValue))
                 {
                     break;
@@ -115,14 +112,11 @@ namespace IxMilia.Lisp
             var eofValue = new LispError("EOF");
             var textReader = new StringReader(code);
             var textStream = new LispTextStream("", textReader, TextWriter.Null);
-            Host.ObjectReader.SetReaderStream(textStream);
+            var objectReader = new LispObjectReader(Host, textStream, allowIncompleteObjects: true);
             var result = new List<LispObject>();
             while (true)
             {
-                var oldAllow = Host.ObjectReader.AllowIncompleteObjects;
-                Host.ObjectReader.AllowIncompleteObjects = true;
-                var readResult = await Host.ObjectReader.ReadAsync(false, eofValue, true, cancellationToken);
-                Host.ObjectReader.AllowIncompleteObjects = oldAllow;
+                var readResult = await objectReader.ReadAsync(Host.RootFrame, false, eofValue, true, cancellationToken);
                 if (ReferenceEquals(readResult.LastResult, eofValue))
                 {
                     break;

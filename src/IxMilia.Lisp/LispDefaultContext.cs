@@ -858,18 +858,9 @@ namespace IxMilia.Lisp
                 }
             }
 
-            LispObject result = null;
-            try
-            {
-                host.ObjectReader.PushReaderStream(inputTextStream);
-                var readerResult = await host.ObjectReader.ReadAsync(executionState.StackFrame, errorOnEof, eofValue, isRecursive, cancellationToken);
-                result = readerResult.LastResult;
-            }
-            finally
-            {
-                host.ObjectReader.PopReaderStream();
-            }
-
+            var objectReader = new LispObjectReader(host, inputTextStream);
+            var readerResult = await objectReader.ReadAsync(executionState.StackFrame, errorOnEof, eofValue, isRecursive, cancellationToken);
+            var result = readerResult.LastResult;
             return result;
         }
 

@@ -14,13 +14,9 @@ namespace IxMilia.Lisp
         private LispTextStream _input;
         private int _leftParenCount = 0;
         private StringBuilder _incompleteInput = null;
-        private Stack<Tuple<LispTextStream, int>> _readerStack = new Stack<Tuple<LispTextStream, int>>();
+        private bool _allowIncompleteObjects;
 
         private static List<Tuple<Regex, Func<Match, LispObject>>> RegexMatchers = new List<Tuple<Regex, Func<Match, LispObject>>>();
-
-        public LispTextStream InputStream => _input;
-
-        public bool AllowIncompleteObjects { get; set; } = false;
 
         static LispObjectReader()
         {
@@ -47,9 +43,11 @@ namespace IxMilia.Lisp
             }));
         }
 
-        public LispObjectReader(LispHost host)
+        public LispObjectReader(LispHost host, LispTextStream input, bool allowIncompleteObjects = false)
         {
             _host = host;
+            _input = input;
+            _allowIncompleteObjects = allowIncompleteObjects;
 
             _host.AddFunction("COPY-READTABLE", (__host, executionState, args, cancellationToken) =>
             {
@@ -108,27 +106,6 @@ namespace IxMilia.Lisp
             var readTable = stackFrame.GetValue<LispReadTable>(symbol);
             return readTable;
         }
-
-        public void SetReaderStream(LispTextStream input)
-        {
-            _input = input;
-            _leftParenCount = 0;
-        }
-
-        internal void PushReaderStream(LispTextStream input)
-        {
-            _readerStack.Push(Tuple.Create(_input, _leftParenCount));
-            SetReaderStream(input);
-        }
-
-        internal void PopReaderStream()
-        {
-            var t = _readerStack.Pop();
-            _input = t.Item1;
-            _leftParenCount = t.Item2;
-        }
-
-        public Task<LispObjectReaderResult> ReadAsync(bool errorOnEof, LispObject eofValue, bool isRecursive, CancellationToken cancellationToken = default) => ReadAsync(_host.RootFrame, errorOnEof, eofValue, isRecursive, cancellationToken);
 
         public async Task<LispObjectReaderResult> ReadAsync(LispStackFrame stackFrame, bool errorOnEof, LispObject eofValue, bool isRecursive, CancellationToken cancellationToken = default)
         {
@@ -289,7 +266,7 @@ namespace IxMilia.Lisp
                 ConsumeTrivia();
             }
 
-            if (!isListComplete && !AllowIncompleteObjects)
+            if (!isListComplete && !_allowIncompleteObjects)
             {
                 return new LispError($"Unmatched '(' at ({startPosition.Line}, {startPosition.Column}) (depth {_leftParenCount})");
             }

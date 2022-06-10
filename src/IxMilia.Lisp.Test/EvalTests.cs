@@ -1028,8 +1028,8 @@ total
         {
             var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(code), TextWriter.Null);
-            host.ObjectReader.SetReaderStream(input);
-            var readResult = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
+            var objectReader = new LispObjectReader(host, input);
+            var readResult = await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false);
             Assert.IsType<LispList>(readResult.LastResult);
             var list = ((LispList)readResult.LastResult).ToList();
             var args = list.Skip(1).ToArray();

@@ -12,8 +12,8 @@ namespace IxMilia.Lisp.Test
         {
             var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
-            host.ObjectReader.SetReaderStream(input);
-            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
+            var objectReader = new LispObjectReader(host, input);
+            var result = await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false);
             return result.LastResult;
         }
 
@@ -21,8 +21,8 @@ namespace IxMilia.Lisp.Test
         {
             var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(code), TextWriter.Null);
-            host.ObjectReader.SetReaderStream(input);
-            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
+            var objectReader = new LispObjectReader(host, input);
+            var result = await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false);
             var tokens = result.LastResult.GetSemanticTokens(host).ToArray();
             return tokens;
         }
@@ -238,17 +238,17 @@ namespace IxMilia.Lisp.Test
             var input = new StringReader("(abc 2)\n14");
             var stream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = await LispHost.CreateAsync();
-            host.ObjectReader.SetReaderStream(stream);
+            var objectReader = new LispObjectReader(host, stream);
 
-            var list = ((LispList)(await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false)).LastResult).ToList();
+            var list = ((LispList)(await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false)).LastResult).ToList();
             Assert.Equal(2, list.Count);
             Assert.Equal("ABC", ((LispSymbol)list[0]).LocalName);
             Assert.Equal(2, ((LispInteger)list[1]).Value);
 
-            var number = (LispInteger)(await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false)).LastResult;
+            var number = (LispInteger)(await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false)).LastResult;
             Assert.Equal(14, number.Value);
 
-            var eof = (LispError)(await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false)).LastResult;
+            var eof = (LispError)(await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false)).LastResult;
             Assert.Equal("EOF", eof.Message);
         }
 
@@ -258,12 +258,12 @@ namespace IxMilia.Lisp.Test
             var input = new StringReader("14");
             var stream = new LispTextStream("TEST-STREAM", input, TextWriter.Null);
             var host = await LispHost.CreateAsync();
-            host.ObjectReader.SetReaderStream(stream);
+            var objectReader = new LispObjectReader(host, stream);
 
-            var number = (LispInteger)(await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false)).LastResult;
+            var number = (LispInteger)(await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false)).LastResult;
             Assert.Equal(14, number.Value);
 
-            var eof = (LispInteger)(await host.ObjectReader.ReadAsync(false, new LispInteger(-54), false)).LastResult;
+            var eof = (LispInteger)(await objectReader.ReadAsync(host.RootFrame, false, new LispInteger(-54), false)).LastResult;
             Assert.Equal(-54, eof.Value);
         }
 
@@ -531,8 +531,8 @@ namespace IxMilia.Lisp.Test
             var text = "\"some string\"";
             var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
-            host.ObjectReader.SetReaderStream(input);
-            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
+            var objectReader = new LispObjectReader(host, input);
+            var result = await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false);
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 1), new LispSourcePosition(1, 14)), result.LastResult.SourceLocation);
         }
 
@@ -542,8 +542,8 @@ namespace IxMilia.Lisp.Test
             var text = "#'asdf";
             var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
-            host.ObjectReader.SetReaderStream(input);
-            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
+            var objectReader = new LispObjectReader(host, input);
+            var result = await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false);
             Assert.Equal("#'COMMON-LISP-USER:ASDF", result.LastResult.ToString());
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 1), new LispSourcePosition(1, 7)), result.LastResult.SourceLocation);
         }
@@ -554,9 +554,9 @@ namespace IxMilia.Lisp.Test
             var text = "\"some string\" 42";
             var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
-            host.ObjectReader.SetReaderStream(input);
-            var _ = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false); // swallow the string
-            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
+            var objectReader = new LispObjectReader(host, input);
+            var _ = await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false); // swallow the string
+            var result = await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false);
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 15), new LispSourcePosition(1, 17)), result.LastResult.SourceLocation);
         }
 
@@ -566,9 +566,9 @@ namespace IxMilia.Lisp.Test
             var text = "#'asdf 42";
             var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
-            host.ObjectReader.SetReaderStream(input);
-            var _ = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false); // swallow the string
-            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
+            var objectReader = new LispObjectReader(host, input);
+            var _ = await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false); // swallow the string
+            var result = await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false);
             Assert.Equal(new LispSourceLocation("", new LispSourcePosition(1, 8), new LispSourcePosition(1, 10)), result.LastResult.SourceLocation);
         }
 
@@ -578,8 +578,8 @@ namespace IxMilia.Lisp.Test
             var text = "\"this string is incomplete";
             var host = await LispHost.CreateAsync();
             var input = new LispTextStream("", new StringReader(text), TextWriter.Null);
-            host.ObjectReader.SetReaderStream(input);
-            var result = await host.ObjectReader.ReadAsync(false, new LispError("EOF"), false);
+            var objectReader = new LispObjectReader(host, input);
+            var result = await objectReader.ReadAsync(host.RootFrame, false, new LispError("EOF"), false);
             Assert.Equal(text, result.IncompleteInput);
         }
 
@@ -618,6 +618,27 @@ namespace IxMilia.Lisp.Test
                 new LispToken(LispTokenType.Function, new LispSourcePosition(1, 8), new LispSourcePosition(1, 11)), // `+/2`
             };
             Assert.Equal(expected, tokens);
+        }
+
+
+        [Fact]
+        public async Task InterleavedReadOperationsUseTheirOwnTextStreams()
+        {
+            var host = await LispHost.CreateAsync(useInitScript: false);
+            LispObject innerObject = null;
+            host.AddFunction(new LispResolvedSymbol("SOME-PACKAGE", "INNER-FUNCTION", isPublic: true), async (_host, _executionState, _args, _cancellationToken) =>
+            {
+                var innerReadResult = await host.EvalAsync("123");
+                innerObject = innerReadResult.LastResult;
+                return host.Nil;
+            });
+            var outerReadResult = await host.EvalAsync(@"
+(some-package:inner-function)
+456
+");
+            var outerObject = outerReadResult.LastResult;
+            Assert.Equal(new LispInteger(123), innerObject);
+            Assert.Equal(new LispInteger(456), outerObject);
         }
     }
 }
