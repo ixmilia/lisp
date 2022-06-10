@@ -122,7 +122,8 @@ namespace IxMilia.Lisp
         private Dictionary<string, LispPackage> _packages = new Dictionary<string, LispPackage>();
         private LispPackage _commonLispPackage;
         private LispPackage _keywordPackage;
-        private Func<LispResolvedSymbol, LispObject> _getUnsetSymbol = null;
+        private Func<LispResolvedSymbol, LispObject> _getUntrackedValue = null;
+        private Func<LispResolvedSymbol, LispObject, bool> _trySetUntrackedValue = null;
 
         internal LispFileStream DribbleStream
         {
@@ -152,13 +153,14 @@ namespace IxMilia.Lisp
             set => _commonLispPackage.SetValue(ReadTableString, value);
         }
 
-        internal LispRootStackFrame(TextReader input, TextWriter output, Func<LispResolvedSymbol, LispObject> getUnsetSymbol)
+        internal LispRootStackFrame(TextReader input, TextWriter output, Func<LispResolvedSymbol, LispObject> getUntrackedValue, Func<LispResolvedSymbol, LispObject, bool> trySetUntrackedValue)
             : base(new LispResolvedSymbol("(ROOT)", "(ROOT)", isPublic: true), null)
         {
             _commonLispPackage = AddPackage(CommonLispPackageName);
             _keywordPackage = new LispKeywordPackage();
             _packages.Add(_keywordPackage.Name, _keywordPackage);
-            _getUnsetSymbol = getUnsetSymbol;
+            _getUntrackedValue = getUntrackedValue;
+            _trySetUntrackedValue = trySetUntrackedValue;
 
             var tSymbol = new LispResolvedSymbol(CommonLispPackageName, TString, isPublic: true);
             SetValue(tSymbol, tSymbol);
@@ -199,6 +201,11 @@ namespace IxMilia.Lisp
 
         internal LispObject SetValue(LispResolvedSymbol symbol, LispObject value, bool createPackage)
         {
+            if (_trySetUntrackedValue?.Invoke(symbol, value) == true)
+            {
+                return value;
+            }
+
             if (!_packages.TryGetValue(symbol.PackageName, out var package))
             {
                 if (createPackage)
@@ -207,8 +214,7 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    throw new Exception("asdf");
-                    //return new LispError($"Package {packageName} not defined.");
+                    return new LispError($"Package {symbol.PackageName} not defined.");
                 }
             }
 
@@ -221,10 +227,10 @@ namespace IxMilia.Lisp
         {
             if (!_packages.TryGetValue(symbol.PackageName, out var package))
             {
-                return _getUnsetSymbol?.Invoke(symbol);
+                return _getUntrackedValue?.Invoke(symbol);
             }
 
-            return package.GetValue(symbol.LocalName) ?? _getUnsetSymbol?.Invoke(symbol);
+            return package.GetValue(symbol.LocalName) ?? _getUntrackedValue?.Invoke(symbol);
         }
 
         public override void DeleteValue(LispResolvedSymbol symbol)

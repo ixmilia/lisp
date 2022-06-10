@@ -1375,7 +1375,7 @@ l
         public async Task UnsetSymbolCanBeRetrievedFromNonExistantPackage()
         {
             var gotUnsetSymbol = false;
-            var host = await LispHost.CreateAsync(useInitScript: false, getUnsetSymbol: resolvedSymbol =>
+            var host = await LispHost.CreateAsync(useInitScript: false, getUntrackedValue: resolvedSymbol =>
             {
                 if (resolvedSymbol.Value == "not-a-package:not-a-symbol")
                 {
@@ -1395,7 +1395,7 @@ l
         {
             var gotUnsetSymbol = false;
             LispHost host = null;
-            host = await LispHost.CreateAsync(useInitScript: false, getUnsetSymbol: resolvedSymbol =>
+            host = await LispHost.CreateAsync(useInitScript: false, getUntrackedValue: resolvedSymbol =>
             {
                 if (resolvedSymbol.Value == $"{host.CurrentPackage.Name}:not-a-symbol")
                 {
@@ -1414,7 +1414,7 @@ l
         public async Task UnsetSymbolFunctionIsNotCalledWhenAnExistingValueIsFound()
         {
             var gotUnsetSymbol = false;
-            var host = await LispHost.CreateAsync(useInitScript: false, getUnsetSymbol: resolvedSymbol =>
+            var host = await LispHost.CreateAsync(useInitScript: false, getUntrackedValue: resolvedSymbol =>
             {
                 gotUnsetSymbol = true;
                 return null;
@@ -1423,6 +1423,51 @@ l
             var result = host.GetValue("some-int");
             Assert.False(gotUnsetSymbol);
             Assert.Equal(new LispInteger(42), result);
+        }
+
+        [Fact]
+        public async Task SetUntrackedValueShortCircuitsValueSettingInNonExistantPackage()
+        {
+            var setValue = false;
+            var host = await LispHost.CreateAsync(useInitScript: false, trySetUntrackedValue: (resolvedSymbol, value) =>
+            {
+                if (resolvedSymbol.Value == "not-a-package:not-a-symbol" &&
+                    value is LispInteger i &&
+                    i == new LispInteger(42))
+                {
+                    setValue = true;
+                    return true;
+                }
+
+                return false;
+            });
+            host.SetValue("not-a-package:not-a-symbol", new LispInteger(42));
+            Assert.True(setValue);
+            Assert.Null(host.RootFrame.GetPackage("not-a-package"));
+            Assert.Null(host.GetValue("not-a-package:not-a-symbol"));
+        }
+
+        [Fact]
+        public async Task SetUntrackedValueShortCircuitsValueSettingInExistingPackage()
+        {
+            var setValue = false;
+            LispHost host = null;
+            host = await LispHost.CreateAsync(useInitScript: false, trySetUntrackedValue: (resolvedSymbol, value) =>
+            {
+                if (resolvedSymbol.Value == $"{host?.CurrentPackage.Name}:not-a-symbol" &&
+                    value is LispInteger i &&
+                    i == new LispInteger(42))
+                {
+                    setValue = true;
+                    return true;
+                }
+
+                return false;
+            });
+            host.SetValue($"{host.CurrentPackage.Name}:not-a-symbol", new LispInteger(42));
+            Assert.True(setValue);
+            Assert.NotNull(host.RootFrame.GetPackage(host.CurrentPackage.Name));
+            Assert.Null(host.GetValue($"{host.CurrentPackage.Name}:not-a-symbol"));
         }
     }
 }
