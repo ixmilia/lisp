@@ -44,8 +44,8 @@ try {
     dotnet pack --no-restore --no-build --configuration $configuration $solution || Fail "Error creating package."
     Write-Host "Packages generated at $PSScriptRoot/artifacts/packages/$configuration"
 
-    # create extension
-    Push-Location "$PSScriptRoot\src\vscode"
+    # create vscode extension
+    Push-Location "$PSScriptRoot\src\lisp-vscode"
     npm i
     npm run package
     Pop-Location
