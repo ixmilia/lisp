@@ -24,7 +24,13 @@ function Single([string]$pattern) {
 }
 
 try {
-    # build
+    # build monaco editor
+    Push-Location "$PSScriptRoot\src\lisp-monaco-editor"
+    npm i
+    npm run compile
+    Pop-Location
+
+    # build dotnet
     $solution = Single "$PSScriptRoot/*.sln"
     dotnet restore $solution || Fail "Failed to restore solution"
     dotnet build $solution --configuration $configuration || Fail "Failed to build solution"

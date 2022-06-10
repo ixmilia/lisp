@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EditorDirectory>$(MSBuildThisFileDirectory)..\lisp-monaco-editor\dist</EditorDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EditorFiles Include="$(EditorDirectory)\app.bundle.js" />
+    <EditorFiles Include="$(EditorDirectory)\editor.worker.bundle.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IxMilia.Lisp.LanguageServer\IxMilia.Lisp.LanguageServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+  </ItemGroup>
+
+  <Target Name="CopyStaticAssets" BeforeTargets="Build">
+    <Copy SourceFiles="@(EditorFiles)" DestinationFolder="$(MSBuildThisFileDirectory)wwwroot" />
+  </Target>
+
+</Project>

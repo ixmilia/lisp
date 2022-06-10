@@ -19,6 +19,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IxMilia.Lisp.Interactive", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IxMilia.Lisp.Interactive.Test", "src\IxMilia.Lisp.Interactive.Test\IxMilia.Lisp.Interactive.Test.csproj", "{FF030384-DC77-4252-8968-3E79C2DA0CE8}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IxMilia.Lisp.Wasm", "src\IxMilia.Lisp.Wasm\IxMilia.Lisp.Wasm.csproj", "{A0970865-9A11-485C-9FD9-CC1E1294411D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,10 @@ Global
 		{FF030384-DC77-4252-8968-3E79C2DA0CE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FF030384-DC77-4252-8968-3E79C2DA0CE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FF030384-DC77-4252-8968-3E79C2DA0CE8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0970865-9A11-485C-9FD9-CC1E1294411D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0970865-9A11-485C-9FD9-CC1E1294411D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0970865-9A11-485C-9FD9-CC1E1294411D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0970865-9A11-485C-9FD9-CC1E1294411D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
