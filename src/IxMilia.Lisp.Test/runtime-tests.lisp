@@ -265,6 +265,8 @@
     (assert-equal 0.5 (/ 2.0) "//1")
     (assert-equal 1.5 (/ 3 2.0) "//2")
     (assert-equal 4 (/ 24 3 2) "//*")
+    ; exponent
+    (assert-equal 8 (expt 2 3) "expt/2")
 )
 
 (and (item-equality)

@@ -1151,17 +1151,13 @@ namespace IxMilia.Lisp
         public Task<LispObject> ZeroP(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
             // TODO: validate argument count
-            switch (args[0])
+            if (args.Length == 1 &&
+                args[0] is LispNumber n)
             {
-                case LispInteger i when i.IsZero:
-                    return Task.FromResult(host.T);
-                case LispFloat f when f.IsZero:
-                    return Task.FromResult<LispObject>(host.T);
-                case LispRatio r when r.IsZero:
-                    return Task.FromResult<LispObject>(host.T);
-                default:
-                    return Task.FromResult<LispObject>(host.Nil);
+                return n.IsZero ? Task.FromResult(host.T) : Task.FromResult(host.Nil);
             }
+
+            return Task.FromResult<LispObject>(new LispError("Expected exactly one number"));
         }
 
         [LispFunction("PLUSP")]
@@ -1811,7 +1807,7 @@ namespace IxMilia.Lisp
                 args[0] is LispSimpleNumber real &&
                 args[1] is LispSimpleNumber img)
             {
-                return Task.FromResult<LispObject>(new LispComplexNumber(real, img).Reduce());
+                return Task.FromResult<LispObject>(new LispComplexNumber(real, img).Simplify());
             }
 
             return Task.FromResult<LispObject>(new LispError("Expected exactly 2 simple numbers"));
@@ -1998,6 +1994,20 @@ namespace IxMilia.Lisp
             }
         }
 
+        [LispFunction("EXPT")]
+        public Task<LispObject> Expt(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        {
+            if (args.Length == 2 &&
+                args[0] is LispNumber n1 &&
+                args[1] is LispNumber n2)
+            {
+                var result = LispNumber.Exponent(n1, n2);
+                return Task.FromResult<LispObject>(result);
+            }
+
+            return Task.FromResult<LispObject>(new LispError("Expected exactly two numbers"));
+        }
+
         [LispFunction("KERNEL:+/2")]
         public Task<LispObject> TwoAgumentPlus(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
@@ -2026,7 +2036,7 @@ namespace IxMilia.Lisp
                     case LispFloat num:
                         return Task.FromResult<LispObject>(new LispFloat(num.Value * -1.0));
                     case LispRatio num:
-                        return Task.FromResult<LispObject>(new LispRatio(num.Numerator * -1, num.Denominator).Reduce());
+                        return Task.FromResult<LispObject>(new LispRatio(num.Numerator * -1, num.Denominator).Simplify());
                     default:
                         return Task.FromResult<LispObject>(new LispError($"Expected type number but found {value.GetType()}"));
                 }

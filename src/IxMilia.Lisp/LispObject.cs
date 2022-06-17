@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -354,6 +355,12 @@ namespace IxMilia.Lisp
     {
         public abstract LispNumberType Type { get; }
 
+        public abstract bool IsZero { get; }
+
+        protected virtual LispNumber SimplifySelf() => this;
+
+        public LispNumber Simplify() => SimplifySelf();
+
         internal static bool Equal(LispNumber a, LispNumber b)
         {
             return DoComparison(a, b, (x, y) => Math.Abs(x - y) < double.Epsilon);
@@ -410,7 +417,7 @@ namespace IxMilia.Lisp
                         case LispInteger ib:
                             return ia + ib;
                         case LispFloat fb:
-                            return ia + fb;
+                            return (LispFloat)ia + fb;
                         case LispRatio rb:
                             return ia + rb;
                         case LispComplexNumber cb:
@@ -422,7 +429,7 @@ namespace IxMilia.Lisp
                     switch (b)
                     {
                         case LispInteger ib:
-                            return fa + ib;
+                            return fa + (LispFloat)ib;
                         case LispFloat fb:
                             return fa + fb;
                         case LispRatio rb:
@@ -471,7 +478,7 @@ namespace IxMilia.Lisp
                         case LispInteger ib:
                             return ia - ib;
                         case LispFloat fb:
-                            return ia - fb;
+                            return (LispFloat)ia - fb;
                         case LispRatio rb:
                             return ia - rb;
                         case LispComplexNumber cb:
@@ -483,7 +490,7 @@ namespace IxMilia.Lisp
                     switch (b)
                     {
                         case LispInteger ib:
-                            return fa - ib;
+                            return fa - (LispFloat)ib;
                         case LispFloat fb:
                             return fa - fb;
                         case LispRatio rb:
@@ -532,7 +539,7 @@ namespace IxMilia.Lisp
                         case LispInteger ib:
                             return ia * ib;
                         case LispFloat fb:
-                            return ia * fb;
+                            return (LispFloat)ia * fb;
                         case LispRatio rb:
                             return ia * rb;
                         case LispComplexNumber cb:
@@ -544,7 +551,7 @@ namespace IxMilia.Lisp
                     switch (b)
                     {
                         case LispInteger ib:
-                            return fa * ib;
+                            return fa * (LispFloat)ib;
                         case LispFloat fb:
                             return fa * fb;
                         case LispRatio rb:
@@ -593,7 +600,7 @@ namespace IxMilia.Lisp
                         case LispInteger ib:
                             return (LispRatio)ia / ib;
                         case LispFloat fb:
-                            return ia / fb;
+                            return (LispFloat)ia / fb;
                         case LispRatio rb:
                             return ia / rb;
                         case LispComplexNumber cb:
@@ -605,7 +612,7 @@ namespace IxMilia.Lisp
                     switch (b)
                     {
                         case LispInteger ib:
-                            return fa / ib;
+                            return fa / (LispFloat)ib;
                         case LispFloat fb:
                             return fa / fb;
                         case LispRatio rb:
@@ -643,11 +650,163 @@ namespace IxMilia.Lisp
                     throw new InvalidOperationException("Not possible, expected a number.");
             }
         }
+
+        internal static LispNumber Exponent(LispNumber a, LispNumber b)
+        {
+            a = a.Simplify();
+            b = b.Simplify();
+
+            if (b.IsZero)
+            {
+                return b is LispFloat ? new LispFloat(1.0) : new LispInteger(1);
+            }
+
+            if (a.IsZero)
+            {
+                return new LispInteger(0);
+            }
+
+            switch (a)
+            {
+                case LispInteger ia:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ib.Value < 0
+                                ? ExponentI(new LispRatio(1, ia.Value), ib.Value * -1)
+                                : ExponentI(ia, ib.Value);
+                        case LispFloat fb:
+                            return new LispFloat(Math.Pow(ia.Value, fb.Value));
+                        case LispRatio rb:
+                            return NormalizeFloat(new LispFloat(Math.Pow(ia.Value, ((LispFloat)rb).Value)));
+                        case LispComplexNumber cb:
+                            return ExponentC(ia, cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number");
+                    }
+                case LispFloat fa:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return new LispFloat(Math.Pow(fa.Value, ib.Value));
+                        case LispFloat fb:
+                            return new LispFloat(Math.Pow(fa.Value, fb.Value));
+                        case LispRatio rb:
+                            return new LispFloat(Math.Pow(fa.Value, ((LispFloat)rb).Value));
+                        case LispComplexNumber cb:
+                            return ExponentC(fa, cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number");
+                    }
+                case LispRatio ra:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ExponentI(ra, ib.Value);
+                        case LispFloat fb:
+                            return new LispFloat(Math.Pow(((LispFloat)ra).Value, fb.Value));
+                        case LispRatio rb:
+                            return new LispFloat(Math.Pow(((LispFloat)ra).Value, ((LispFloat)rb).Value));
+                        case LispComplexNumber cb:
+                            return ExponentC(ra, cb);
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number");
+                    }
+                case LispComplexNumber ca:
+                    switch (b)
+                    {
+                        case LispInteger ib:
+                            return ExponentI(ca, ib.Value);
+                        case LispFloat fb:
+                            return new LispComplexNumber(Complex.Pow(ca.AsComplex(), fb.Value));
+                        case LispRatio rb:
+                            return new LispComplexNumber(Complex.Pow(ca.AsComplex(), rb.AsFloat().Value));
+                        case LispComplexNumber cb:
+                            return new LispComplexNumber(Complex.Pow(ca.AsComplex(), cb.AsComplex()));
+                        default:
+                            throw new InvalidOperationException("Not possible, expected a number");
+                    }
+                default:
+                    throw new InvalidOperationException("Not possible, expected a number.");
+            }
+        }
+
+        private static LispNumber ExponentC(LispSimpleNumber n, LispComplexNumber c)
+        {
+            var result = new LispComplexNumber(Complex.Pow(n.AsFloat().Value, c.AsComplex())).Simplify();
+            result = result is LispFloat f ? NormalizeFloat(f) : result;
+            return result;
+        }
+
+        private static LispNumber ExponentI(LispNumber n, int exponent)
+        {
+            if (exponent < 0)
+            {
+                throw new InvalidOperationException("Not possible, should have been normalized before");
+            }
+
+            if (exponent == 0)
+            {
+                return new LispInteger(1);
+            }
+            
+            LispNumber result = new LispInteger(1);
+            for (int i = 0; i < exponent; i++)
+            {
+                result = Mul(result, n);
+            }
+
+            // fix whole numbers
+            if (result is LispFloat rf)
+            {
+                result = NormalizeFloat(rf);
+            }
+
+            return result;
+        }
+
+        private static LispNumber NormalizeFloat(LispFloat f)
+        {
+            if (f.Value == 0.0)
+            {
+                return new LispInteger(0);
+            }
+
+            if (f.Value > 0.0 && Math.Floor(f.Value) == f.Value)
+            {
+                return new LispInteger((int)f.Value);
+            }
+
+            if (f.Value < 0.0 && Math.Ceiling(f.Value) == f.Value)
+            {
+                return new LispInteger((int)f.Value);
+            }
+
+            return f;
+        }
     }
 
     public abstract class LispSimpleNumber : LispNumber
     {
+        // simple numbers always simplify to another simple number
+        internal LispSimpleNumber SimplifySimple() => (LispSimpleNumber)Simplify();
+
         public LispComplexNumber AsComplex() => new LispComplexNumber(this, LispInteger.Zero);
+
+        public LispFloat AsFloat()
+        {
+            switch (this)
+            {
+                case LispInteger i:
+                    return (LispFloat)i;
+                case LispFloat f:
+                    return f;
+                case LispRatio r:
+                    return (LispFloat)r;
+                default:
+                    throw new InvalidOperationException("Not possible, must be a simple number");
+            }
+        }
     }
 
     public class LispInteger : LispSimpleNumber
@@ -661,7 +820,7 @@ namespace IxMilia.Lisp
             Value = value;
         }
 
-        public bool IsZero => Value == 0;
+        public override bool IsZero => Value == 0;
         public bool IsEven => Value % 2 == 0;
         public bool IsOdd => Value % 2 != 0;
 
@@ -735,11 +894,11 @@ namespace IxMilia.Lisp
             Value = value;
         }
 
-        public bool IsZero => Value == 0.0;
+        public override bool IsZero => Value == 0.0;
         public bool IsEven => (Value - (int)Value == 0.0) && (int)Value % 2 == 0;
         public bool IsOdd => (Value - (int)Value == 0.0) && (int)Value % 2 != 0;
 
-        public static implicit operator LispFloat(LispInteger i)
+        public static explicit operator LispFloat(LispInteger i)
         {
             return new LispFloat(i.Value);
         }
@@ -809,15 +968,20 @@ namespace IxMilia.Lisp
 
         public LispRatio(int num, int denom)
         {
+            if (denom == 0)
+            {
+                throw new NotSupportedException();
+            }
+
             Numerator = num;
             Denominator = denom;
         }
 
-        public bool IsZero => Numerator == 0;
+        public override bool IsZero => Numerator == 0;
         public bool IsEven => false;
         public bool IsOdd => false;
 
-        public LispSimpleNumber Reduce()
+        protected override LispNumber SimplifySelf()
         {
             Reduce(Numerator, Denominator, out var num, out var denom);
 
@@ -902,22 +1066,22 @@ namespace IxMilia.Lisp
 
         public static LispSimpleNumber operator +(LispRatio a, LispRatio b)
         {
-            return new LispRatio(a.Numerator * b.Denominator + b.Numerator * a.Denominator, a.Denominator * b.Denominator).Reduce();
+            return new LispRatio(a.Numerator * b.Denominator + b.Numerator * a.Denominator, a.Denominator * b.Denominator).SimplifySimple();
         }
 
         public static LispSimpleNumber operator -(LispRatio a, LispRatio b)
         {
-            return new LispRatio(a.Numerator * b.Denominator - b.Numerator * a.Denominator, a.Denominator * b.Denominator).Reduce();
+            return new LispRatio(a.Numerator * b.Denominator - b.Numerator * a.Denominator, a.Denominator * b.Denominator).SimplifySimple();
         }
 
         public static LispSimpleNumber operator *(LispRatio a, LispRatio b)
         {
-            return new LispRatio(a.Numerator * b.Numerator, a.Denominator * b.Denominator).Reduce();
+            return new LispRatio(a.Numerator * b.Numerator, a.Denominator * b.Denominator).SimplifySimple();
         }
 
         public static LispSimpleNumber operator /(LispRatio a, LispRatio b)
         {
-            return new LispRatio(a.Numerator * b.Denominator, a.Denominator * b.Numerator).Reduce();
+            return new LispRatio(a.Numerator * b.Denominator, a.Denominator * b.Numerator).SimplifySimple();
         }
 
         public override bool Equals(object obj)
@@ -938,23 +1102,35 @@ namespace IxMilia.Lisp
         public LispSimpleNumber RealPart { get; }
         public LispSimpleNumber ImaginaryPart { get; }
 
+        public override bool IsZero => RealPart.IsZero && ImaginaryPart.IsZero;
+
         public LispComplexNumber(LispSimpleNumber realPart, LispSimpleNumber imaginaryPart)
         {
             RealPart = realPart;
             ImaginaryPart = imaginaryPart;
         }
 
-        public LispNumber Reduce()
+        public LispComplexNumber(Complex complex)
         {
-            switch (ImaginaryPart)
+            RealPart = new LispFloat(complex.Real);
+            ImaginaryPart = new LispFloat(complex.Imaginary);
+        }
+
+        public Complex AsComplex() => new Complex(RealPart.AsFloat().Value, ImaginaryPart.AsFloat().Value);
+
+        protected override LispNumber SimplifySelf()
+        {
+            var rp = (LispSimpleNumber)RealPart.Simplify();
+            var ip = (LispSimpleNumber)ImaginaryPart.Simplify();
+
+            if (ip.IsZero)
             {
-                case LispInteger i when i.IsZero:
-                case LispFloat f when f.IsZero:
-                case LispRatio r when r.IsZero:
-                    return RealPart;
-                default:
-                    return this;
+                return rp;
             }
+
+            return RealPart == rp && ImaginaryPart == ip
+                ? this
+                : new LispComplexNumber(rp, ip);
         }
 
         public override IEnumerable<LispObject> GetChildren()
@@ -997,7 +1173,7 @@ namespace IxMilia.Lisp
         {
             var real = (LispSimpleNumber)Add(a.RealPart, b.RealPart);
             var img = (LispSimpleNumber)Add(a.ImaginaryPart, b.ImaginaryPart);
-            var result = new LispComplexNumber(real, img).Reduce();
+            var result = new LispComplexNumber(real, img).Simplify();
             return result;
         }
 
@@ -1005,7 +1181,7 @@ namespace IxMilia.Lisp
         {
             var real = (LispSimpleNumber)Sub(a.RealPart, b.RealPart);
             var img = (LispSimpleNumber)Sub(a.ImaginaryPart, b.ImaginaryPart);
-            var result = new LispComplexNumber(real, img).Reduce();
+            var result = new LispComplexNumber(real, img).Simplify();
             return result;
         }
 
@@ -1013,7 +1189,7 @@ namespace IxMilia.Lisp
         {
             var real = (LispSimpleNumber)Sub(Mul(a.RealPart, b.RealPart), Mul(a.ImaginaryPart, b.ImaginaryPart));
             var img = (LispSimpleNumber)Add(Mul(a.RealPart, b.ImaginaryPart), Mul(a.ImaginaryPart, b.RealPart));
-            var result = new LispComplexNumber(real, img).Reduce();
+            var result = new LispComplexNumber(real, img).Simplify();
             return result;
         }
 
@@ -1022,7 +1198,7 @@ namespace IxMilia.Lisp
             var denom = Add(Mul(b.RealPart, b.RealPart), Mul(b.ImaginaryPart, b.ImaginaryPart));
             var real = (LispSimpleNumber)Div(Add(Mul(a.RealPart, b.RealPart), Mul(a.ImaginaryPart, b.ImaginaryPart)), denom);
             var img = (LispSimpleNumber)Div(Sub(Mul(a.ImaginaryPart, b.RealPart), Mul(a.RealPart, b.ImaginaryPart)), denom);
-            var result = new LispComplexNumber(real, img).Reduce();
+            var result = new LispComplexNumber(real, img).Simplify();
             return result;
         }
 

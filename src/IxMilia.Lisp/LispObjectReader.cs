@@ -32,7 +32,7 @@ namespace IxMilia.Lisp
             {
                 var numerator = int.Parse(match.Groups[1].Value);
                 var denominator = int.Parse(match.Groups[3].Value);
-                return new LispRatio(numerator, denominator).Reduce();
+                return new LispRatio(numerator, denominator).Simplify();
             }));
 
             // float

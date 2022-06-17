@@ -27,12 +27,12 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public void RatioReductions()
         {
-            Assert.Equal(new LispInteger(0), new LispRatio(0, 1).Reduce());
-            Assert.Equal(new LispInteger(2), new LispRatio(2, 1).Reduce());
-            Assert.Equal(new LispInteger(2), new LispRatio(4, 2).Reduce());
-            Assert.Equal(new LispInteger(1), new LispRatio(2, 2).Reduce());
-            Assert.Equal(new LispRatio(5, 4), new LispRatio(10, 8).Reduce());
-            Assert.Equal(new LispRatio(-1, 2), new LispRatio(2, -4).Reduce());
+            Assert.Equal(new LispInteger(0), new LispRatio(0, 1).Simplify());
+            Assert.Equal(new LispInteger(2), new LispRatio(2, 1).Simplify());
+            Assert.Equal(new LispInteger(2), new LispRatio(4, 2).Simplify());
+            Assert.Equal(new LispInteger(1), new LispRatio(2, 2).Simplify());
+            Assert.Equal(new LispRatio(5, 4), new LispRatio(10, 8).Simplify());
+            Assert.Equal(new LispRatio(-1, 2), new LispRatio(2, -4).Simplify());
         }
 
         [Fact]
@@ -44,6 +44,45 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(new LispRatio(1, 2), new LispRatio(1, 3) / new LispRatio(2, 3));
             Assert.Equal(new LispInteger(1), new LispRatio(1, 2) + new LispRatio(1, 2));
             Assert.Equal(new LispRatio(2, 3), new LispInteger(1) - new LispRatio(1, 3));
+        }
+
+        [Fact]
+        public void SimplifyNumber()
+        {
+            Assert.Equal(new LispInteger(2), new LispRatio(2, 1).Simplify());
+            Assert.Equal(new LispInteger(2), new LispRatio(4, 2).Simplify());
+            Assert.Equal(new LispInteger(0), new LispRatio(0, 1).Simplify());
+            Assert.Equal(new LispInteger(2), new LispComplexNumber(new LispRatio(6, 3), new LispRatio(0, 2)).Simplify());
+        }
+
+        [Fact]
+        public void NumberExponents()
+        {
+            var sqrt2 = Math.Sqrt(2.0);
+            Assert.Equal(new LispInteger(8), LispNumber.Exponent(new LispInteger(2), new LispInteger(3))); // int/int
+            Assert.Equal(new LispRatio(1, 8), LispNumber.Exponent(new LispInteger(2), new LispInteger(-3)));
+            Assert.Equal(new LispInteger(1), LispNumber.Exponent(new LispInteger(2), new LispInteger(0)));
+            Assert.Equal(new LispFloat(8.0), LispNumber.Exponent(new LispInteger(2), new LispFloat(3.0))); // int/float
+            Assert.Equal(new LispFloat(1.0), LispNumber.Exponent(new LispInteger(2), new LispFloat(0.0)));
+            Assert.Equal(new LispInteger(2), LispNumber.Exponent(new LispInteger(4), new LispRatio(1, 2))); // int/ratio
+            Assert.Equal(new LispFloat(sqrt2), LispNumber.Exponent(new LispInteger(2), new LispRatio(1, 2)));
+            Assert.Equal(new LispInteger(8), LispNumber.Exponent(new LispInteger(2), new LispComplexNumber(new LispInteger(3), new LispInteger(0)))); // int/complex
+            Assert.Equal(new LispComplexNumber(new LispFloat(6.153911210911777), new LispFloat(5.111690210509078)), LispNumber.Exponent(new LispInteger(2), new LispComplexNumber(new LispInteger(3), new LispInteger(1))));
+            Assert.Equal(new LispFloat(8.0), LispNumber.Exponent(new LispFloat(2.0), new LispInteger(3))); // float/int
+            Assert.Equal(new LispFloat(8.0), LispNumber.Exponent(new LispFloat(2.0), new LispFloat(3.0))); // float/float
+            Assert.Equal(new LispFloat(sqrt2), LispNumber.Exponent(new LispFloat(2.0), new LispRatio(1, 2))); // float/ratio
+            Assert.Equal(new LispFloat(8.0), LispNumber.Exponent(new LispFloat(2.0), new LispComplexNumber(new LispInteger(3), new LispInteger(0)))); // float/complex
+            Assert.Equal(new LispComplexNumber(new LispFloat(6.153911210911777), new LispFloat(5.111690210509078)), LispNumber.Exponent(new LispFloat(2.0), new LispComplexNumber(new LispInteger(3), new LispInteger(1))));
+            Assert.Equal(new LispRatio(1, 8), LispNumber.Exponent(new LispRatio(1, 2), new LispInteger(3))); // ratio/int
+            Assert.Equal(new LispFloat(0.125), LispNumber.Exponent(new LispRatio(1, 2), new LispFloat(3.0))); // ratio/float
+            Assert.Equal(new LispRatio(1, 4), LispNumber.Exponent(new LispRatio(1, 2), new LispRatio(4, 2))); // ratio/ratio
+            Assert.Equal(new LispFloat(0.8408964152537145), LispNumber.Exponent(new LispRatio(1, 2), new LispRatio(1, 4)));
+            Assert.Equal(new LispRatio(1, 4), LispNumber.Exponent(new LispRatio(1, 2), new LispComplexNumber(new LispInteger(2), new LispInteger(0)))); // ratio/complex
+            Assert.Equal(new LispComplexNumber(new LispFloat(0.19230972534099303), new LispFloat(-0.1597403190784087)), LispNumber.Exponent(new LispRatio(1, 2), new LispComplexNumber(new LispInteger(2), new LispInteger(1))));
+            Assert.Equal(new LispComplexNumber(new LispInteger(3), new LispInteger(4)), LispNumber.Exponent(new LispComplexNumber(new LispInteger(2), new LispInteger(1)), new LispInteger(2))); // complex/int
+            Assert.Equal(new LispComplexNumber(new LispFloat(3.000000000000001), new LispFloat(4.0)), LispNumber.Exponent(new LispComplexNumber(new LispInteger(2), new LispInteger(1)), new LispFloat(2.0))); // complex/float
+            Assert.Equal(new LispComplexNumber(new LispFloat(1.455346690225355), new LispFloat(0.34356074972251244)), LispNumber.Exponent(new LispComplexNumber(new LispInteger(2), new LispInteger(1)), new LispRatio(1, 2))); // complex/ratio
+            Assert.Equal(new LispComplexNumber(new LispFloat(-0.42589434775182566), new LispFloat(0.7753703444218832)), LispNumber.Exponent(new LispComplexNumber(new LispInteger(2), new LispInteger(1)), new LispComplexNumber(new LispInteger(1), new LispInteger(2)))); // complex/complex
         }
 
         [Fact]
