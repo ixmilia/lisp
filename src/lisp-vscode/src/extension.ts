@@ -25,12 +25,13 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     const debugArgs = [
-        path.join(__dirname, '..', '..', '..', 'artifacts', 'bin', 'IxMilia.Lisp.LanguageServer.App', 'Debug', 'net6.0', 'IxMilia.Lisp.LanguageServer.App.dll')
+        path.join(__dirname, '..', '..', '..', 'artifacts', 'bin', 'IxMilia.Lisp.EditorServer', 'Debug', 'net6.0', 'IxMilia.Lisp.EditorServer.dll')
     ];
     const releaseArgs = [
-        path.join(__dirname, '..', 'server', 'IxMilia.Lisp.LanguageServer.App.dll')
+        path.join(__dirname, '..', 'server', 'IxMilia.Lisp.EditorServer.dll')
     ];
     args = context.extensionMode === vscode.ExtensionMode.Development ? debugArgs : releaseArgs;
+    args = [...args, 'lsp'];
     outputChannel = vscode.window.createOutputChannel(outputChannelName);
     serverProcess = startServer();
     serverProcess.stderr.on('data', (data) => {

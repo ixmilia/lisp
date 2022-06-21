@@ -21,7 +21,7 @@
       "type": "process",
       "args": [
         "build",
-        "${workspaceFolder}/../IxMilia.Lisp.LanguageServer.App/IxMilia.Lisp.LanguageServer.App.csproj",
+        "${workspaceFolder}/../IxMilia.Lisp.EditorServer/IxMilia.Lisp.EditorServer.csproj",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
