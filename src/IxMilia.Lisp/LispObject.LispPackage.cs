@@ -89,6 +89,14 @@ namespace IxMilia.Lisp
             return (TObject)GetValue(name);
         }
 
+        public IEnumerable<(LispResolvedSymbol, LispObject)> GetValues()
+        {
+            foreach (var pair in _values)
+            {
+                yield return (new LispResolvedSymbol(Name, pair.Key, isPublic: true), pair.Value);
+            }
+        }
+
         public void DeleteValue(string name)
         {
             _values.Remove(name);

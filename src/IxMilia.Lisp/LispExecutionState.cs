@@ -9,7 +9,7 @@ namespace IxMilia.Lisp
         private Stack<LispObject> _argumentStack = new Stack<LispObject>();
         private List<ILispEvaluatorOperation> _operationQueue;
         internal LispTextStream CodeInputStream;
-        internal LispStackFrame StackFrame { get; set; }
+        public LispStackFrame StackFrame { get; internal set; }
         internal bool UseTailCalls { get; }
         internal bool AllowHalting { get; }
 

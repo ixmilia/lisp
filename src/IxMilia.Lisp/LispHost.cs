@@ -218,6 +218,14 @@ namespace IxMilia.Lisp
             return (TObject)result;
         }
 
+        public LispExecutionState CreateExecutionState(string code) => CreateExecutionState(_initialFilePath, code);
+
+        public LispExecutionState CreateExecutionState(string filePath, string code)
+        {
+            var executionState = LispExecutionState.CreateExecutionState(RootFrame, filePath, code, UseTailCalls, allowHalting: true);
+            return executionState;
+        }
+
         public Task<LispEvalResult> EvalAsync(string code, CancellationToken cancellationToken = default)
         {
             return EvalAsync(_initialFilePath, code, cancellationToken);
@@ -225,7 +233,7 @@ namespace IxMilia.Lisp
 
         public async Task<LispEvalResult> EvalAsync(string filePath, string code, CancellationToken cancellationToken = default)
         {
-            var executionState = LispExecutionState.CreateExecutionState(RootFrame, filePath, code, UseTailCalls, allowHalting: true);
+            var executionState = CreateExecutionState(filePath, code);
             return await EvalContinueAsync(executionState, cancellationToken);
         }
 

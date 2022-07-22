@@ -32,6 +32,7 @@ namespace IxMilia.Lisp
             : this(function.NameSymbol, parent)
         {
             Function = function;
+            SourceLocation = function.SourceLocation;
         }
 
         internal void UpdateCallStackLocation(LispSourceLocation? sourceLocation)
@@ -75,6 +76,14 @@ namespace IxMilia.Lisp
         public TObject GetValue<TObject>(LispResolvedSymbol symbol) where TObject : LispObject
         {
             return (TObject)GetValue(symbol);
+        }
+
+        public virtual IEnumerable<(LispResolvedSymbol, LispObject)> GetValues()
+        {
+            foreach (var kvp in _values)
+            {
+                yield return (kvp.Value.Symbol, kvp.Value.Value);
+            }
         }
 
         public virtual LispBoundValues GetBoundValues()
@@ -238,6 +247,18 @@ namespace IxMilia.Lisp
             if (_packages.TryGetValue(symbol.PackageName, out var package))
             {
                 package.DeleteValue(symbol.LocalName);
+            }
+        }
+
+        public override IEnumerable<(LispResolvedSymbol, LispObject)> GetValues()
+        {
+            foreach (var packagePair in _packages)
+            {
+                var package = packagePair.Value;
+                foreach (var pair in package.GetValues())
+                {
+                    yield return pair;
+                }
             }
         }
 

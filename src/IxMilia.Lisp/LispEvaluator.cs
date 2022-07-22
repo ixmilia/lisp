@@ -371,27 +371,38 @@ namespace IxMilia.Lisp
                                 case LispFunction function:
                                     {
                                         executionState.StackFrame = new LispStackFrame(invocation.InvocationObject, executionState.StackFrame);
-                                        var halt = executionState.StackFrame.Root.OnFunctionEnter(executionState.StackFrame, arguments);
-                                        if (executionState.AllowHalting && halt)
-                                        {
-                                            return LispEvaluationState.NonFatalHalt;
-                                        }
-
                                         switch (function)
                                         {
                                             case LispCodeFunction codeFunction:
-                                                var (success, bindError) = await codeFunction.TryBindArgumentsAsync(arguments, host, executionState.StackFrame, cancellationToken);
-                                                if (!success)
                                                 {
-                                                    executionState.ReportError(bindError, invocation.InvocationObject);
-                                                    goto invocation_done;
+                                                    var (success, bindError) = await codeFunction.TryBindArgumentsAsync(arguments, host, executionState.StackFrame, cancellationToken);
+                                                    if (!success)
+                                                    {
+                                                        executionState.ReportError(bindError, invocation.InvocationObject);
+                                                        goto invocation_done;
+                                                    }
+
+                                                    // only mark the function as entered once the parameters have been bound
+                                                    var halt = executionState.StackFrame.Root.OnFunctionEnter(executionState.StackFrame, arguments);
+                                                    if (executionState.AllowHalting && halt)
+                                                    {
+                                                        return LispEvaluationState.NonFatalHalt;
+                                                    }
                                                 }
                                                 break;
                                             case LispNativeFunction nativeFunction:
-                                                captureValueSetHalt = true;
-                                                var evaluationResult = await nativeFunction.Function.Invoke(host, executionState, arguments, cancellationToken);
+                                                {
+                                                    var halt = executionState.StackFrame.Root.OnFunctionEnter(executionState.StackFrame, arguments);
+                                                    if (executionState.AllowHalting && halt)
+                                                    {
+                                                        return LispEvaluationState.NonFatalHalt;
+                                                    }
 
-                                                executionState.PushArgument(evaluationResult);
+                                                    captureValueSetHalt = true;
+                                                    var evaluationResult = await nativeFunction.Function.Invoke(host, executionState, arguments, cancellationToken);
+
+                                                    executionState.PushArgument(evaluationResult);
+                                                }
                                                 break;
                                             default:
                                                 throw new NotImplementedException($"Unsupported function object {function.GetType().Name}");

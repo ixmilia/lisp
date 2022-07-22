@@ -9,7 +9,9 @@ let serverProcess: cp.ChildProcess;
 
 const exeSuffix = process.platform === 'win32' ? '.exe' : '';
 let dotnetPath = `dotnet${exeSuffix}`;
-let args: string[];
+let baseArgs: string[];
+let lspArgs: string[];
+let debuggerArgs: string[];
 
 const languageName = 'lisp';
 const outputChannelName = 'IxMilia.Lisp Language Server';
@@ -30,10 +32,11 @@ export async function activate(context: vscode.ExtensionContext) {
     const releaseArgs = [
         path.join(__dirname, '..', 'server', 'IxMilia.Lisp.EditorServer.dll')
     ];
-    args = context.extensionMode === vscode.ExtensionMode.Development ? debugArgs : releaseArgs;
-    args = [...args, 'lsp'];
+    baseArgs = context.extensionMode === vscode.ExtensionMode.Development ? debugArgs : releaseArgs;
+    lspArgs = [...baseArgs, 'lsp'];
+    debuggerArgs = [...baseArgs, 'debug'];
     outputChannel = vscode.window.createOutputChannel(outputChannelName);
-    serverProcess = startServer();
+    serverProcess = startLspServer();
     serverProcess.stderr.on('data', (data) => {
         const message = data.toString('utf-8');
         outputChannel.appendLine(message);
@@ -49,7 +52,34 @@ export async function activate(context: vscode.ExtensionContext) {
         ],
     };
     client = new languageclient.LanguageClient(languageName, outputChannelName, serverOptions, clientOptions);
+
+    prepareDebugger(context);
+
     context.subscriptions.push(client.start());
+}
+
+function prepareDebugger(context: vscode.ExtensionContext) {
+    // prepare debugger configuration
+    const debugConfigurationProvider: vscode.DebugConfigurationProvider = {
+        resolveDebugConfiguration: async (folder: vscode.WorkspaceFolder | undefined, config: vscode.DebugConfiguration) => {
+            if (!config.program) {
+                // TODO: vscode.window.activeTextEditor: get contents if file uri is untitled
+                config.program = '${file}'; // ensure this is set
+            }
+
+            return config;
+        }
+    };
+    context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('ixmilia-lisp', debugConfigurationProvider));
+
+    // prepare debugger
+    const debugExecutable = new vscode.DebugAdapterExecutable(dotnetPath, debuggerArgs);
+    const debugFactory: vscode.DebugAdapterDescriptorFactory = {
+        createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+            return debugExecutable;
+        }
+    };
+    context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('ixmilia-lisp', debugFactory));
 }
 
 export function deactivate(): Thenable<void> | undefined {
@@ -60,9 +90,9 @@ export function deactivate(): Thenable<void> | undefined {
     return client.stop();
 }
 
-function startServer(): cp.ChildProcess {
-    const process = cp.spawn(dotnetPath, args);
-    outputChannel.appendLine(`Server PID ${process.pid} started with args ${args}`);
+function startLspServer(): cp.ChildProcess {
+    const process = cp.spawn(dotnetPath, lspArgs);
+    outputChannel.appendLine(`Server PID ${process.pid} started with args ${lspArgs}`);
     return process;
 }
 
@@ -85,7 +115,7 @@ function registerCommands(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand('ixmilia-lisp.restart', async () => {
         outputChannel.appendLine(`Killing server process ${serverProcess.pid}`);
         serverProcess.kill();
-        serverProcess = startServer();
+        serverProcess = startLspServer();
     }));
 }
 

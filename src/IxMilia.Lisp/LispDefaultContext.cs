@@ -144,7 +144,8 @@ namespace IxMilia.Lisp
                 items[0] is LispSymbol symbol &&
                 items[1] is LispList arguments)
             {
-                var name = symbol.Resolve(currentPackage).Value;
+                var tempResolvedNameSymbol = symbol.Resolve(currentPackage);
+                var name = tempResolvedNameSymbol.Value;
                 var argumentList = arguments.ToList();
                 if (!LispArgumentCollection.TryBuildArgumentCollection(argumentList.ToArray(), out var argumentCollection, out error))
                 {
@@ -153,6 +154,7 @@ namespace IxMilia.Lisp
 
                 ExtractDocumentationString(items.Skip(2), out var commands, out var documentation);
                 var nameSymbol = LispSymbol.CreateFromString(name).Resolve(currentPackage);
+                nameSymbol.SourceLocation = tempResolvedNameSymbol.SourceLocation;
                 codeFunction = new LispCodeFunction(nameSymbol, documentation, argumentCollection, commands);
                 return true;
             }

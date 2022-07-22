@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
+using IxMilia.Lisp.DebugAdapter;
 
 namespace IxMilia.Lisp.EditorServer
 {
@@ -12,10 +14,14 @@ namespace IxMilia.Lisp.EditorServer
                 Console.Error.WriteLine(e.Exception.ToString());
             };
 
+            // TODO: use proper command line parser for options
             if (args.Length == 1)
             {
                 switch (args[0])
                 {
+                    case "debug":
+                        RunDebugAsync().GetAwaiter().GetResult();
+                        return;
                     case "lsp":
                         RunLspAsync().GetAwaiter().GetResult();
                         return;
@@ -24,6 +30,15 @@ namespace IxMilia.Lisp.EditorServer
 
             Console.Error.WriteLine("Usage: lsp");
             Environment.Exit(1);
+        }
+
+        private static async Task RunDebugAsync()
+        {
+            var options = new DebugAdapterOptions(
+                resolveFileContents: path => File.ReadAllTextAsync(path),
+                messageLogger: null);
+            var server = DebugAdapter.DebugAdapter.CreateFromStreams(Console.OpenStandardInput(), Console.OpenStandardOutput(), options);
+            await server.ServerTask;
         }
 
         private static async Task RunLspAsync()

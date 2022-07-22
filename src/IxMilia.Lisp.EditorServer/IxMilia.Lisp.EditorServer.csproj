@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\IxMilia.Lisp.DebugAdapter\IxMilia.Lisp.DebugAdapter.csproj" />
     <ProjectReference Include="..\IxMilia.Lisp.LanguageServer\IxMilia.Lisp.LanguageServer.csproj" />
   </ItemGroup>
 
