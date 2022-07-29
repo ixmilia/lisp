@@ -23,6 +23,7 @@ namespace IxMilia.Lisp.Interactive
     {
         private Lazy<Task<LispRepl>> _repl;
         private HashSet<string> _suppressedValues = new HashSet<string>();
+        private LispValueDeclarer _valueDeclarer = new LispValueDeclarer();
 
         public LispKernel()
             : base("lisp")
@@ -33,7 +34,11 @@ namespace IxMilia.Lisp.Interactive
                 _suppressedValues = new HashSet<string>(repl.Host.RootFrame.GetValues().Select(v => v.Item1.Value));
                 return repl;
             });
+
+            this.UseValueSharing();
         }
+
+        public override IKernelValueDeclarer GetValueDeclarer() => _valueDeclarer;
 
         public async Task HandleAsync(RequestCompletions command, KernelInvocationContext context)
         {
@@ -154,8 +159,12 @@ namespace IxMilia.Lisp.Interactive
                     context.Fail(command, null, err.Message);
                     break;
                 case LispObject obj:
-                    var formatted = new FormattedValue("text/plain", obj.ToString()); // TODO: return strings, ints, etc.
-                    context.Publish(new ReturnValueProduced(obj, command, new[] { formatted }));
+                    if (!obj.IsNil())
+                    {
+                        var formatted = new FormattedValue("text/plain", obj.ToString()); // TODO: return strings, ints, etc.
+                        context.Publish(new ReturnValueProduced(obj, command, new[] { formatted }));
+                    }
+
                     context.Publish(new DiagnosticsProduced(new Microsoft.DotNet.Interactive.Diagnostic[0], command));
                     break;
             }

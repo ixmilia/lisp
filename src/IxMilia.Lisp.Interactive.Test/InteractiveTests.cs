@@ -111,6 +111,34 @@ namespace IxMilia.Lisp.Interactive.Test
             Assert.Equal("stdout", stdOut.FormattedValues.Single().Value);
         }
 
+        [Fact]
+        public async Task SubmitCodeDoesNotReturnAnythingForNil()
+        {
+            var code = "()";
+            var kernel = new LispKernel();
+            var commandResult = await kernel.SendAsync(new SubmitCode(code));
+            var events = GetEventList(commandResult.KernelEvents);
+            AssertNoErrors(events);
+            Assert.Empty(events.OfType<DisplayEvent>());
+        }
+
+        [Fact]
+        public async Task VariableDeclarerSetsValueInKernel()
+        {
+            var kernel = new LispKernel();
+            var declarer = kernel.GetValueDeclarer();
+            Assert.True(declarer.TryGetValueDeclaration(new ValueProduced(null, "X", new FormattedValue("application/json", "[1,2]"), new RequestValue("X")), out var command));
+            var commandResult = await kernel.SendAsync(command);
+            var events = GetEventList(commandResult.KernelEvents);
+            AssertNoErrors(events);
+
+            commandResult = await kernel.SendAsync(new SubmitCode("X"));
+            events = GetEventList(commandResult.KernelEvents);
+            AssertNoErrors(events);
+            var ret = events.OfType<ReturnValueProduced>().Single();
+            Assert.Equal("(1 2)", ret.FormattedValues.Single().Value);
+        }
+
         private static void AssertNoErrors(IEnumerable<KernelEvent> events)
         {
             foreach (var e in events)
