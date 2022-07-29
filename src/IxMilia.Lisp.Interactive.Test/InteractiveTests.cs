@@ -66,6 +66,22 @@ namespace IxMilia.Lisp.Interactive.Test
             Assert.Equal("X,Y", string.Join(",", valueInfos));
         }
 
+        [Fact]
+        public async Task RequestValueInfosDoesNotReportFunctionsOrMacros()
+        {
+            var kernel = new LispKernel();
+            var commandResult = await kernel.SendAsync(new SubmitCode("(setf x 1)(setf y 2)(defun some-function () ())(defmacro some-macro () ())"));
+            var events = GetEventList(commandResult.KernelEvents);
+            AssertNoErrors(events);
+
+            commandResult = await kernel.SendAsync(new RequestValueInfos(kernel.Name));
+            events = GetEventList(commandResult.KernelEvents);
+            AssertNoErrors(events);
+            var valueInfosProduced = events.OfType<ValueInfosProduced>().Single();
+            var valueInfos = valueInfosProduced.ValueInfos.Select(v => v.Name).ToArray();
+            Assert.Equal("X,Y", string.Join(",", valueInfos));
+        }
+
         [Theory]
         [InlineData("text/plain", "X", "(1 2 3)")]
         [InlineData("text/plain", "COMMON-LISP-USER:X", "(1 2 3)")]

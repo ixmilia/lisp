@@ -105,6 +105,7 @@ namespace IxMilia.Lisp.Interactive
             {
                 var repl = await _repl.Value;
                 kernelValueInfos = repl.Host.RootFrame.GetValues()
+                    .Where(v => !(v.Item2 is LispInvocableObject))
                     .Select(v => v.Item1)
                     .Where(v => !_suppressedValues.Contains(v.Value))
                     .Select(v => new KernelValueInfo(v.ToDisplayString(repl.Host.CurrentPackage)))
