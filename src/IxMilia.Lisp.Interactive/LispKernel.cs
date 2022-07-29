@@ -26,7 +26,7 @@ namespace IxMilia.Lisp.Interactive
         private LispValueDeclarer _valueDeclarer = new LispValueDeclarer();
 
         public LispKernel()
-            : base("lisp")
+            : base("lisp", "Lisp")
         {
             _repl = new Lazy<Task<LispRepl>>(async () =>
             {
