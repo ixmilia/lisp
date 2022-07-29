@@ -5,6 +5,7 @@
     <PackageVersion Include="Microsoft.DotNet.Interactive" Version="1.0.0-beta.22362.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.2.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageVersion Include="StreamJsonRpc" Version="2.11.35" />
     <PackageVersion Include="System.Reactive" Version="5.0.0" />
     <PackageVersion Include="xunit" Version="2.4.1" />

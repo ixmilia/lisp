@@ -1388,6 +1388,7 @@ namespace IxMilia.Lisp
         public bool IsAdjustable { get; }
         public int Size { get; }
         public int Count => _items.Count;
+        public IEnumerable<LispObject> Items => _items;
 
         private LispVector(int size, bool isAdjustable, IEnumerable<LispObject> items)
         {

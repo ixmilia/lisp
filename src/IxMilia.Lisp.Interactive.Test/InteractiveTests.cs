@@ -40,6 +40,54 @@ namespace IxMilia.Lisp.Interactive.Test
         }
 
         [Fact]
+        public async Task RequestValueInfosInitiallyProducesEmptySet()
+        {
+            var kernel = new LispKernel();
+            var commandResult = await kernel.SendAsync(new RequestValueInfos(kernel.Name));
+            var events = GetEventList(commandResult.KernelEvents);
+            AssertNoErrors(events);
+            var valueInfosProduced = events.OfType<ValueInfosProduced>().Single();
+            Assert.Empty(valueInfosProduced.ValueInfos);
+        }
+
+        [Fact]
+        public async Task RequestValueInfosReturnsOnlyWhatHasBeenSet()
+        {
+            var kernel = new LispKernel();
+            var commandResult = await kernel.SendAsync(new SubmitCode("(setf x 1)(setf y 2)"));
+            var events = GetEventList(commandResult.KernelEvents);
+            AssertNoErrors(events);
+
+            commandResult = await kernel.SendAsync(new RequestValueInfos(kernel.Name));
+            events = GetEventList(commandResult.KernelEvents);
+            AssertNoErrors(events);
+            var valueInfosProduced = events.OfType<ValueInfosProduced>().Single();
+            var valueInfos = valueInfosProduced.ValueInfos.Select(v => v.Name).ToArray();
+            Assert.Equal("X,Y", string.Join(",", valueInfos));
+        }
+
+        [Theory]
+        [InlineData("text/plain", "X", "(1 2 3)")]
+        [InlineData("text/plain", "COMMON-LISP-USER:X", "(1 2 3)")]
+        [InlineData("application/json", "X", "[1,2,3]")]
+        [InlineData("application/json", "COMMON-LISP-USER:X", "[1,2,3]")]
+        public async Task RequestValueReturnsTheAppropriateValue(string mimeType, string valueName, string expectedResult)
+        {
+            var kernel = new LispKernel();
+            var commandResult = await kernel.SendAsync(new SubmitCode("(setf x '(1 2 3))"));
+            var events = GetEventList(commandResult.KernelEvents);
+            AssertNoErrors(events);
+
+            commandResult = await kernel.SendAsync(new RequestValue(valueName, mimeType: mimeType));
+            events = GetEventList(commandResult.KernelEvents);
+            AssertNoErrors(events);
+            var valueProduced = events.OfType<ValueProduced>().Single();
+            Assert.Equal(valueName, valueProduced.Name);
+            Assert.Equal(mimeType, valueProduced.FormattedValue.MimeType);
+            Assert.Equal(expectedResult, valueProduced.FormattedValue.Value);
+        }
+
+        [Fact]
         public async Task SubmitCodeProducesAResult()
         {
             var code = "(+ 1 2)";

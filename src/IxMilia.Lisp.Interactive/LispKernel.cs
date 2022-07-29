@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reactive.Subjects;
@@ -8,6 +9,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.DotNet.Interactive;
 using Microsoft.DotNet.Interactive.Commands;
 using Microsoft.DotNet.Interactive.Events;
+using Microsoft.DotNet.Interactive.ValueSharing;
 
 namespace IxMilia.Lisp.Interactive
 {
@@ -15,9 +17,12 @@ namespace IxMilia.Lisp.Interactive
         Kernel,
         IKernelCommandHandler<RequestCompletions>,
         IKernelCommandHandler<RequestHoverText>,
+        IKernelCommandHandler<RequestValue>,
+        IKernelCommandHandler<RequestValueInfos>,
         IKernelCommandHandler<SubmitCode>
     {
         private Lazy<Task<LispRepl>> _repl;
+        private HashSet<string> _suppressedValues = new HashSet<string>();
 
         public LispKernel()
             : base("lisp")
@@ -25,6 +30,7 @@ namespace IxMilia.Lisp.Interactive
             _repl = new Lazy<Task<LispRepl>>(async () =>
             {
                 var repl = await LispRepl.CreateAsync(location: "*REPL*");
+                _suppressedValues = new HashSet<string>(repl.Host.RootFrame.GetValues().Select(v => v.Item1.Value));
                 return repl;
             });
         }
@@ -67,6 +73,40 @@ namespace IxMilia.Lisp.Interactive
                     context.Publish(new HoverTextProduced(command, new[] { formatted }, span));
                 }
             }
+        }
+
+        public override async Task HandleAsync(RequestValue command, KernelInvocationContext context)
+        {
+            if (_repl.IsValueCreated)
+            {
+                var repl = await _repl.Value;
+                var foundValuePair = repl.Host.RootFrame.GetValues().FirstOrDefault(v => v.Item1.LocalName == command.Name || v.Item1.Value == command.Name);
+                if (foundValuePair is {})
+                {
+                    var formatted = command.MimeType switch
+                    {
+                        "application/json" => foundValuePair.Item2.ToJsonString(),
+                        _ => foundValuePair.Item2.ToDisplayString(repl.Host.CurrentPackage),
+                    };
+                    context.Publish(new ValueProduced(null, command.Name, new FormattedValue(command.MimeType, formatted), command));
+                }
+            }
+        }
+
+        public override async Task HandleAsync(RequestValueInfos command, KernelInvocationContext context)
+        {
+            var kernelValueInfos = new KernelValueInfo[0];
+            if (_repl.IsValueCreated)
+            {
+                var repl = await _repl.Value;
+                kernelValueInfos = repl.Host.RootFrame.GetValues()
+                    .Select(v => v.Item1)
+                    .Where(v => !_suppressedValues.Contains(v.Value))
+                    .Select(v => new KernelValueInfo(v.ToDisplayString(repl.Host.CurrentPackage)))
+                    .ToArray();
+            }
+
+            context.Publish(new ValueInfosProduced(kernelValueInfos, command));
         }
 
         public async Task HandleAsync(SubmitCode command, KernelInvocationContext context)

@@ -11,6 +11,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.DotNet.Interactive" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+    <PackageReference Include="Newtonsoft.Json" />
   </ItemGroup>
 
 </Project>
