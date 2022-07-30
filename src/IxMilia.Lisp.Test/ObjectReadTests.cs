@@ -322,6 +322,20 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public async Task FunctionCanHaveOnlyOneStringStatementThatServesAsBothDocumentationStringAndBody()
+        {
+            var host = await LispHost.CreateAsync();
+            var result = await host.EvalAsync(@"
+(defun test-function ()
+    ""doc string and content"")
+(test-function)
+".Replace("\r", ""));
+            Assert.Equal("doc string and content", ((LispString)result.LastResult).Value);
+            var function = host.GetValue<LispFunction>("TEST-FUNCTION");
+            Assert.Equal("doc string and content", function.Documentation);
+        }
+
+        [Fact]
         public async Task DocumentationStringsHandleBlankLinesInIndentedText()
         {
             var docString = (LispString)await ReadAsync(@"

@@ -89,7 +89,8 @@ namespace IxMilia.Lisp
                     return false;
                 }
 
-                ExtractDocumentationString(items.Skip(2), out var macroBody, out var documentation);
+                var macroBody = items.Skip(2).ToList();
+                var documentation = ExtractDocumentationString(macroBody);
                 codeMacro = new LispCodeMacro(macroNameSymbol, documentation, argumentCollection, macroBody)
                 {
                     SourceLocation = macroNameSymbol.SourceLocation,
@@ -152,7 +153,8 @@ namespace IxMilia.Lisp
                     return false;
                 }
 
-                ExtractDocumentationString(items.Skip(2), out var commands, out var documentation);
+                var commands = items.Skip(2).ToList();
+                var documentation = ExtractDocumentationString(commands);
                 var nameSymbol = LispSymbol.CreateFromString(name).Resolve(currentPackage);
                 nameSymbol.SourceLocation = tempResolvedNameSymbol.SourceLocation;
                 codeFunction = new LispCodeFunction(nameSymbol, documentation, argumentCollection, commands);
@@ -164,15 +166,14 @@ namespace IxMilia.Lisp
             return false;
         }
 
-        internal static void ExtractDocumentationString(IEnumerable<LispObject> bodyObjects, out IEnumerable<LispObject> resultBody, out string documentation)
+        internal static string ExtractDocumentationString(IEnumerable<LispObject> bodyObjects)
         {
-            documentation = null;
-            resultBody = bodyObjects;
             if (bodyObjects.Count() > 0 && bodyObjects.First() is LispString str)
             {
-                documentation = NormalizeDocumentationString(str);
-                resultBody = bodyObjects.Skip(1);
+                return NormalizeDocumentationString(str);
             }
+
+            return null;
         }
 
         internal static string NormalizeDocumentationString(LispString s)
