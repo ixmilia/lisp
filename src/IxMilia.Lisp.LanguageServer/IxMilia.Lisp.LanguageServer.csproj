@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
     <PackageProjectUrl>https://github.com/ixmilia/lisp-lsp</PackageProjectUrl>
   </PropertyGroup>
   

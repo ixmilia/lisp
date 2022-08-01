@@ -20,6 +20,20 @@ jobs:
       shell: pwsh
       run: ./build-and-test.ps1 -configuration ${{ matrix.configuration }}
 
+  per-build-publish:
+    if: github.ref == 'refs/heads/main'
+    needs: [build]
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-dotnet@v1
+    - uses: actions/setup-node@v2
+      with:
+        node-version: lts/*
+    - run: .\create-version-suffix.ps1
+    - run: .\build-and-test.ps1 -configuration Release -notest -versionSuffix ${{ env.VERSION_SUFFIX }}
+    - run: dotnet nuget push .\artifacts\packages\Release\*.nupkg -s https://nuget.pkg.github.com/ixmilia/index.json -k ${{ secrets.GITHUB_TOKEN }}
+
   nuget-publish:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build]
@@ -27,5 +41,8 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - uses: actions/setup-dotnet@v1
+    - uses: actions/setup-node@v2
+      with:
+        node-version: lts/*
     - run: .\build-and-test.ps1 -configuration Release -notest
     - run: dotnet nuget push .\artifacts\packages\Release\*.nupkg -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_API_KEY }}

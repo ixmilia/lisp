@@ -38,7 +38,7 @@ namespace IxMilia.Lisp.DebugAdapter.Test
             IObservable<ProtocolMessage> serverMessages = da.OutboundMessages;
             if (!Debugger.IsAttached)
             {
-                serverMessages = serverMessages.Timeout(TimeSpan.FromSeconds(5));
+                serverMessages = serverMessages.Timeout(TimeSpan.FromSeconds(10));
             }
 
             serverMessages.Subscribe(m =>

@@ -3,6 +3,7 @@
 [CmdletBinding(PositionalBinding = $false)]
 param (
     [string]$configuration = "Debug",
+    [string]$versionSuffix = "",
     [switch]$noTest
 )
 
@@ -41,7 +42,7 @@ try {
     }
 
     # create package
-    dotnet pack --no-restore --no-build --configuration $configuration $solution || Fail "Error creating package."
+    dotnet pack --no-restore --no-build --configuration $configuration /p:VersionSuffix=$versionSuffix $solution || Fail "Error creating package."
     Write-Host "Packages generated at $PSScriptRoot/artifacts/packages/$configuration"
 
     # create vscode extension

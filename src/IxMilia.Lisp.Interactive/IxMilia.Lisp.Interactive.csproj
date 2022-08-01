@@ -2,10 +2,17 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
+    <RepositoryUrl>https://github.com/ixmilia/lisp</RepositoryUrl>
+    <NoWarn>$(NoWarn);NU5100</NoWarn><!-- dll outside of lib/ directory -->
+    <NoWarn>$(NoWarn);NU5104</NoWarn><!-- stable release of package shouldn't depend on prerelease dependency -->
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\IxMilia.Lisp\IxMilia.Lisp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(OutputPath)/IxMilia.Lisp.Interactive.dll" Pack="true" PackagePath="interactive-extensions/dotnet" />
   </ItemGroup>
 
   <ItemGroup>
