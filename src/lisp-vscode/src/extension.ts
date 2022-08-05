@@ -55,7 +55,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     prepareDebugger(context);
 
-    context.subscriptions.push(client.start());
+    await client.start();
 }
 
 function prepareDebugger(context: vscode.ExtensionContext) {
