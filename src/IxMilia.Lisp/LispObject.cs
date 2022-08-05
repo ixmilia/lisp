@@ -39,6 +39,8 @@ namespace IxMilia.Lisp
 
         public virtual string ToDisplayString(LispPackage currentPackage) => ToString();
 
+        public string FormatAsSExpression() => LispFormatTokenSExpression.FormatObject(this);
+
         public LispObject PerformMacroReplacements(LispPackage currentPackage, IDictionary<string, LispObject> replacements)
         {
             LispObject result;
@@ -255,12 +257,12 @@ namespace IxMilia.Lisp
             return LocalName.GetHashCode();
         }
 
-        public static bool operator==(LispUnresolvedSymbol a, LispUnresolvedSymbol b)
+        public static bool operator ==(LispUnresolvedSymbol a, LispUnresolvedSymbol b)
         {
             return a?.LocalName == b?.LocalName;
         }
 
-        public static bool operator!=(LispUnresolvedSymbol a, LispUnresolvedSymbol b)
+        public static bool operator !=(LispUnresolvedSymbol a, LispUnresolvedSymbol b)
         {
             return !(a == b);
         }
@@ -749,7 +751,7 @@ namespace IxMilia.Lisp
             {
                 return new LispInteger(1);
             }
-            
+
             LispNumber result = new LispInteger(1);
             for (int i = 0; i < exponent; i++)
             {

@@ -329,5 +329,12 @@ namespace IxMilia.Lisp
             token = new LispFormatTokenSExpression(offset, length, width);
             return true;
         }
+
+        public static string FormatObject(LispObject obj)
+        {
+            var tokenSExpression = new LispFormatTokenSExpression(0, 0, 0);
+            var result = tokenSExpression.GetText(obj);
+            return result;
+        }
     }
 }

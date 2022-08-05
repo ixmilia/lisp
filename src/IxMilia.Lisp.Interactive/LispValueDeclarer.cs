@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Text;
 using Microsoft.DotNet.Interactive.Commands;
 using Microsoft.DotNet.Interactive.Events;
 using Microsoft.DotNet.Interactive.ValueSharing;
@@ -105,33 +104,11 @@ namespace IxMilia.Lisp.Interactive
 
         public static bool TryGetDeclarationStatementForObject(LispObject obj, string valueName, out string declarationStatement)
         {
-            declarationStatement = null;
-            string valueToSet = null;
-            switch (obj)
+            var valueToSet = obj.FormatAsSExpression();
+            if (obj is LispList)
             {
-                case LispCharacter _:
-                case LispNumber _:
-                    valueToSet = obj.ToString();
-                    break;
-                case LispList l:
-                    valueToSet = $"'{l}";
-                    break;
-                case LispString s:
-                    var sb = new StringBuilder();
-                    sb.Append('"');
-                    foreach (var c in s.Value)
-                    {
-                        if (c == '\\' || c == '"')
-                        {
-                            sb.Append('\\');
-                        }
-
-                        sb.Append(c);
-                    }
-
-                    sb.Append('"');
-                    valueToSet = sb.ToString();
-                    break;
+                // lists need to be quoted
+                valueToSet = "'" + valueToSet;
             }
 
             // add a trailing `()` so there is no `ReturnValueProduced` generated when executing this code
