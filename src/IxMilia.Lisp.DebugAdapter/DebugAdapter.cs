@@ -36,22 +36,15 @@ namespace IxMilia.Lisp.DebugAdapter
             _disposables.Add(OutboundMessages);
             _disposables.Add(messageSubject.Subscribe(protocolMessage =>
             {
-                var _ = Task.Run(async () =>
+                LogMessage($"received: {Serializer.Serialize(protocolMessage)}");
+                var _ = HandleMessageAsync(protocolMessage).ContinueWith(async task =>
                 {
-                    try
+                    await ReportErrorAsync(task.Exception.ToString());
+                    if (protocolMessage is Request request)
                     {
-                        LogMessage($"received: {Serializer.Serialize(protocolMessage)}");
-                        await HandleMessageAsync(protocolMessage);
+                        PushMessage(new ErrorResponse(GetNextSeq(), request.Seq, request.Command, task.Exception.ToString()));
                     }
-                    catch (Exception e)
-                    {
-                        await ReportErrorAsync(e.ToString());
-                        if (protocolMessage is Request request)
-                        {
-                            PushMessage(new ErrorResponse(GetNextSeq(), request.Seq, request.Command, e.ToString()));
-                        }
-                    }
-                });
+                }, System.Threading.CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
             }));
         }
 
@@ -188,8 +181,8 @@ namespace IxMilia.Lisp.DebugAdapter
 
         private void PushMessage(ProtocolMessage message)
         {
-            OutboundMessages.OnNext(message);
             LogMessage($"sending: {Serializer.Serialize(message)}");
+            OutboundMessages.OnNext(message);
         }
 
         private async Task ContinueEvaluationAsync()
@@ -316,7 +309,7 @@ namespace IxMilia.Lisp.DebugAdapter
 
         private void Threads(ThreadsRequest threads)
         {
-            PushMessage(new ThreadsResponse(GetNextSeq(), threads.Seq, new ThreadsResponseBody(new[] { new Thread(MainThreadId, MainThreadName) } )));
+            PushMessage(new ThreadsResponse(GetNextSeq(), threads.Seq, new ThreadsResponseBody(new[] { new Thread(MainThreadId, MainThreadName) })));
         }
 
         private void Variables(VariablesRequest variables)

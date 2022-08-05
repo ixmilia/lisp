@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reactive.Linq;
@@ -7,11 +6,19 @@ using System.Reactive.Subjects;
 using System.Threading.Tasks;
 using IxMilia.Lisp.DebugAdapter.Protocol;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace IxMilia.Lisp.DebugAdapter.Test
 {
     public class DebugAdapterTests
     {
+        private readonly ITestOutputHelper output;
+
+        public DebugAdapterTests(ITestOutputHelper output)
+        {
+            this.output = output;
+        }
+
         [Fact]
         public async Task FullTest()
         {
@@ -26,25 +33,12 @@ namespace IxMilia.Lisp.DebugAdapter.Test
             var nextSeq = 1;
             int Seq() => nextSeq++;
             var messageSender = new Subject<ProtocolMessage>();
-            var receivedMessages = new List<ProtocolMessage>();
-            var messageLog = new List<string>();
             var options = new DebugAdapterOptions(
                 path => path == filePath ? Task.FromResult(fileContent) : throw new Exception($"Expected file path of '{filePath}'"),
-                message => messageLog.Add(message));
+                message => output.WriteLine(message));
             var da = new DebugAdapter(
                 messageSender,
                 options);
-
-            IObservable<ProtocolMessage> serverMessages = da.OutboundMessages;
-            if (!Debugger.IsAttached)
-            {
-                serverMessages = serverMessages.Timeout(TimeSpan.FromSeconds(10));
-            }
-
-            serverMessages.Subscribe(m =>
-            {
-                receivedMessages.Add(m);
-            });
 
             var initializeResponseAwaiter = GetAwaiterForType<InitializeResponse>();
             var initializeEventAwaiter = GetAwaiterForType<InitializedEvent>();
@@ -111,9 +105,26 @@ namespace IxMilia.Lisp.DebugAdapter.Test
             await da.ServerTask;
 
             //
-            IObservable<T> GetAwaiterForType<T>() where T : ProtocolMessage
+            Task<T> GetAwaiterForType<T>() where T : ProtocolMessage
             {
-                return serverMessages.OfType<T>().FirstAsync();
+                output.WriteLine($"about to wait for {typeof(T).Name}");
+
+                var typeCompletionSource = new TaskCompletionSource<T>();
+                var messages = da.OutboundMessages.OfType<T>();
+                if (!Debugger.IsAttached)
+                {
+                    messages = messages.Timeout(TimeSpan.FromSeconds(5));
+                }
+
+                IDisposable sub = null;
+                sub = messages.Subscribe(t =>
+                {
+                    sub?.Dispose();
+                    output.WriteLine($"returning {typeof(T).Name}");
+                    typeCompletionSource.SetResult(t);
+                });
+
+                return typeCompletionSource.Task;
             }
         }
     }
