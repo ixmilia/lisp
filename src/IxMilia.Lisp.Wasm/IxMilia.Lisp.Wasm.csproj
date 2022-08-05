@@ -10,6 +10,7 @@
   <ItemGroup>
     <EditorFiles Include="$(EditorDirectory)\app.bundle.js" />
     <EditorFiles Include="$(EditorDirectory)\editor.worker.bundle.js" />
+    <EditorFiles Include="$(EditorDirectory)\*.ttf" />
   </ItemGroup>
 
   <ItemGroup>
