@@ -20,7 +20,13 @@ namespace IxMilia.Lisp
                     // re-queue, because we can never finish
                     executionState.InsertOperation(operation);
                     error.StackFrame ??= executionState.StackFrame;
-                    executionState.StackFrame.Root.OnErrorOccured(error, executionState.StackFrame);
+                    if (!ReferenceEquals(executionState.LastReportedError, error))
+                    {
+                        // only report this if it's the first time we've seen it
+                        executionState.LastReportedError = error;
+                        executionState.StackFrame.Root.OnErrorOccured(error, executionState.StackFrame);
+                    }
+
                     return LispEvaluationState.FatalHalt;
                 }
 

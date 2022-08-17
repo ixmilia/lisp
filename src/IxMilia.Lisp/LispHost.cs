@@ -174,27 +174,33 @@ namespace IxMilia.Lisp
             }
         }
 
-        private async Task ApplyInitScriptAsync(CancellationToken cancellationToken)
+        public static async Task<string> GetInitScriptContents()
         {
-            var type = GetType();
+            var type = typeof(LispHost);
             var lastDotIndex = type.FullName.LastIndexOf('.');
             var namespacePrefix = type.FullName.Substring(0, lastDotIndex);
             var assembly = type.GetTypeInfo().Assembly;
             using (var initStream = assembly.GetManifestResourceStream($"{namespacePrefix}.init.lisp"))
             using (var reader = new StreamReader(initStream))
             {
-                var content = reader.ReadToEnd();
-                var evalResult = await EvalAsync("init.lisp", content, cancellationToken);
-                if (evalResult.ExecutionState?.LastResult != T)
-                {
-                    var message = $"Expected 'T' but found '{evalResult.ExecutionState?.LastResult}' at ({evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Line}, {evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Column}).";
-                    if (evalResult.ReadError != null)
-                    {
-                        message += "\nRead error:\n" + evalResult.ReadError.ToString();
-                    }
+                var content = await reader.ReadToEndAsync();
+                return content;
+            }
+        }
 
-                    throw new Exception(message);
+        private async Task ApplyInitScriptAsync(CancellationToken cancellationToken)
+        {
+            var content = await GetInitScriptContents();
+            var evalResult = await EvalAsync("init.lisp", content, cancellationToken);
+            if (evalResult.ExecutionState?.LastResult != T)
+            {
+                var message = $"Expected 'T' but found '{evalResult.ExecutionState?.LastResult}' at ({evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Line}, {evalResult.ExecutionState?.LastResult.SourceLocation?.Start.Column}).";
+                if (evalResult.ReadError != null)
+                {
+                    message += "\nRead error:\n" + evalResult.ReadError.ToString();
                 }
+
+                throw new Exception(message);
             }
         }
 

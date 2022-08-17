@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
@@ -330,6 +331,37 @@ namespace IxMilia.Lisp.Test
             // all future processing stops
             await host.EvalContinueAsync(evalResult.ExecutionState);
             Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+        }
+
+        [Fact]
+        public async Task HaltingOnErrorOccuredDoesNotHappenMoreThanOnceForTheSameError()
+        {
+            var host = await LispHost.CreateAsync();
+            LispError capturedError = null;
+            host.RootFrame.ErrorOccured += (s, e) =>
+            {
+                if (ReferenceEquals(capturedError, e.Error))
+                {
+                    throw new Exception($"Error has already been handled: {e.Error}");
+                }
+
+                capturedError = e.Error;
+            };
+            var evalResult = await host.EvalAsync(@"
+(defun test-method ()
+    (error ""test error""))
+(test-method)
+");
+            // ensure we halted the first time on the error
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.IsType<LispError>(evalResult.LastResult);
+            Assert.True(ReferenceEquals(capturedError, evalResult.LastResult));
+
+            // continue to the end (i.e., let the error bubble up, but don't halt again)
+            await host.EvalContinueAsync(evalResult.ExecutionState);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.IsType<LispError>(evalResult.LastResult);
+            Assert.True(ReferenceEquals(capturedError, evalResult.LastResult));
         }
 
         [Theory]

@@ -278,6 +278,50 @@ namespace IxMilia.Lisp.Test
         }
 
         [Fact]
+        public async Task ErrorSourceLocationIsSetForAllStackFramesWhenItOccursInIfPredicate()
+        {
+            var host = await LispHost.CreateAsync("test-file.lisp");
+            LispError error = null;
+            host.RootFrame.ErrorOccured += (_, e) => error = e.Error;
+            var evalResult = await host.EvalAsync(@"
+(defun throw-error ()
+    (error ""some-error""))
+(if (throw-error) () ())
+");
+            Assert.NotNull(error);
+            var stackTrace = error.StackFrame.ToString().Trim().Replace("\r", "");
+            var expected = @"
+  at ERROR: (, )
+  at THROW-ERROR in 'test-file.lisp': (3, 12)
+  at (ROOT) in 'init.lisp': (102, 11)
+".Trim().Replace("\r", "");
+            Assert.Equal(expected, stackTrace);
+        }
+
+        [Fact]
+        public async Task ErrorSourceLocationIsSetForAllStackFramesWhenItOccursInCondPredicate()
+        {
+            var host = await LispHost.CreateAsync("test-file.lisp");
+            LispError error = null;
+            host.RootFrame.ErrorOccured += (_, e) => error = e.Error;
+            var evalResult = await host.EvalAsync(@"
+(defun throw-error ()
+    (error ""some-error""))
+(cond
+    ((throw-error)  ())
+    (t              ()))
+");
+            Assert.NotNull(error);
+            var stackTrace = error.StackFrame.ToString().Trim().Replace("\r", "");
+            var expected = @"
+  at ERROR: (, )
+  at THROW-ERROR in 'test-file.lisp': (3, 12)
+  at (ROOT) in 'test-file.lisp': (5, 5)
+".Trim().Replace("\r", "");
+            Assert.Equal(expected, stackTrace);
+        }
+
+        [Fact]
         public async Task Conditional()
         {
             var host = await LispHost.CreateAsync();

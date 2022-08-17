@@ -1,4 +1,6 @@
-﻿namespace IxMilia.Lisp.DebugAdapter.Protocol
+﻿using Newtonsoft.Json;
+
+namespace IxMilia.Lisp.DebugAdapter.Protocol
 {
     public class StoppedEvent : Event
     {
@@ -16,13 +18,22 @@
     public class StoppedEventBody
     {
         public string Reason { get; set; }
-        public int ThreadId { get; set; }
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string Description { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public int? ThreadId { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string Text { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public int[] HitBreakpointIds { get; set; }
 
-        public StoppedEventBody(string reason, int threadId, int[] hitBreakpointIds)
+        public StoppedEventBody(string reason, string description = null, int? threadId = null, string text = null, int[] hitBreakpointIds = null)
         {
             Reason = reason;
+            Description = description;
             ThreadId = threadId;
+            Text = text;
             HitBreakpointIds = hitBreakpointIds;
         }
     }

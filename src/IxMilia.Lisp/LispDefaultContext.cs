@@ -1944,6 +1944,7 @@ namespace IxMilia.Lisp
                     switch (predicate)
                     {
                         case LispError error:
+                            error.SourceLocation ??= arg.SourceLocation;
                             return error;
                         case LispNilList _:
                             break;

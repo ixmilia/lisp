@@ -79,6 +79,15 @@ namespace IxMilia.Lisp.DebugAdapter.Test
         }
 
         [Fact]
+        public void SourceRequest()
+        {
+            var obj = Serializer.Deserialize<SourceRequest>(@"{""command"":""source"",""arguments"":{""source"":{""path"":""some-path""},""sourceReference"":2},""type"":""request"",""seq"":1}");
+            Assert.Equal(1, obj.Seq);
+            Assert.Equal("some-path", obj.Arguments.Source.Path);
+            Assert.Equal(2, obj.Arguments.SourceReference);
+        }
+
+        [Fact]
         public void StackTraceRequest()
         {
             var obj = Serializer.Deserialize<StackTraceRequest>(@"{""command"":""stackTrace"",""arguments"":{""threadId"":2},""type"":""request"",""seq"":1}");

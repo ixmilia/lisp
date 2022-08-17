@@ -87,6 +87,8 @@ namespace IxMilia.Lisp.DebugAdapter
                     return rawObject.ToObject<SetExceptionBreakpointsRequest>();
                 case SetFunctionBreakpointsRequest.CommandName:
                     return rawObject.ToObject<SetFunctionBreakpointsRequest>();
+                case SourceRequest.CommandName:
+                    return rawObject.ToObject<SourceRequest>();
                 case StackTraceRequest.CommandName:
                     return rawObject.ToObject<StackTraceRequest>();
                 case ThreadsRequest.CommandName:

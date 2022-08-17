@@ -4,9 +4,14 @@
     {
         public bool SupportsConfigurationDoneRequest => true;
         public bool SupportsFunctionBreakpoints => true;
+        public ExceptionBreakpointsFilter[] ExceptionBreakpointFilters { get; }
 
         public Capabilities()
         {
+            ExceptionBreakpointFilters = new ExceptionBreakpointsFilter[]
+            {
+                new ExceptionBreakpointsFilter()
+            };
         }
     }
 }

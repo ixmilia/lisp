@@ -128,6 +128,7 @@ namespace IxMilia.Lisp.DebugAdapter
 
         private async Task HandleRequestAsync(Request request)
         {
+            Task _t = null;
             switch (request)
             {
                 case ConfigurationDoneRequest configurationDone:
@@ -157,6 +158,9 @@ namespace IxMilia.Lisp.DebugAdapter
                 case SetFunctionBreakpointsRequest setFunctionBreakpoints:
                     SetFunctionBreakpoints(setFunctionBreakpoints);
                     break;
+                case SourceRequest source:
+                    _t = SourceAsync(source);
+                    break;
                 case StackTraceRequest stackTrace:
                     StackTrace(stackTrace);
                     break;
@@ -171,7 +175,10 @@ namespace IxMilia.Lisp.DebugAdapter
             }
         }
 
-        private Breakpoint _lastHitBreakpoint = null;
+        private Breakpoint _errorBreakpoint = new Breakpoint(0, true);
+
+        private BreakReason _breakReason = null;
+
         private int _nextBreakpointId = 1;
         private int GetNextBreakpointId() => _nextBreakpointId++;
 
@@ -192,22 +199,42 @@ namespace IxMilia.Lisp.DebugAdapter
 
             if (_executionState.IsExecutionComplete)
             {
+                PushMessage(new OutputEvent(GetNextSeq(), new OutputEventBody(OutputEventCategory.Console, $"Evaluation finished with: {_executionState.LastResult}\n")));
                 PushMessage(new TerminatedEvent(GetNextSeq()));
             }
             else
             {
                 var location = _executionState.StackFrame.SourceLocation;
-                if (_lastHitBreakpoint is { })
+                switch (_breakReason)
                 {
-                    if (location.HasValue)
-                    {
-                        _lastHitBreakpoint.Line = location.Value.Start.Line;
-                        _lastHitBreakpoint.Source = new Source(location.Value.FilePath);
-                        PushMessage(new BreakpointEvent(GetNextSeq(), new BreakpointEventBody(BreakpointEventReason.Changed, _lastHitBreakpoint)));
-                    }
-
-                    PushMessage(new StoppedEvent(GetNextSeq(), new StoppedEventBody("function breakpoint", MainThreadId, new[] { _lastHitBreakpoint.Id })));
+                    case ErrorBreakReason errorBreakReason:
+                        UpdateBreakpointSourceLocation(_errorBreakpoint, errorBreakReason.Error.SourceLocation);
+                        PushMessage(new StoppedEvent(GetNextSeq(), new StoppedEventBody("exception", description: "Paused on error", text: errorBreakReason.Error.Message, threadId: MainThreadId)));
+                        break;
+                    case FunctionBreakReason functionBreakReason:
+                        UpdateBreakpointSourceLocation(functionBreakReason.Breakpoint, location);
+                        PushMessage(new StoppedEvent(GetNextSeq(), new StoppedEventBody("function breakpoint", threadId: MainThreadId, hitBreakpointIds: new[] { functionBreakReason.Breakpoint.Id })));
+                        break;
+                    case null:
+                        // finished with some result, error or not
+                        PushMessage(new OutputEvent(GetNextSeq(), new OutputEventBody(OutputEventCategory.Console, $"Evaluation finished with: {_executionState.LastResult}\n")));
+                        PushMessage(new TerminatedEvent(GetNextSeq()));
+                        break;
                 }
+
+                _breakReason = null;
+            }
+        }
+
+        private void UpdateBreakpointSourceLocation(Breakpoint breakpoint, LispSourceLocation? sourceLocation)
+        {
+            if (sourceLocation.HasValue &&
+                (breakpoint.Line != sourceLocation.Value.Start.Line ||
+                 breakpoint.Source?.Path != sourceLocation.Value.FilePath))
+            {
+                breakpoint.Line = sourceLocation.Value.Start.Line;
+                breakpoint.Source = new Source(sourceLocation.Value.FilePath);
+                PushMessage(new BreakpointEvent(GetNextSeq(), new BreakpointEventBody(BreakpointEventReason.Changed, breakpoint)));
             }
         }
 
@@ -240,10 +267,16 @@ namespace IxMilia.Lisp.DebugAdapter
             var fileContent = await Options.ResolveFileContents(launch.Arguments.Program);
             _host = await LispHost.CreateAsync(filePath: launch.Arguments.Program);
             _executionState = _host.CreateExecutionState(fileContent);
+            _host.RootFrame.ErrorOccured += RootFrame_ErrorOccured;
             _host.RootFrame.FunctionEntered += RootFrame_FunctionEntered;
             await _configurationDone.Task;
             PushMessage(new LaunchResponse(GetNextSeq(), launch.Seq));
             await ContinueEvaluationAsync();
+        }
+
+        private void RootFrame_ErrorOccured(object sender, LispErrorOccuredEventArgs e)
+        {
+            _breakReason = new ErrorBreakReason(e.Error);
         }
 
         private void RootFrame_FunctionEntered(object sender, LispFunctionEnteredEventArgs e)
@@ -253,7 +286,7 @@ namespace IxMilia.Lisp.DebugAdapter
                 _breakpointsByName.TryGetValue(e.Frame.FunctionSymbol.Value, out bp))
             {
                 e.HaltExecution = true;
-                _lastHitBreakpoint = bp;
+                _breakReason = new FunctionBreakReason(bp);
             }
         }
 
@@ -274,7 +307,7 @@ namespace IxMilia.Lisp.DebugAdapter
 
         private void SetExceptionBreakpoints(SetExceptionBreakpointsRequest setExceptionBreakpoints)
         {
-            var breakpoints = new Breakpoint[] { };
+            var breakpoints = new Breakpoint[] { _errorBreakpoint };
             PushMessage(new SetExceptionBreakpointsResponse(GetNextSeq(), setExceptionBreakpoints.Seq, breakpoints));
         }
 
@@ -292,6 +325,18 @@ namespace IxMilia.Lisp.DebugAdapter
             }
 
             PushMessage(new SetFunctionBreakpointsResponse(GetNextSeq(), setFunctionBreakpoints.Seq, resolvedBreakpoints.ToArray()));
+        }
+
+        private async Task SourceAsync(SourceRequest source)
+        {
+            SourceResponseBody body = null;
+            if (source.Arguments.Source.Path == "init.lisp")
+            {
+                var content = await LispHost.GetInitScriptContents();
+                body = new SourceResponseBody(content);
+            }
+
+            PushMessage(new SourceResponse(GetNextSeq(), source.Seq, body));
         }
 
         private void StackTrace(StackTraceRequest stackTrace)

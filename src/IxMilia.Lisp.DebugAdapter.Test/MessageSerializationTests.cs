@@ -55,7 +55,7 @@ namespace IxMilia.Lisp.DebugAdapter.Test
         {
             var obj = new InitializeResponse(2, 1);
             var json = Serializer.Serialize(obj);
-            var expected = @"{""body"":{""supportsConfigurationDoneRequest"":true,""supportsFunctionBreakpoints"":true},""request_seq"":1,""success"":true,""command"":""initialize"",""seq"":2,""type"":""response""}";
+            var expected = @"{""body"":{""supportsConfigurationDoneRequest"":true,""supportsFunctionBreakpoints"":true,""exceptionBreakpointFilters"":[{""filter"":""error"",""label"":""Error breakpoint""}]},""request_seq"":1,""success"":true,""command"":""initialize"",""seq"":2,""type"":""response""}";
             Assert.Equal(expected, json);
         }
 
@@ -65,6 +65,15 @@ namespace IxMilia.Lisp.DebugAdapter.Test
             var obj = new LaunchResponse(2, 1);
             var json = Serializer.Serialize(obj);
             var expected = @"{""request_seq"":1,""success"":true,""command"":""launch"",""seq"":2,""type"":""response""}";
+            Assert.Equal(expected, json);
+        }
+
+        [Fact]
+        public void OutputEvent()
+        {
+            var obj = new OutputEvent(2, new OutputEventBody(OutputEventCategory.Console, "abcd"));
+            var json = Serializer.Serialize(obj);
+            var expected = @"{""body"":{""category"":""console"",""output"":""abcd""},""event"":""output"",""seq"":2,""type"":""event""}";
             Assert.Equal(expected, json);
         }
 
@@ -114,6 +123,15 @@ namespace IxMilia.Lisp.DebugAdapter.Test
         }
 
         [Fact]
+        public void SourceResponse()
+        {
+            var obj = new SourceResponse(2, 1, new SourceResponseBody("source-content"));
+            var json = Serializer.Serialize(obj);
+            var expected = @"{""body"":{""content"":""source-content""},""request_seq"":1,""success"":true,""command"":""source"",""seq"":2,""type"":""response""}";
+            Assert.Equal(expected, json);
+        }
+
+        [Fact]
         public void StackTraceResponse()
         {
             var obj = new StackTraceResponse(2, 1, new StackTraceResponseBody(new[] { new StackFrame(3, "some-frame", new Source("some-path"), 4, 5) }));
@@ -125,7 +143,7 @@ namespace IxMilia.Lisp.DebugAdapter.Test
         [Fact]
         public void StoppedEvent()
         {
-            var obj = new StoppedEvent(2, new StoppedEventBody("some-reason", 3, new[] { 4 }));
+            var obj = new StoppedEvent(2, new StoppedEventBody("some-reason", threadId: 3, hitBreakpointIds: new[] { 4 }));
             var json = Serializer.Serialize(obj);
             var expected = @"{""body"":{""reason"":""some-reason"",""threadId"":3,""hitBreakpointIds"":[4]},""event"":""stopped"",""seq"":2,""type"":""event""}";
             Assert.Equal(expected, json);

@@ -12,6 +12,7 @@ namespace IxMilia.Lisp
         public LispStackFrame StackFrame { get; internal set; }
         internal bool UseTailCalls { get; }
         internal bool AllowHalting { get; }
+        internal LispError LastReportedError { get; set; }
 
         public LispObject LastResult => _argumentStack.Count > 0 ? _argumentStack.Peek() : null;
 
