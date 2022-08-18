@@ -297,7 +297,8 @@ namespace IxMilia.Lisp.DebugAdapter
         private async Task LaunchAsync(LaunchRequest launch)
         {
             var fileContent = await Options.ResolveFileContents(launch.Arguments.Program);
-            _host = await LispHost.CreateAsync(filePath: launch.Arguments.Program);
+            var output = new ListeningTextWriter(line => PushMessage(new OutputEvent(GetNextSeq(), new OutputEventBody(OutputEventCategory.Stdout, line))));
+            _host = await LispHost.CreateAsync(filePath: launch.Arguments.Program, output: output);
             _executionState = _host.CreateExecutionState(fileContent);
             _host.RootFrame.ErrorOccured += RootFrame_ErrorOccured;
             _host.RootFrame.FunctionEntered += RootFrame_FunctionEntered;

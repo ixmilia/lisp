@@ -24,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="IxMilia.Lisp.DebugAdapter" />
     <InternalsVisibleTo Include="IxMilia.Lisp.Interactive" />
     <InternalsVisibleTo Include="IxMilia.Lisp.Repl" />
     <InternalsVisibleTo Include="IxMilia.Lisp.Test" />

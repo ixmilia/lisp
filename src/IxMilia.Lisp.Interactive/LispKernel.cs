@@ -122,8 +122,7 @@ namespace IxMilia.Lisp.Interactive
         public async Task HandleAsync(SubmitCode command, KernelInvocationContext context)
         {
             var repl = await _repl.Value;
-            var writer = new ListeningTextWriter();
-            using var subscription = writer.LineWritten.Subscribe(line =>
+            var writer = new ListeningTextWriter(line =>
             {
                 var formatted = new FormattedValue("text/plain", line);
                 context.Publish(new StandardOutputValueProduced(command, new[] { formatted }));
@@ -172,29 +171,6 @@ namespace IxMilia.Lisp.Interactive
 
                     context.Publish(new DiagnosticsProduced(new Microsoft.DotNet.Interactive.Diagnostic[0], command));
                     break;
-            }
-        }
-
-        private class ListeningTextWriter : TextWriter
-        {
-            private StringBuilder _sb = new StringBuilder();
-
-            public Subject<string> LineWritten { get; } = new Subject<string>();
-            public override Encoding Encoding => Encoding.UTF8;
-
-            public override void Write(char value)
-            {
-                _sb.Append(value);
-                if (value == '\n')
-                {
-                    Flush();
-                }
-            }
-
-            public override void Flush()
-            {
-                LineWritten.OnNext(_sb.ToString());
-                _sb.Clear();
             }
         }
     }
