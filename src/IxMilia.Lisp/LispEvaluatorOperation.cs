@@ -73,6 +73,21 @@ namespace IxMilia.Lisp
         }
     }
 
+    internal class LispEvaluatorPushToArgumentStack : ILispEvaluatorOperation
+    {
+        public LispObject Expression { get; }
+
+        public LispEvaluatorPushToArgumentStack(LispObject expression)
+        {
+            Expression = expression;
+        }
+
+        public override string ToString()
+        {
+            return $"a: {Expression}";
+        }
+    }
+
     internal class LispEvaluatorObjectExpression : ILispEvaluatorOperation
     {
         public LispObject Expression { get; }
@@ -90,6 +105,18 @@ namespace IxMilia.Lisp
         public override string ToString()
         {
             return $"s: {Expression}";
+        }
+    }
+
+    internal class LispEvaluatorSetValue : ILispEvaluatorOperation
+    {
+        public LispEvaluatorSetValue()
+        {
+        }
+
+        public override string ToString()
+        {
+            return "set";
         }
     }
 

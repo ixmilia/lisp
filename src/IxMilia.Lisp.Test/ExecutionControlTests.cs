@@ -560,5 +560,48 @@ namespace IxMilia.Lisp.Test
             Assert.True(evalResult.ExecutionState.IsExecutionComplete);
             Assert.Equal(9, ((LispInteger)evalResult.LastResult).Value); ;
         }
+
+        [Fact]
+        public async Task EvaluationCanBeHaltedInsideSetFValue()
+        {
+            var enteredGetValue = false;
+            var host = await LispHost.CreateAsync();
+            host.RootFrame.FunctionEntered += (s, e) =>
+            {
+                if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:GET-VALUE")
+                {
+                    enteredGetValue = true;
+                    e.HaltExecution = true;
+                }
+            };
+            var evalResult = await host.EvalAsync(@"
+(defun get-value ()
+    42)
+(setf x (get-value))");
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.True(enteredGetValue);
+            Assert.Null(host.GetValue("X"));
+        }
+
+        [Fact]
+        public async Task EvaluationCanBeHaltedInsideSetFDestination()
+        {
+            var enteredSetValue = false;
+            var host = await LispHost.CreateAsync();
+            host.RootFrame.EvaluatedExpression += (s, e) =>
+            {
+                if (e.Expression.ToString() == "(CAR X)")
+                {
+                    enteredSetValue = true;
+                    e.HaltExecution = true;
+                }
+            };
+            var evalResult = await host.EvalAsync(@"
+(setf x '(1 2 3))
+(setf (car x) 11)");
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.True(enteredSetValue);
+            Assert.Equal("(1 2 3)", host.GetValue("X").ToString());
+        }
     }
 }

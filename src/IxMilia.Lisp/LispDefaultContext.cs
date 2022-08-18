@@ -969,42 +969,6 @@ namespace IxMilia.Lisp
             return new LispError("Expected single file path arugment to start recording, or no arguments to stop");
         }
 
-        [LispMacro("SETF")]
-        [LispMacro("SETQ")]
-        public async Task<LispObject> SetValue(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
-        {
-            // TODO: properly validate types
-            LispObject last = host.Nil;
-            for (int i = 0; i < args.Length - 1; i += 2)
-            {
-                var destination = args[i];
-                var rawValue = args[i + 1];
-                var value = await host.EvalAtStackFrameAsync(executionState.StackFrame, rawValue, cancellationToken);
-                if (destination is LispSymbol symbol)
-                {
-                    var resolvedSymbol = symbol.Resolve(host.CurrentPackage);
-                    executionState.StackFrame.SetValueInParentScope(resolvedSymbol, value);
-                }
-                else
-                {
-                    destination = await host.EvalAtStackFrameAsync(executionState.StackFrame, destination, cancellationToken);
-                    if (destination.SetPointerValue != null)
-                    {
-                        destination.SetPointerValue(value);
-                    }
-                    else
-                    {
-                        return new LispError("Expected symbol or pointer location");
-                    }
-                }
-
-                destination.SetPointerValue = null;
-                last = value;
-            }
-
-            return LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), last);
-        }
-
         [LispFunction("VECTOR")]
         public Task<LispObject> Vector(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {

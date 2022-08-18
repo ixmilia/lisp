@@ -31,14 +31,10 @@ namespace IxMilia.Lisp
                 }
 
                 // value setting can only occur when evaluating a native macro or native function; if any of the set operations wants to halt, we do that below
-                var captureValueSetHalt = false;
                 var haltDueToValueSet = false;
                 var valueSet = new EventHandler<LispValueSetEventArgs>((s, e) =>
                 {
-                    if (captureValueSetHalt)
-                    {
-                        haltDueToValueSet = haltDueToValueSet || e.HaltExecution;
-                    }
+                    haltDueToValueSet = haltDueToValueSet || e.HaltExecution;
                 });
                 executionState.StackFrame.Root.ValueSet += valueSet;
                 switch (operation)
@@ -315,6 +311,37 @@ namespace IxMilia.Lisp
                             return LispEvaluationState.FatalHalt;
                         }
                         break;
+                    case LispEvaluatorPushToArgumentStack push:
+                        executionState.PushArgument(push.Expression);
+                        break;
+                    case LispEvaluatorSetValue setValue:
+                        {
+                            if (executionState.TryPopArgument(out var valueToSet) &&
+                                executionState.TryPopArgument(out var destination))
+                            {
+                                if (destination.SetPointerValue != null)
+                                {
+                                    destination.SetPointerValue(valueToSet);
+                                    destination.SetPointerValue = null;
+                                    executionState.PushArgument(valueToSet);
+                                }
+                                else if (destination is LispSymbol symbol)
+                                {
+                                    var resolvedSymbol = symbol.Resolve(host.CurrentPackage);
+                                    executionState.StackFrame.SetValueInParentScope(resolvedSymbol, valueToSet);
+                                    executionState.PushArgument(valueToSet);
+                                }
+                                else
+                                {
+                                    executionState.ReportError(new LispError("Expected symbol and pointer location"), destination);
+                                }
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException("Expected to find value to set and destination on the argument stack");
+                            }
+                        }
+                        break;
                     case LispEvaluatorInvocation invocation:
                         {
                             await Task.Yield();
@@ -358,7 +385,6 @@ namespace IxMilia.Lisp
                                                 result = codeMacro.Body.PerformMacroReplacements(host.CurrentPackage, replacements);
                                                 break;
                                             case LispNativeMacro nativeMacro:
-                                                captureValueSetHalt = true;
                                                 result = await nativeMacro.Macro.Invoke(host, executionState, arguments, cancellationToken);
                                                 break;
                                             default:
@@ -404,9 +430,7 @@ namespace IxMilia.Lisp
                                                         return LispEvaluationState.NonFatalHalt;
                                                     }
 
-                                                    captureValueSetHalt = true;
                                                     var evaluationResult = await nativeFunction.Function.Invoke(host, executionState, arguments, cancellationToken);
-
                                                     executionState.PushArgument(evaluationResult);
                                                 }
                                                 break;

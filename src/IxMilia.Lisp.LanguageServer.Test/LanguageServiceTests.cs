@@ -52,7 +52,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
         {
             var server = await GetServerWithFileContentAsync("file:///some-uri", "(se$$tf sum (+ 1 1))", out var position);
             var hover = await server.TextDocumentHoverAsync(new HoverParams(new TextDocumentIdentifier("file:///some-uri"), position));
-            Assert.Contains("(DEFMACRO SETF (...) ...)", hover.Contents.Value);
+            Assert.Contains("(DEFSPECIAL SETF (...) ...)", hover.Contents.Value);
         }
 
         [Fact]
