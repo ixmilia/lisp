@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xunit;
@@ -416,6 +417,40 @@ common-lisp-user:$$
             var resolvedSymbol = (LispResolvedSymbol)parseResult.Object;
             Assert.Equal("COMMON-LISP-USER", resolvedSymbol.PackageName);
             Assert.Equal("", resolvedSymbol.LocalName);
+        }
+
+        [Fact]
+        public async Task NoCompletionItemsInATerminatedString()
+        {
+            var repl = await LispRepl.CreateAsync();
+            var markedCode = "\"in a string$$\"";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
+            var completionItems = parseResult.GetReducedCompletionItems(repl.Host.CurrentPackage, (symbol, value) => symbol.ToDisplayString(repl.Host.CurrentPackage), name => name).ToArray();
+            Assert.Empty(completionItems);
+        }
+
+        [Fact]
+        public async Task CompletionItemsContainOtherPackagesButNotTheContents()
+        {
+            var repl = await LispRepl.CreateAsync();
+            var markedCode = @"($$";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
+            var completionItems = parseResult.GetReducedCompletionItems(repl.Host.CurrentPackage, (symbol, value) => symbol.ToDisplayString(repl.Host.CurrentPackage), name => name).ToArray();
+            Assert.Single(completionItems.Where(i => i == "KERNEL"));
+            Assert.Empty(completionItems.Where(i => i == "KERNEL:+/2"));
+        }
+
+        [Fact]
+        public async Task CompletionItemsAreCorrectlyScopedToTheUserSpecifiedPackage()
+        {
+            var repl = await LispRepl.CreateAsync();
+            var markedCode = @"KERNEL:$$";
+            GetCodeAndPosition(markedCode, out var code, out var position);
+            var parseResult = await repl.ParseUntilSourceLocationAsync(code, position);
+            var completionItems = parseResult.GetReducedCompletionItems(repl.Host.CurrentPackage, (symbol, value) => symbol.ToDisplayString(repl.Host.CurrentPackage), name => name).ToArray();
+            Assert.True(completionItems.All(i => i.StartsWith("KERNEL:")));
         }
     }
 }

@@ -51,6 +51,18 @@ namespace IxMilia.Lisp
             return resolvedSymbol;
         }
 
+        internal IEnumerable<string> GetAllAccessiblePackageNames()
+        {
+            yield return Name;
+            foreach (var package in _inheritedPackages)
+            {
+                foreach (var name in package.GetAllAccessiblePackageNames())
+                {
+                    yield return name;
+                }
+            }
+        }
+
         public bool HasSymbolWithName(string name)
         {
             foreach (var package in _inheritedPackages)

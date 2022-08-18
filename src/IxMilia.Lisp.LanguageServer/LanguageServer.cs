@@ -124,22 +124,13 @@ namespace IxMilia.Lisp.LanguageServer
             if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
                 var parseResult = await pair.Repl.ParseUntilSourceLocationAsync(pair.Content, position);
-
-                // don't return anything if we're in a string
-                if (!(parseResult.Object is LispString))
-                {
-                    var visibleValues = parseResult.VisibleValues.Values;
-                    if (parseResult.Object is LispResolvedSymbol resolved)
-                    {
-                        visibleValues = visibleValues.Where(v => v.Symbol.PackageName == resolved.PackageName);
-                    }
-
-                    items = visibleValues.Select(
-                        v => new CompletionItem(
-                            v.Symbol.ToDisplayString(pair.Repl.Host.CurrentPackage),
-                            v.Symbol.Value,
-                            v.Value is LispFunction f ? new MarkupContent(MarkupKind.Markdown, f.Documentation) : null));
-                }
+                items = parseResult.GetReducedCompletionItems(pair.Repl.Host.CurrentPackage,
+                    (symbol, value) =>
+                        new CompletionItem(
+                            symbol.ToDisplayString(pair.Repl.Host.CurrentPackage),
+                            symbol.Value,
+                            value is LispFunction f ? new MarkupContent(MarkupKind.Markdown, f.Documentation) : null),
+                    name => new CompletionItem(name, name, null));
             }
 
             return new CompletionList(false, items);

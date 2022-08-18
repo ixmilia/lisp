@@ -44,14 +44,18 @@ namespace IxMilia.Lisp.Interactive
         {
             var repl = await _repl.Value;
             var parseResult = await repl.ParseUntilSourceLocationAsync(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
-            if (parseResult.Object != null &&
-                !(parseResult.Object is LispString))
-            {
-                var completionItems = parseResult.VisibleValues.Values.Select(
-                    v => new CompletionItem(
-                        displayText: v.Symbol.ToDisplayString(repl.Host.CurrentPackage),
+            var completionItems = parseResult.GetReducedCompletionItems(repl.Host.CurrentPackage,
+                (symbol, value) =>
+                    new CompletionItem(
+                        displayText: symbol.ToDisplayString(repl.Host.CurrentPackage),
                         kind: "",
-                        documentation: v.Value is LispFunction f ? f.Documentation : null));
+                        documentation: value is LispFunction f ? f.Documentation : null),
+                name =>
+                    new CompletionItem(
+                        displayText: name,
+                        kind: "")).ToList();
+            if (completionItems.Count > 0)
+            {
                 context.Publish(new CompletionsProduced(completionItems, command));
             }
         }

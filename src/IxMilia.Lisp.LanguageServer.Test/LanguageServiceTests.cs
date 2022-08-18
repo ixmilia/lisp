@@ -107,14 +107,6 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
-        public async Task NoCompletionItemsInATerminatedString()
-        {
-            var server = await GetServerWithFileContentAsync("file:///some-uri", "\"in a string $$\"", out var position);
-            var completionList = await server.TextDocumentCompletionAsync(new CompletionParams(new CompletionContext(CompletionTriggerKind.TriggerCharacter, ' '), new TextDocumentIdentifier("file:///some-uri"), position));
-            Assert.Empty(completionList.Items);
-        }
-
-        [Fact]
         public async Task GetHoverTextAfterFullUpdate()
         {
             var server = await GetServerWithFileContentAsync("file:///some-uri", "(defun add (a b) (+ a b))");
