@@ -42,6 +42,15 @@ namespace IxMilia.Lisp.DebugAdapter.Test
         }
 
         [Fact]
+        public void EvaluateResponse()
+        {
+            var obj = new EvaluateResponse(2, 1, new EvaluateResponseBody("some-value", 0));
+            var json = Serializer.Serialize(obj);
+            var expected = @"{""body"":{""result"":""some-value"",""variablesReference"":0},""request_seq"":1,""success"":true,""command"":""evaluate"",""seq"":2,""type"":""response""}";
+            Assert.Equal(expected, json);
+        }
+
+        [Fact]
         public void InitializedEvent()
         {
             var obj = new InitializedEvent(1);
@@ -55,7 +64,7 @@ namespace IxMilia.Lisp.DebugAdapter.Test
         {
             var obj = new InitializeResponse(2, 1);
             var json = Serializer.Serialize(obj);
-            var expected = @"{""body"":{""supportsConfigurationDoneRequest"":true,""supportsFunctionBreakpoints"":true,""exceptionBreakpointFilters"":[{""filter"":""error"",""label"":""Error breakpoint""}]},""request_seq"":1,""success"":true,""command"":""initialize"",""seq"":2,""type"":""response""}";
+            var expected = @"{""body"":{""supportsConfigurationDoneRequest"":true,""supportsFunctionBreakpoints"":true,""supportsEvaluateForHovers"":true,""exceptionBreakpointFilters"":[{""filter"":""error"",""label"":""Error breakpoint""}]},""request_seq"":1,""success"":true,""command"":""initialize"",""seq"":2,""type"":""response""}";
             Assert.Equal(expected, json);
         }
 

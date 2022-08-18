@@ -75,6 +75,8 @@ namespace IxMilia.Lisp.DebugAdapter
                     return rawObject.ToObject<ContinueRequest>();
                 case DisconnectRequest.CommandName:
                     return rawObject.ToObject<DisconnectRequest>();
+                case EvaluateRequest.CommandName:
+                    return rawObject.ToObject<EvaluateRequest>();
                 case InitializeRequest.CommandName:
                     return rawObject.ToObject<InitializeRequest>();
                 case LaunchRequest.CommandName:

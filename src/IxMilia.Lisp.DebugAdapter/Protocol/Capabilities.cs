@@ -4,6 +4,7 @@
     {
         public bool SupportsConfigurationDoneRequest => true;
         public bool SupportsFunctionBreakpoints => true;
+        public bool SupportsEvaluateForHovers => true;
         public ExceptionBreakpointsFilter[] ExceptionBreakpointFilters { get; }
 
         public Capabilities()

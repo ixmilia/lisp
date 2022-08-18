@@ -30,6 +30,14 @@ namespace IxMilia.Lisp.DebugAdapter.Test
         }
 
         [Fact]
+        public void EvaluateRequest()
+        {
+            var obj = Serializer.Deserialize<EvaluateRequest>(@"{""command"":""evaluate"",""arguments"":{""expression"":""x"",""frameId"":0,""context"":""hover""},""type"":""request"",""seq"":1}");
+            Assert.Equal(1, obj.Seq);
+            Assert.Equal("x", obj.Arguments.Expression);
+        }
+
+        [Fact]
         public void InitializeRequest()
         {
             var obj = Serializer.Deserialize<InitializeRequest>(@"{""command"":""initialize"",""arguments"":{""adapterId"":""some-adapter-id""},""type"":""request"",""seq"":1}");

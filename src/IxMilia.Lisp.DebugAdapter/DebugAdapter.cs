@@ -140,6 +140,9 @@ namespace IxMilia.Lisp.DebugAdapter
                 case DisconnectRequest disconnect:
                     Disconnect(disconnect);
                     break;
+                case EvaluateRequest evaluate:
+                    Evaluate(evaluate);
+                    break;
                 case InitializeRequest initialize:
                     Initialize(initialize);
                     break;
@@ -256,8 +259,37 @@ namespace IxMilia.Lisp.DebugAdapter
             _serverTaskCompletion.SetResult(true);
         }
 
+        private void Evaluate(EvaluateRequest evaluate)
+        {
+            LispStackFrame evaluationFrame = _host.RootFrame;
+            if (evaluate.Arguments.FrameId.HasValue)
+            {
+                evaluationFrame = _executionState.StackFrame;
+                for (var frameId = evaluate.Arguments.FrameId.Value; frameId > 0; frameId--)
+                {
+                    evaluationFrame = evaluationFrame.Parent;
+                }
+            }
+
+            // debugger just gives us raw string "x", but we may have upper-cased it
+            var possibleExpressionValues = new[] { evaluate.Arguments.Expression, evaluate.Arguments.Expression.ToUpperInvariant() };
+            LispObject value = null;
+            foreach (var possibleExpressionValue in possibleExpressionValues)
+            {
+                var expressionSymbol = LispSymbol.CreateFromString(evaluate.Arguments.Expression.ToUpper()).Resolve(_host.CurrentPackage);
+                value = evaluationFrame.GetValue(expressionSymbol);
+                if (value is not null)
+                {
+                    break;
+                }
+            }
+
+            PushMessage(new EvaluateResponse(GetNextSeq(), evaluate.Seq, new EvaluateResponseBody(value?.ToDisplayString(_host.CurrentPackage) ?? "<unknown>", 0)));
+        }
+
         private void Initialize(InitializeRequest initialize)
         {
+            PushMessage(new OutputEvent(GetNextSeq(), new OutputEventBody(OutputEventCategory.Console, $"Initializing debugger in process {System.Diagnostics.Process.GetCurrentProcess().Id}\n")));
             PushMessage(new InitializeResponse(GetNextSeq(), initialize.Seq));
             PushMessage(new InitializedEvent(GetNextSeq()));
         }
