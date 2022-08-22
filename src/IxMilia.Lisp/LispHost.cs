@@ -323,6 +323,13 @@ namespace IxMilia.Lisp
             return obj;
         }
 
+        public async Task<LispObject> EvalAtStackFrameAsync(LispStackFrame frame, string code, CancellationToken cancellationToken = default)
+        {
+            var executionState = LispExecutionState.CreateExecutionState(frame, "REPL", code, useTailCalls: false, allowHalting: false);
+            var evalResult = await EvalContinueAsync(executionState, cancellationToken);
+            return evalResult.LastResult;
+        }
+
         public async Task<LispObject> EvalAtStackFrameAsync(LispStackFrame frame, LispObject obj, CancellationToken cancellationToken = default)
         {
             var executionState = LispExecutionState.CreateExecutionState(frame, "TODO: input name", obj, useTailCalls: false, allowHalting: false, createDribbleInstructions: false);

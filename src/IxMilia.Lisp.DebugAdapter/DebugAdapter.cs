@@ -146,7 +146,7 @@ namespace IxMilia.Lisp.DebugAdapter
                     Disconnect(disconnect);
                     break;
                 case EvaluateRequest evaluate:
-                    Evaluate(evaluate);
+                    _t = EvaluateAsync(evaluate);
                     break;
                 case InitializeRequest initialize:
                     Initialize(initialize);
@@ -270,7 +270,7 @@ namespace IxMilia.Lisp.DebugAdapter
             _serverTaskCompletion.SetResult(true);
         }
 
-        private void Evaluate(EvaluateRequest evaluate)
+        private async Task EvaluateAsync(EvaluateRequest evaluate)
         {
             LispStackFrame evaluationFrame = _host.RootFrame;
             if (evaluate.Arguments.FrameId.HasValue)
@@ -282,20 +282,8 @@ namespace IxMilia.Lisp.DebugAdapter
                 }
             }
 
-            // debugger just gives us raw string "x", but we may have upper-cased it
-            var possibleExpressionValues = new[] { evaluate.Arguments.Expression, evaluate.Arguments.Expression.ToUpperInvariant() };
-            LispObject value = null;
-            foreach (var possibleExpressionValue in possibleExpressionValues)
-            {
-                var expressionSymbol = LispSymbol.CreateFromString(evaluate.Arguments.Expression.ToUpper()).Resolve(_host.CurrentPackage);
-                value = evaluationFrame.GetValue(expressionSymbol);
-                if (value is not null)
-                {
-                    break;
-                }
-            }
-
-            PushMessage(new EvaluateResponse(GetNextSeq(), evaluate.Seq, new EvaluateResponseBody(value?.ToDisplayString(_host.CurrentPackage) ?? "<unknown>", 0)));
+            var result = await _host.EvalAtStackFrameAsync(evaluationFrame, evaluate.Arguments.Expression);
+            PushMessage(new EvaluateResponse(GetNextSeq(), evaluate.Seq, new EvaluateResponseBody(result?.ToDisplayString(_host.CurrentPackage) ?? "<unknown>", 0)));
         }
 
         private void Initialize(InitializeRequest initialize)
