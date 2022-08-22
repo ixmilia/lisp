@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using IxMilia.Lisp.LanguageServer.Protocol;
 using IxMilia.Lisp.Test;
@@ -193,14 +194,15 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var client = new JsonRpc(messageHandler);
             var publishDiagnosticsCompletionSource = new TaskCompletionSource<Diagnostic[]>();
             var diagnosticPublishEntryCount = 0;
-            client.AddLocalRpcMethod("textDocument/publishDiagnostics", (PublishDiagnosticsParams param) =>
+            Delegate publishDiagnostics = (PublishDiagnosticsParams param) =>
             {
                 diagnosticPublishEntryCount++;
                 if (diagnosticPublishEntryCount >= 1)
                 {
                     publishDiagnosticsCompletionSource.SetResult(param.Diagnostics);
                 }
-            });
+            };
+            client.AddLocalRpcMethod(publishDiagnostics.GetMethodInfo(), publishDiagnostics.Target, new LspMethodAttribute("textDocument/publishDiagnostics"));
             client.StartListening();
             await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"""unterminated string")));
             await Task.Yield();
@@ -225,14 +227,15 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var client = new JsonRpc(messageHandler);
             var publishDiagnosticsCompletionSource = new TaskCompletionSource<Diagnostic[]>();
             var diagnosticPublishEntryCount = 0;
-            client.AddLocalRpcMethod("textDocument/publishDiagnostics", (PublishDiagnosticsParams param) =>
+            Delegate publishDiagnostics = (PublishDiagnosticsParams param) =>
             {
                 diagnosticPublishEntryCount++;
                 if (diagnosticPublishEntryCount >= 2)
                 {
                     publishDiagnosticsCompletionSource.SetResult(param.Diagnostics);
                 }
-            });
+            };
+            client.AddLocalRpcMethod(publishDiagnostics.GetMethodInfo(), publishDiagnostics.Target, new LspMethodAttribute("textDocument/publishDiagnostics"));
             client.StartListening();
             await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"()")));
             await server.TextDocumentDidChangeAsync(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier("file:///some-uri", 2), new[] { new TextDocumentContentChangeEvent(null, null, @"""unterminated string") }));
@@ -258,14 +261,15 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var client = new JsonRpc(messageHandler);
             var publishDiagnosticsCompletionSource = new TaskCompletionSource<Diagnostic[]>();
             var diagnosticPublishEntryCount = 0;
-            client.AddLocalRpcMethod("textDocument/publishDiagnostics", (PublishDiagnosticsParams param) =>
+            Delegate publishDiagnostics = (PublishDiagnosticsParams param) =>
             {
                 diagnosticPublishEntryCount++;
                 if (diagnosticPublishEntryCount >= 2)
                 {
                     publishDiagnosticsCompletionSource.SetResult(param.Diagnostics);
                 }
-            });
+            };
+            client.AddLocalRpcMethod(publishDiagnostics.GetMethodInfo(), publishDiagnostics.Target, new LspMethodAttribute("textDocument/publishDiagnostics"));
             client.StartListening();
             await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"(+ 1 ())")));
             var evalResult = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));

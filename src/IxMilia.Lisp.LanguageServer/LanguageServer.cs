@@ -241,7 +241,12 @@ namespace IxMilia.Lisp.LanguageServer
         private void TextDocumentPublishDiagnostics(string uri, Diagnostic[] diagnostics)
         {
             var param = new PublishDiagnosticsParams(uri, diagnostics);
-            var _ = _rpc.NotifyAsync("textDocument/publishDiagnostics", param);
+            Notify("textDocument/publishDiagnostics", param);
+        }
+
+        private void Notify(string targetName, object argument = null)
+        {
+            var _ = _rpc.NotifyWithParameterObjectAsync(targetName, argument);
         }
 
         [LspMethod("textDocument/semanticTokens/full")]
