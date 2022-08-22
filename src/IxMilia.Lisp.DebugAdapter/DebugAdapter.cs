@@ -429,7 +429,7 @@ namespace IxMilia.Lisp.DebugAdapter
             var variablesFrame = variables.Arguments.VariablesReference == LocalsScopeId
                 ? _executionState.StackFrame
                 : _executionState.StackFrame.Root;
-            var variablesArray = variablesFrame.GetValues().Select(pair => new Variable(pair.Item1.Value, pair.Item2.ToString(), 0)).ToArray();
+            var variablesArray = variablesFrame.GetValues().Select(pair => new Variable(pair.Item1.ToDisplayString(_host.CurrentPackage), pair.Item2.ToDisplayString(_host.CurrentPackage), 0)).ToArray();
             PushMessage(new VariablesResponse(GetNextSeq(), variables.Seq, new VariablesResponseBody(variablesArray)));
         }
 

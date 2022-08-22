@@ -88,9 +88,9 @@ namespace IxMilia.Lisp.DebugAdapter.Test
             messageSender.OnNext(new VariablesRequest(Seq(), new VariablesRequestArguments(scope.VariablesReference)));
             var variablesResponse = await variablesResponseAwaiter;
             Assert.Equal(2, variablesResponse.Body.Variables.Length);
-            Assert.Equal("COMMON-LISP-USER:A", variablesResponse.Body.Variables[0].Name);
+            Assert.Equal("A", variablesResponse.Body.Variables[0].Name);
             Assert.Equal("2", variablesResponse.Body.Variables[0].Value);
-            Assert.Equal("COMMON-LISP-USER:B", variablesResponse.Body.Variables[1].Name);
+            Assert.Equal("B", variablesResponse.Body.Variables[1].Name);
             Assert.Equal("3", variablesResponse.Body.Variables[1].Value);
 
             var continueResponseAwaiter = GetAwaiterForType<ContinueResponse>();
