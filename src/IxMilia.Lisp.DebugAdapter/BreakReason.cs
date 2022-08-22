@@ -6,6 +6,18 @@ namespace IxMilia.Lisp.DebugAdapter
     {
     }
 
+    internal class LineBreakReason : BreakReason
+    {
+        public Breakpoint Breakpoint { get; }
+        public LispSourceLocation Location { get; }
+
+        public LineBreakReason(Breakpoint breakpoint, LispSourceLocation location)
+        {
+            Breakpoint = breakpoint;
+            Location = location;
+        }
+    }
+
     internal class FunctionBreakReason : BreakReason
     {
         public Breakpoint Breakpoint { get; }
@@ -24,5 +36,5 @@ namespace IxMilia.Lisp.DebugAdapter
         {
             Error = error;
         }
-    } 
+    }
 }

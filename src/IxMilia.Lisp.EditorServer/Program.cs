@@ -38,6 +38,7 @@ namespace IxMilia.Lisp.EditorServer
                 resolveFileContents: path => File.ReadAllTextAsync(path),
                 messageLogger: null);
             var server = DebugAdapter.DebugAdapter.CreateFromStreams(Console.OpenStandardInput(), Console.OpenStandardOutput(), options);
+            server.Start();
             await server.ServerTask;
         }
 

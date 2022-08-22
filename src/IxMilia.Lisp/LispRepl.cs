@@ -107,27 +107,6 @@ namespace IxMilia.Lisp
             return parseResult;
         }
 
-        public async Task<IEnumerable<LispObject>> ParseAllAsync(string code, CancellationToken cancellationToken = default)
-        {
-            var eofValue = new LispError("EOF");
-            var textReader = new StringReader(code);
-            var textStream = new LispTextStream("", textReader, TextWriter.Null);
-            var objectReader = new LispObjectReader(Host, textStream, allowIncompleteObjects: true);
-            var result = new List<LispObject>();
-            while (true)
-            {
-                var readResult = await objectReader.ReadAsync(Host.RootFrame, false, eofValue, true, cancellationToken);
-                if (ReferenceEquals(readResult.LastResult, eofValue))
-                {
-                    break;
-                }
-
-                result.Add(readResult.LastResult);
-            }
-
-            return result;
-        }
-
         public LispObject GetValue(string name) => Host.GetValue(name);
 
         public TObject GetValue<TObject>(string name) where TObject : LispObject => Host.GetValue<TObject>(name);

@@ -16,6 +16,11 @@ namespace IxMilia.Lisp
             End = end;
         }
 
+        public bool ContainsLine(int line)
+        {
+            return Start.Line <= line && End.Line >= line;
+        }
+
         public bool ContainsPosition(LispSourcePosition position)
         {
             return position >= Start && position <= End;

@@ -204,7 +204,7 @@ namespace IxMilia.Lisp.LanguageServer
             var diagnostics = new List<Diagnostic>();
             if (_documentContents.TryGetValue(uri, out var pair))
             {
-                var parsedObjects = await pair.Repl.ParseAllAsync(pair.Content, cancellationToken);
+                var parsedObjects = await pair.Repl.Host.ParseAllAsync(pair.Content, cancellationToken);
                 foreach (var parsedObj in parsedObjects)
                 {
                     if (parsedObj is LispError error)
@@ -251,7 +251,7 @@ namespace IxMilia.Lisp.LanguageServer
             {
                 var legend = new SemanticTokensLegend();
                 var builder = new SemanticTokensBuilder(legend.TokenTypes, legend.TokenModifiers);
-                var objects = await pair.Repl.ParseAllAsync(pair.Content);
+                var objects = await pair.Repl.Host.ParseAllAsync(pair.Content);
                 foreach (var obj in objects)
                 {
                     foreach (var token in obj.GetSemanticTokens(pair.Repl.Host))

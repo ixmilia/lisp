@@ -126,6 +126,60 @@ namespace IxMilia.Lisp
             }
         }
 
+        public static int? GetBreakpointLine(this LispObject obj)
+        {
+            if (!obj.SourceLocation.HasValue)
+            {
+                // don't know where we are, obviously can't report a possible breakpoint line
+                return null;
+            }
+
+            if (obj.Parent is null)
+            {
+                // if we're a top-level expression, we're already there
+                return obj.SourceLocation.Value.Start.Line;
+            }
+
+            // navigate to farthest up parent still on the line...
+            var candidate = obj;
+            while (true)
+            {
+                if (candidate.Parent is null)
+                {
+                    // can't go any further
+                    break;
+                }
+
+                if (candidate.Parent.SourceLocation.HasValue &&
+                    candidate.Parent.SourceLocation.Value.FilePath == obj.SourceLocation.Value.FilePath &&
+                    candidate.Parent.SourceLocation.Value.Start.Line != obj.SourceLocation.Value.Start.Line)
+                {
+                    // parent was in the same file, but a different line
+                    break;
+                }
+
+                // keep going
+                candidate = candidate.Parent;
+            }
+
+            // ...then find the first sibling on that line...
+            var firstChildOnLine = candidate
+                .Parent
+                ?.GetChildren()
+                .FirstOrDefault(c =>
+                    c.SourceLocation.HasValue &&
+                    c.SourceLocation.Value.FilePath == obj.SourceLocation.Value.FilePath &&
+                    c.SourceLocation.Value.Start.Line == obj.SourceLocation.Value.Start.Line);
+
+            // ...and only if we're the same object did we find it...
+            if (ReferenceEquals(obj, firstChildOnLine))
+            {
+                return obj.SourceLocation.Value.Start.Line;
+            }
+
+            return null;
+        }
+
         public static IEnumerable<LispToken> GetSemanticTokens(this LispObject obj, LispHost host)
         {
             var tokens = new List<LispToken>();

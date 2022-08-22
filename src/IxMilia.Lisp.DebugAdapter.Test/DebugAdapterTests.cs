@@ -39,6 +39,7 @@ namespace IxMilia.Lisp.DebugAdapter.Test
             var da = new DebugAdapter(
                 messageSender,
                 options);
+            da.Start();
 
             var initializeResponseAwaiter = GetAwaiterForType<InitializeResponse>();
             var initializeEventAwaiter = GetAwaiterForType<InitializedEvent>();

@@ -24,6 +24,7 @@ namespace IxMilia.Lisp.DebugAdapter
         private TaskCompletionSource<bool> _serverTaskCompletion = new TaskCompletionSource<bool>();
         private Dictionary<string, Breakpoint> _breakpointsByName = new();
         private Dictionary<int, Breakpoint> _breakpointsById = new();
+        private Dictionary<BreakpointLocation, Breakpoint> _breakpointsByLocation = new();
         private LispHost _host;
         private LispExecutionState _executionState;
 
@@ -66,6 +67,10 @@ namespace IxMilia.Lisp.DebugAdapter
             {
                 disposable.Dispose();
             }
+        }
+
+        public void Start()
+        {
         }
 
         private static Subject<ProtocolMessage> ReadMessagesFromStream(Stream receivingStream)
@@ -181,6 +186,7 @@ namespace IxMilia.Lisp.DebugAdapter
         private Breakpoint _errorBreakpoint = new Breakpoint(0, true);
 
         private BreakReason _breakReason = null;
+        private bool _canBreakOnLocation = true;
 
         private int _nextBreakpointId = 1;
         private int GetNextBreakpointId() => _nextBreakpointId++;
@@ -210,6 +216,11 @@ namespace IxMilia.Lisp.DebugAdapter
                 var location = _executionState.StackFrame.SourceLocation;
                 switch (_breakReason)
                 {
+                    case LineBreakReason lineBreakReason:
+                        _canBreakOnLocation = false;
+                        UpdateBreakpointSourceLocation(lineBreakReason.Breakpoint, lineBreakReason.Location);
+                        PushMessage(new StoppedEvent(GetNextSeq(), new StoppedEventBody("breakpoint", threadId: MainThreadId, hitBreakpointIds: new[] { lineBreakReason.Breakpoint.Id })));
+                        break;
                     case ErrorBreakReason errorBreakReason:
                         UpdateBreakpointSourceLocation(_errorBreakpoint, errorBreakReason.Error.SourceLocation);
                         PushMessage(new StoppedEvent(GetNextSeq(), new StoppedEventBody("exception", description: "Paused on error", text: errorBreakReason.Error.Message, threadId: MainThreadId)));
@@ -301,6 +312,7 @@ namespace IxMilia.Lisp.DebugAdapter
             _host = await LispHost.CreateAsync(filePath: launch.Arguments.Program, output: output);
             _executionState = _host.CreateExecutionState(fileContent);
             _host.RootFrame.ErrorOccured += RootFrame_ErrorOccured;
+            _host.RootFrame.EvaluatingExpression += RootFrame_EvaluatingExpression;
             _host.RootFrame.FunctionEntered += RootFrame_FunctionEntered;
             await _configurationDone.Task;
             PushMessage(new LaunchResponse(GetNextSeq(), launch.Seq));
@@ -310,6 +322,27 @@ namespace IxMilia.Lisp.DebugAdapter
         private void RootFrame_ErrorOccured(object sender, LispErrorOccuredEventArgs e)
         {
             _breakReason = new ErrorBreakReason(e.Error);
+        }
+
+        private void RootFrame_EvaluatingExpression(object sender, LispEvaluatingExpressionEventArgs e)
+        {
+            if (!_canBreakOnLocation)
+            {
+                _canBreakOnLocation = true;
+                return;
+            }
+
+            var breakpointLine = e.Expression.GetBreakpointLine();
+            if (e.Expression.SourceLocation.HasValue &&
+                breakpointLine.HasValue)
+            {
+                var breakpointLocation = new BreakpointLocation(e.Expression.SourceLocation.Value.FilePath, breakpointLine.Value);
+                if (_breakpointsByLocation.TryGetValue(breakpointLocation, out var breakpoint))
+                {
+                    e.HaltExecution = true;
+                    _breakReason = new LineBreakReason(breakpoint, e.Expression.SourceLocation.Value);
+                }
+            }
         }
 
         private void RootFrame_FunctionEntered(object sender, LispFunctionEnteredEventArgs e)
@@ -334,8 +367,17 @@ namespace IxMilia.Lisp.DebugAdapter
 
         private void SetBreakpoints(SetBreakpointsRequest setBreakpoints)
         {
-            var breakpoints = new Breakpoint[] { };
-            PushMessage(new SetBreakpointsResponse(GetNextSeq(), setBreakpoints.Seq, breakpoints));
+            var breakpoints = new List<Breakpoint>();
+            foreach (var breakpoint in setBreakpoints.Arguments.Breakpoints)
+            {
+                var breakpointLocation = new BreakpointLocation(setBreakpoints.Arguments.Source.Path, breakpoint.Line);
+                var newBreakpoint = new Breakpoint(GetNextBreakpointId(), true, setBreakpoints.Arguments.Source, breakpoint.Line);
+                _breakpointsById[newBreakpoint.Id] = newBreakpoint;
+                _breakpointsByLocation[breakpointLocation] = newBreakpoint;
+                breakpoints.Add(newBreakpoint);
+            }
+
+            PushMessage(new SetBreakpointsResponse(GetNextSeq(), setBreakpoints.Seq, breakpoints.ToArray()));
         }
 
         private void SetExceptionBreakpoints(SetExceptionBreakpointsRequest setExceptionBreakpoints)
@@ -347,8 +389,12 @@ namespace IxMilia.Lisp.DebugAdapter
         private void SetFunctionBreakpoints(SetFunctionBreakpointsRequest setFunctionBreakpoints)
         {
             var resolvedBreakpoints = new List<Breakpoint>();
+            foreach (var breakpoint in _breakpointsByName.Values)
+            {
+                _breakpointsById.Remove(breakpoint.Id);
+            }
+
             _breakpointsByName.Clear();
-            _breakpointsById.Clear();
             foreach (var fb in setFunctionBreakpoints.Arguments.Breakpoints)
             {
                 var bp = new Breakpoint(GetNextBreakpointId(), true);
@@ -397,6 +443,39 @@ namespace IxMilia.Lisp.DebugAdapter
                 : _executionState.StackFrame.Root;
             var variablesArray = variablesFrame.GetValues().Select(pair => new Variable(pair.Item1.Value, pair.Item2.ToString(), 0)).ToArray();
             PushMessage(new VariablesResponse(GetNextSeq(), variables.Seq, new VariablesResponseBody(variablesArray)));
+        }
+
+        private struct BreakpointLocation
+        {
+            public string FilePath { get; }
+            public int Line { get; }
+
+            public BreakpointLocation(string filePath, int line)
+            {
+                FilePath = NormalizePath(filePath);
+                Line = line;
+            }
+
+            public override int GetHashCode()
+            {
+                int hashCode = -514213941;
+                hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(FilePath);
+                hashCode = hashCode * -1521134295 + Line.GetHashCode();
+                return hashCode;
+            }
+
+            public override string ToString() => $"{FilePath}:{Line}";
+
+            private static string NormalizePath(string path)
+            {
+                var fullPath = Path.GetFullPath(path);
+                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                {
+                    fullPath = fullPath.ToLowerInvariant();
+                }
+
+                return fullPath;
+            }
         }
     }
 }

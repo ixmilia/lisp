@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
@@ -178,6 +179,47 @@ namespace IxMilia.Lisp.Test
             var evalResult = await host.EvalAsync(code);
             Assert.Null(evalResult.ReadError);
             Assert.Equal(expected, evalResult.LastResult.ToString());
+        }
+
+        [Theory]
+        [InlineData("(+ 1 2)", null)]
+        [InlineData("(IF (= (+ 1 2) (- 5 2)) 1 2)", 2)]
+        [InlineData("(QUOTE (1))", 5)]
+        [InlineData("(QUOTE (2))", null)]
+        [InlineData("(SOME-FUNCTION)", 6)]
+        public async Task ObjectBreakpointLine(string expression, int? expectedBreakpointLine)
+        {
+            var filePath = "test-file.lisp";
+            int? reportedBreakpointLine = null;
+            var foundExpression = false;
+            var host = await LispHost.CreateAsync(filePath: filePath);
+            var code = @"
+(defun some-function ()         ; line 1
+    (if (= (+ 1 2) (- 5 2))     ; line 2
+        1                       ; line 3
+        2)                      ; line 4
+    '(1) '(2) '(3))             ; line 5
+(some-function)                 ; line 6
+".Trim();
+            var seenExpressions = new List<string>();
+            host.RootFrame.EvaluatingExpression += (_s, e) =>
+            {
+                if (e.Expression.SourceLocation.HasValue &&
+                    e.Expression.SourceLocation.Value.FilePath == filePath)
+                {
+                    var expressionString = e.Expression.ToString();
+                    seenExpressions.Add(expressionString);
+                    if (expressionString == expression)
+                    {
+                        foundExpression = true;
+                        reportedBreakpointLine = e.Expression.GetBreakpointLine();
+                    }
+                }
+            };
+            var evalResult = await host.EvalAsync(code);
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.True(foundExpression, $"Did not see expression [{expression}] in\n\t{string.Join("\n\t", seenExpressions)}");
+            Assert.Equal(expectedBreakpointLine, reportedBreakpointLine);
         }
     }
 }
