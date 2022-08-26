@@ -1,6 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace IxMilia.Lisp
 {
@@ -107,6 +110,51 @@ namespace IxMilia.Lisp
             }
 
             return false;
+        }
+
+        internal void PrepareForInvocation(LispObject invokable, LispObject argumentsCandidate)
+        {
+            if (argumentsCandidate is LispList argumentsList)
+            {
+                InsertOperation(new LispEvaluatorPreInvoke(argumentsList.ToList().ToArray()));
+                InsertOperation(new LispEvaluatorObjectExpression(invokable)); // TODO: do a lisp-2 and invoke to get a function value?
+            }
+            else
+            {
+                ReportError(new LispError("Expected arguments list"), argumentsCandidate);
+            }
+        }
+
+        internal async Task<LispObject> FunCallAsync(LispHost host, LispFunctionReference functionReference, IEnumerable<LispObject> functionArguments, CancellationToken cancellationToken = default)
+        {
+            var synthesizedFunctionName = functionReference.Function.NameSymbol.Value;
+            Action preExecute = null;
+            Action postExecute = null;
+            if (functionReference.Function is LispCodeFunction codeFunction)
+            {
+                //evaluatingFrame = codeFunction.CapturedStackFrame;
+                //preExecute = () => evaluatingFrame.SetValue(functionReference.Function.NameSymbol, functionReference.Function);
+                //postExecute = () => evaluatingFrame.DeleteValue(functionReference.Function.NameSymbol);
+            }
+
+            var synthesizedSymbol = LispSymbol.CreateFromString(synthesizedFunctionName);
+            synthesizedSymbol.SourceLocation = functionReference.SourceLocation;
+            var synthesizedFunctionItems = new List<LispObject>();
+            synthesizedFunctionItems.Add(synthesizedSymbol);
+            synthesizedFunctionItems.AddRange(functionArguments);
+            var synthesizedFunctionCall = LispList.FromEnumerable(synthesizedFunctionItems);
+            synthesizedFunctionCall.SourceLocation = functionReference.SourceLocation;
+
+            preExecute?.Invoke();
+            InsertOperation(new LispEvaluatorPopArgument()); // discard what eventually gets produced
+            InsertOperation(new LispEvaluatorReturnIntermediate()); // break out here
+            InsertOperation(new LispEvaluatorObjectExpression(synthesizedFunctionCall)); // and do this
+
+            var result = await LispEvaluator.EvaluateAsync(host, this, cancellationToken);
+
+            postExecute?.Invoke();
+
+            return LastResult;
         }
 
         internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, string inputName, string code, bool useTailCalls, bool allowHalting)

@@ -83,7 +83,7 @@ namespace IxMilia.Lisp
                     case '#':
                         return new LispResolvedSymbol(_host.CurrentPackage.Name, symbolReference, isPublic: true);
                     case '=':
-                        var candidateInnerListReaderResult = await ReadAsync(executionState.StackFrame, true, null, true, cancellationToken);
+                        var candidateInnerListReaderResult = await ReadAsync(executionState, true, null, true, cancellationToken);
                         var candidateInnerList = candidateInnerListReaderResult.LastResult;
                         switch (candidateInnerList)
                         {
@@ -107,7 +107,7 @@ namespace IxMilia.Lisp
             return readTable;
         }
 
-        public async Task<LispObjectReaderResult> ReadAsync(LispStackFrame stackFrame, bool errorOnEof, LispObject eofValue, bool isRecursive, CancellationToken cancellationToken = default)
+        public async Task<LispObjectReaderResult> ReadAsync(LispExecutionState executionState, bool errorOnEof, LispObject eofValue, bool isRecursive, CancellationToken cancellationToken = default)
         {
             var handler = new EventHandler<LispCharacter>((s, c) =>
             {
@@ -131,10 +131,11 @@ namespace IxMilia.Lisp
             else
             {
                 var c = lc.Value;
-                if (GetCurrentReadTable(stackFrame).ReadMacros.TryGetValue(c, out var readerFunction))
+                if (GetCurrentReadTable(executionState.StackFrame).ReadMacros.TryGetValue(c, out var readerFunction))
                 {
                     _input.Read();
-                    result = await LispDefaultContext.FunCallAsync(_host, stackFrame, readerFunction, new LispObject[] { _input, lc }, cancellationToken);
+                    result = await executionState.FunCallAsync(_host, readerFunction, new LispObject[] { _input, lc }, cancellationToken);
+                    //result = await LispDefaultContext.FunCallAsync(_host, stackFrame, readerFunction, new LispObject[] { _input, lc }, cancellationToken);
                 }
                 else if (IsTrivia(c))
                 {
@@ -142,7 +143,7 @@ namespace IxMilia.Lisp
                 }
                 else if (IsLeftParen(c))
                 {
-                    result = await ReadListAsync(stackFrame, errorOnEof, eofValue, isRecursive, cancellationToken);
+                    result = await ReadListAsync(executionState, errorOnEof, eofValue, isRecursive, cancellationToken);
                 }
                 else
                 {
@@ -204,7 +205,7 @@ namespace IxMilia.Lisp
             return new LispObjectReaderResult(result, incompleteInput, _leftParenCount);
         }
 
-        private async Task<LispObject> ReadListAsync(LispStackFrame stackFrame, bool errorOnEof, LispObject eofValue, bool isRecursive, CancellationToken cancellationToken)
+        private async Task<LispObject> ReadListAsync(LispExecutionState executionState, bool errorOnEof, LispObject eofValue, bool isRecursive, CancellationToken cancellationToken)
         {
             var items = new List<LispObject>();
             var tailItems = new List<LispObject>();
@@ -247,7 +248,7 @@ namespace IxMilia.Lisp
                     dotLocation = currentLocation;
                 }
 
-                var nextItemResult = await ReadAsync(stackFrame, errorOnEof, eofValue, isRecursive, cancellationToken);
+                var nextItemResult = await ReadAsync(executionState, errorOnEof, eofValue, isRecursive, cancellationToken);
                 var nextItem = nextItemResult.LastResult;
                 if (nextItem is LispError)
                 {

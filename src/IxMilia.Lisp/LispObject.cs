@@ -61,17 +61,7 @@ namespace IxMilia.Lisp
                     result = new LispCodeMacro(codeMacro.NameSymbol, codeMacro.Documentation, codeMacro.ArgumentCollection, codeMacro.Body.PerformMacroReplacements(currentPackage, replacements).ToList());
                     break;
                 case LispCodeFunction codeFunction:
-                    result = new LispCodeFunction(codeFunction.NameSymbol, codeFunction.Documentation, codeFunction.ArgumentCollection, codeFunction.Commands.PerformMacroReplacements(currentPackage, replacements).ToList());
-                    break;
-
-                case LispQuotedLambdaFunctionReference lambdaFunction:
-                    result = new LispQuotedLambdaFunctionReference((LispCodeFunction)lambdaFunction.Definition.PerformMacroReplacements(currentPackage, replacements));
-                    break;
-                case LispQuotedNamedFunctionReference quotedFunction:
-                    if (!replacements.TryGetValue(quotedFunction.Name, out result))
-                    {
-                        result = this;
-                    }
+                    result = new LispCodeFunction(codeFunction.NameSymbol, codeFunction.Documentation, codeFunction.CapturedStackFrame, codeFunction.ArgumentCollection, codeFunction.Commands.PerformMacroReplacements(currentPackage, replacements).ToList());
                     break;
 
                 // these get no replacement
@@ -1884,13 +1874,15 @@ namespace IxMilia.Lisp
 
     public class LispCodeFunction : LispFunction
     {
+        public LispStackFrame CapturedStackFrame { get; }
         // TODO: make these read only collections
         public LispArgumentCollection ArgumentCollection { get; }
         public LispObject[] Commands { get; internal set; }
 
-        public LispCodeFunction(LispResolvedSymbol nameSymbol, string documentation, LispArgumentCollection argumentCollection, IEnumerable<LispObject> commands)
+        public LispCodeFunction(LispResolvedSymbol nameSymbol, string documentation, LispStackFrame capturedStackFrame, LispArgumentCollection argumentCollection, IEnumerable<LispObject> commands)
             : base(nameSymbol, documentation)
         {
+            CapturedStackFrame = capturedStackFrame;
             ArgumentCollection = argumentCollection;
             Commands = commands.ToArray();
         }
@@ -1902,7 +1894,7 @@ namespace IxMilia.Lisp
 
         protected override LispObject CloneProtected()
         {
-            return new LispCodeFunction(NameSymbol, Documentation, ArgumentCollection, Commands);
+            return new LispCodeFunction(NameSymbol, Documentation, CapturedStackFrame, ArgumentCollection, Commands);
         }
 
         public override string ToString() => $"{NameSymbol.LocalName} ({ArgumentCollection})";
@@ -1970,58 +1962,25 @@ namespace IxMilia.Lisp
         public override string ToDisplayString(LispPackage currentPackage) => $"{NameSymbol.ToDisplayString(currentPackage)} <native>";
     }
 
-    public abstract class LispFunctionReference : LispObject
+    public class LispFunctionReference : LispObject
     {
-    }
+        public LispFunction Function { get; }
 
-    public class LispQuotedNamedFunctionReference : LispFunctionReference
-    {
-        public string Name { get; }
-
-        public LispQuotedNamedFunctionReference(string name)
+        public LispFunctionReference(LispFunction function)
         {
-            Name = name;
+            Function = function;
         }
+
+        public override string ToString() => $"#'{Function.NameSymbol.Value}";
+
+        public override string ToDisplayString(LispPackage currentPackage) => $"#'{Function.ToDisplayString(currentPackage)}";
 
         public override IEnumerable<LispObject> GetChildren()
         {
             yield break;
         }
 
-        protected override LispObject CloneProtected()
-        {
-            return new LispQuotedNamedFunctionReference(Name);
-        }
-
-        public override string ToString()
-        {
-            return $"#'{Name}";
-        }
-    }
-
-    public class LispQuotedLambdaFunctionReference : LispFunctionReference
-    {
-        public LispCodeFunction Definition { get; }
-        internal LispStackFrame StackFrame { get; set; }
-
-        public LispQuotedLambdaFunctionReference(LispCodeFunction definition)
-        {
-            Definition = definition;
-        }
-
-        public override IEnumerable<LispObject> GetChildren()
-        {
-            yield return Definition;
-        }
-
-        protected override LispObject CloneProtected()
-        {
-            return new LispQuotedLambdaFunctionReference((LispCodeFunction)Definition.Clone());
-        }
-
-        public override string ToString() => Definition.ToString();
-
-        public override string ToDisplayString(LispPackage currentPackage) => Definition.ToDisplayString(currentPackage);
+        protected override LispObject CloneProtected() => new LispFunctionReference(Function);
     }
 
     public class LispSpecialOperator : LispInvocableObject

@@ -107,12 +107,11 @@ namespace IxMilia.Lisp
         [LispMacro("DEFUN", Documentation = "Defines a function.")]
         public Task<LispObject> DefineFunction(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            if (!TryGetCodeFunctionFromItems(args, host.CurrentPackage, out var codeFunction, out var error))
+            if (!TryGetCodeFunctionFromItems(args, host.CurrentPackage, executionState.StackFrame, out var codeFunction, out var error))
             {
                 return Task.FromResult<LispObject>(error);
             }
 
-            codeFunction.SourceLocation = executionState.StackFrame.SourceLocation;
             executionState.StackFrame.SetValueInParentScope(codeFunction.NameSymbol, codeFunction);
             return Task.FromResult(host.Nil);
         }
@@ -126,18 +125,15 @@ namespace IxMilia.Lisp
             lambdaItems.Add(new LispResolvedSymbol(host.CurrentPackage.Name, lambdaName, isPublic: true));
             lambdaItems.AddRange(args);
 
-            if (!TryGetCodeFunctionFromItems(lambdaItems.ToArray(), host.CurrentPackage, out var codeFunction, out var error))
+            if (!TryGetCodeFunctionFromItems(lambdaItems.ToArray(), host.CurrentPackage, executionState.StackFrame, out var codeFunction, out var error))
             {
                 return Task.FromResult<LispObject>(error);
             }
 
-            codeFunction.SourceLocation = executionState.StackFrame.SourceLocation;
-            var result = new LispQuotedLambdaFunctionReference(codeFunction);
-            result.SourceLocation = codeFunction.SourceLocation;
-            return Task.FromResult<LispObject>(result);
+            return Task.FromResult<LispObject>(codeFunction);
         }
 
-        internal static bool TryGetCodeFunctionFromItems(LispObject[] items, LispPackage currentPackage, out LispCodeFunction codeFunction, out LispError error)
+        internal static bool TryGetCodeFunctionFromItems(LispObject[] items, LispPackage currentPackage, LispStackFrame capturedStackFrame, out LispCodeFunction codeFunction, out LispError error)
         {
             codeFunction = default;
 
@@ -157,7 +153,8 @@ namespace IxMilia.Lisp
                 var documentation = ExtractDocumentationString(commands);
                 var nameSymbol = LispSymbol.CreateFromString(name).Resolve(currentPackage);
                 nameSymbol.SourceLocation = tempResolvedNameSymbol.SourceLocation;
-                codeFunction = new LispCodeFunction(nameSymbol, documentation, argumentCollection, commands);
+                codeFunction = new LispCodeFunction(nameSymbol, documentation, capturedStackFrame, argumentCollection, commands);
+                codeFunction.SourceLocation = capturedStackFrame.SourceLocation;
                 return true;
             }
 
@@ -300,7 +297,7 @@ namespace IxMilia.Lisp
             {
                 // TODO: validate shape
                 var functionDefinition = ((LispList)functionDefinitionSet).ToList();
-                if (!TryGetCodeFunctionFromItems(functionDefinition.ToArray(), host.CurrentPackage, out var codeFunction, out var error))
+                if (!TryGetCodeFunctionFromItems(functionDefinition.ToArray(), host.CurrentPackage, executionState.StackFrame, out var codeFunction, out var error))
                 {
                     return Task.FromResult<LispObject>(error);
                 }
@@ -416,73 +413,75 @@ namespace IxMilia.Lisp
             };
         }
 
-        [LispMacro("EVAL")]
-        public async Task<LispObject> Eval(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        [LispFunction("EVAL")]
+        public Task<LispObject> Eval(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
             LispObject result;
             if (args.Length == 1)
             {
-                result = await host.EvalAtStackFrameAsync(executionState.StackFrame, args[0], cancellationToken);
+                executionState.InsertOperation(new LispEvaluatorObjectExpression(args[0])); // this is the real result
+                executionState.InsertOperation(new LispEvaluatorPopArgument()); // throw away the `nil` that we're forced to return
+                result = host.Nil;
             }
             else
             {
-                result = new LispError("Expected exactly one argument");
+                result = new LispError("Expected exactly one expression");
             }
 
-            return result;
+            return Task.FromResult(result);
         }
 
         [LispFunction("APPLY", Signature = "FUNCTION-REFERENCE FUNCTION-ARGUMENTS", Documentation = "Applies a function to a list of arguments.")]
-        public async Task<LispObject> Apply(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        public Task<LispObject> Apply(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            if (args.Length == 2 &&
-                args[0] is LispFunctionReference functionRef &&
-                args[1] is LispList functionArguments)
+            //if (args.Length == 2 &&
+            //    args[0] is LispFunctionReference functionRef &&
+            //    args[1] is LispList functionArguments)
+            //{
+            //    return await FunCallAsync(host, executionState.StackFrame, functionRef, functionArguments.ToList(), cancellationToken);
+            //}
+            LispObject result;
+            if (args.Length == 2)
             {
-                return await FunCallAsync(host, executionState.StackFrame, functionRef, functionArguments.ToList(), cancellationToken);
+                executionState.PrepareForInvocation(args[0], args[1]);
+                executionState.InsertOperation(new LispEvaluatorPopArgument()); // throw away the `nil` we're forced to return
+                result = host.Nil;
             }
             else
             {
-                return new LispError("Expected function reference and list of arguments");
+                result = new LispError("Expected function reference and list of arguments");
             }
+
+            return Task.FromResult(result);
         }
 
-        internal static async Task<LispObject> FunCallAsync(LispHost host, LispStackFrame evaluatingFrame, LispFunctionReference functionReference, IEnumerable<LispObject> functionArguments, CancellationToken cancellationToken)
-        {
-            string synthesizedFunctionName = null;
-            Action preExecute = null;
-            Action postExecute = null;
-            if (functionReference is LispQuotedNamedFunctionReference namedFunction)
-            {
-                synthesizedFunctionName = namedFunction.Name;
-            }
-            else if (functionReference is LispQuotedLambdaFunctionReference lambdaFunction)
-            {
-                synthesizedFunctionName = lambdaFunction.Definition.NameSymbol.Value;
-                evaluatingFrame = lambdaFunction.StackFrame;
-                preExecute = () => evaluatingFrame.SetValue(lambdaFunction.Definition.NameSymbol, lambdaFunction.Definition);
-                postExecute = () => evaluatingFrame.DeleteValue(lambdaFunction.Definition.NameSymbol);
-            }
+        //internal static async Task<LispObject> FunCallAsync(LispHost host, LispStackFrame evaluatingFrame, LispFunctionReference functionReference, IEnumerable<LispObject> functionArguments, CancellationToken cancellationToken)
+        //{
+        //    var synthesizedFunctionName = functionReference.Function.NameSymbol.Value;
+        //    Action preExecute = null;
+        //    Action postExecute = null;
+        //    if (functionReference.Function is LispCodeFunction codeFunction)
+        //    {
+        //        //evaluatingFrame = new LispStackFrame(functionReference.Function, evaluatingFrame, capturedFrame: codeFunction.CapturedStackFrame);
+        //        //evaluatingFrame = codeFunction.CapturedStackFrame;
+        //        preExecute = () => evaluatingFrame.SetValue(functionReference.Function.NameSymbol, functionReference.Function);
+        //        postExecute = () => evaluatingFrame.DeleteValue(functionReference.Function.NameSymbol);
+        //    }
 
-            if (synthesizedFunctionName != null)
-            {
-                var synthesizedSymbol = LispSymbol.CreateFromString(synthesizedFunctionName);
-                synthesizedSymbol.SourceLocation = functionReference.SourceLocation;
-                var synthesizedFunctionItems = new List<LispObject>();
-                synthesizedFunctionItems.Add(synthesizedSymbol);
-                synthesizedFunctionItems.AddRange(functionArguments);
-                var synthesizedFunctionCall = LispList.FromEnumerable(synthesizedFunctionItems);
-                synthesizedFunctionCall.SourceLocation = functionReference.SourceLocation;
+        //    var synthesizedSymbol = LispSymbol.CreateFromString(synthesizedFunctionName);
+        //    synthesizedSymbol.SourceLocation = functionReference.SourceLocation;
+        //    var synthesizedFunctionItems = new List<LispObject>();
+        //    synthesizedFunctionItems.Add(synthesizedSymbol);
+        //    synthesizedFunctionItems.AddRange(functionArguments);
+        //    var synthesizedFunctionCall = LispList.FromEnumerable(synthesizedFunctionItems);
+        //    synthesizedFunctionCall.SourceLocation = functionReference.SourceLocation;
 
-                preExecute?.Invoke();
-                var result = await host.EvalAtStackFrameAsync(evaluatingFrame, synthesizedFunctionCall, cancellationToken);
-                postExecute?.Invoke();
+        //    preExecute?.Invoke();
+        //    var result = await host.EvalAtStackFrameAsync(evaluatingFrame, synthesizedFunctionCall, cancellationToken);
+        //    postExecute?.Invoke();
 
-                return result;
-            }
-
-            return new LispError("Expected function reference");
-        }
+        //    return result;
+        //}
 
         [LispMacro("FUNCALL")]
         public async Task<LispObject> FunCallAsync(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
@@ -493,7 +492,7 @@ namespace IxMilia.Lisp
                 var candidateFunctionReference = await host.EvalAtStackFrameAsync(executionState.StackFrame, args[0], cancellationToken);
                 if (candidateFunctionReference is LispFunctionReference functionReference)
                 {
-                    result = await FunCallAsync(host, executionState.StackFrame, functionReference, args.Skip(1), cancellationToken);
+                    result = await executionState.FunCallAsync(host, functionReference, args.Skip(1), cancellationToken);
                 }
             }
 
@@ -862,7 +861,7 @@ namespace IxMilia.Lisp
             }
 
             var objectReader = new LispObjectReader(host, inputTextStream);
-            var readerResult = await objectReader.ReadAsync(executionState.StackFrame, errorOnEof, eofValue, isRecursive, cancellationToken);
+            var readerResult = await objectReader.ReadAsync(executionState, errorOnEof, eofValue, isRecursive, cancellationToken);
             var result = readerResult.LastResult;
             return result;
         }
@@ -1204,24 +1203,21 @@ namespace IxMilia.Lisp
                 : host.Nil);
         }
 
-        [LispMacro("FUNCTION")]
-        public async Task<LispObject> Function(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        [LispFunction("FUNCTION")]
+        public Task<LispObject> Function(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            // TODO: validate argument count
-            if (args[0] is LispSymbol symbol)
+            LispObject result;
+            if (args.Length == 1 &&
+                args[0] is LispFunction function)
             {
-                var resolvedSymbol = symbol.Resolve(host.CurrentPackage);
-                return new LispQuotedNamedFunctionReference(resolvedSymbol.Value);
-            }
-            else if (args[0] is LispList list)
-            {
-                var potentialLambda = await host.EvalAtStackFrameAsync(executionState.StackFrame, list, cancellationToken);
-                return potentialLambda;
+                result = new LispFunctionReference(function);
             }
             else
             {
-                return new LispError("Expected a function symbol");
+                result = new LispError("Expected a function");
             }
+
+            return Task.FromResult(result);
         }
 
         [LispFunction("CONS")]
@@ -1551,7 +1547,7 @@ namespace IxMilia.Lisp
                     {
                         LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), item)
                     };
-                    var result = await FunCallAsync(host, executionState.StackFrame, functionReference, functionArguments, cancellationToken);
+                    var result = await executionState.FunCallAsync(host, functionReference, functionArguments, cancellationToken);
                     if (result is LispError)
                     {
                         return result;
@@ -1588,7 +1584,7 @@ namespace IxMilia.Lisp
                 var removed = 0;
                 foreach (var item in items)
                 {
-                    var result = await FunCallAsync(host, executionState.StackFrame, functionReference, new LispObject[] { item }, cancellationToken);
+                    var result = await executionState.FunCallAsync(host, functionReference, new LispObject[] { item }, cancellationToken);
                     if (result is LispError)
                     {
                         return result;
@@ -1631,7 +1627,7 @@ namespace IxMilia.Lisp
                 var removed = 0;
                 foreach (var item in items)
                 {
-                    var result = await FunCallAsync(host, executionState.StackFrame, functionReference, new LispObject[] { item }, cancellationToken);
+                    var result = await executionState.FunCallAsync(host, functionReference, new LispObject[] { item }, cancellationToken);
                     if (result is LispError)
                     {
                         return result;
@@ -1679,7 +1675,7 @@ namespace IxMilia.Lisp
                     var arg2 = items[fromEnd ? 0 : 1];
                     items.RemoveAt(0);
                     items.RemoveAt(0);
-                    var result = await FunCallAsync(host, executionState.StackFrame, functionReference, new LispObject[] { LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), arg1), LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), arg2) }, cancellationToken);
+                    var result = await executionState.FunCallAsync(host, functionReference, new LispObject[] { LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), arg1), LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), arg2) }, cancellationToken);
                     if (result is LispError)
                     {
                         return result;
@@ -1740,7 +1736,7 @@ namespace IxMilia.Lisp
                         };
                         break;
                     case LispFunctionReference functionRef:
-                        evaluator = (functionArguments) => FunCallAsync(host, executionState.StackFrame, functionRef, functionArguments, cancellationToken);
+                        evaluator = (functionArguments) => executionState.FunCallAsync(host, functionRef, functionArguments, cancellationToken);
                         break;
                     default:
                         return new LispError($"Unsupported `mapcar` execution target: {args[0].GetType().Name}");

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace IxMilia.Lisp
 {
@@ -73,6 +74,23 @@ namespace IxMilia.Lisp
         }
     }
 
+    internal class LispEvaluatorReturnIntermediate : ILispEvaluatorOperation
+    {
+        public override string ToString() => "reti";
+    }
+
+    internal class LispEvaluatorPreInvoke : ILispEvaluatorOperation
+    {
+        public LispObject[] Arguments { get; }
+
+        public LispEvaluatorPreInvoke(LispObject[] arguments)
+        {
+            Arguments = arguments;
+        }
+
+        public override string ToString() => $"pi/{Arguments.Length}: {string.Join(", ", Arguments.Select(a => a.ToString()))}";
+    }
+
     internal class LispEvaluatorPushToArgumentStack : ILispEvaluatorOperation
     {
         public LispObject Expression { get; }
@@ -118,6 +136,20 @@ namespace IxMilia.Lisp
         {
             return "set";
         }
+    }
+
+    internal class LispEvaluatorIfPredicate : ILispEvaluatorOperation
+    {
+        public LispObject TExpression { get; }
+        public LispObject NilExpression { get; }
+
+        public LispEvaluatorIfPredicate(LispObject tExpression, LispObject nilExpression)
+        {
+            TExpression = tExpression;
+            NilExpression = nilExpression;
+        }
+
+        public override string ToString() => $"if: [{TExpression}] [{NilExpression}]";
     }
 
     internal class LispEvaluatorDribbleEnter : ILispEvaluatorOperation

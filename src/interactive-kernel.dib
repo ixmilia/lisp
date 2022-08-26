@@ -1,3 +1,7 @@
+#!pwsh
+
+dotnet build ./IxMilia.Lisp.Interactive/IxMilia.Lisp.Interactive.csproj
+
 #!csharp
 
 #r "../artifacts/bin/IxMilia.Lisp.Interactive/Debug/netstandard2.1/IxMilia.Lisp.Interactive.dll"
@@ -8,6 +12,14 @@ using IxMilia.Lisp.Interactive;
 using Microsoft.DotNet.Interactive;
 
 ((CompositeKernel)Kernel.Root.RootKernel).Add(new LispKernel());
+
+#!csharp
+
+#!lisp
+(setf x 2)
+(cond2 ((= x 1) "uno")
+       ((= x 2) "dos")
+       (t       "other"))
 
 #!csharp
 

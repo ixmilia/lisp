@@ -1,3 +1,29 @@
+;;; get the really necessary stuff out of the way first
+
+(defun caar (x) (car (car x)))
+(defun cadar (x) (car (cdr (car x))))
+
+;; (defun cond-handler (pairs)
+;;     (if (equal () (car pairs))
+;;         ()
+;;         (if (eval (caar pairs))
+;;             (eval (cadar pairs))
+;;             (cond-handler (cdr pairs)))))
+
+;; (defmacro cond (&rest pairs)
+;;     (cond-handler (quote pairs)))
+
+(defmacro cond2 (&rest pairs)
+    (if (equal () (car (quote pairs)))
+        ()
+        (if (eval (caar (quote pairs)))
+            (eval (cadar (quote pairs)))
+            (apply cond2 (cdr (quote pairs))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;                                                           begin reader macros
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;;; we can't yet read raw characters, so we have to use `(code-char ...)` and `(function ...)`
 
 (setf *double-quote-character*      (code-char 34)) ; "
@@ -96,11 +122,11 @@
 
 ;;; from here on forward we can do things like ``(1 ,(+ 2 3))`, etc.
 
-(defun null (x) (equal () x))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;                                                             end reader macros
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro if (pred tv fv)
-    (cond (pred tv)
-          (t fv)))
+(defun null (x) (equal () x))
 
 (defun not (pred)
     "negates the predicate"

@@ -1,4 +1,6 @@
-﻿using System.Threading;
+﻿using System;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace IxMilia.Lisp
@@ -57,6 +59,36 @@ namespace IxMilia.Lisp
                 }
             }
 
+            return Task.CompletedTask;
+        }
+
+        //[LispSpecialOperator("EVAL")]
+        //public Task Eval(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        //{
+        //    if (args.Length != 1)
+        //    {
+        //        executionState.ReportError(new LispError("Expected expression"), null);
+        //        return Task.CompletedTask;
+        //    }
+
+        //    executionState.InsertOperation(new LispEvaluatorObjectExpression(args[0]));
+        //    return Task.CompletedTask;
+        //}
+
+        [LispSpecialOperator("IF")]
+        public Task If(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        {
+            if (args.Length != 3)
+            {
+                executionState.ReportError(new LispError("Expected predicate, t-value, nil-value"), null);
+                return Task.CompletedTask;
+            }
+
+            var predicate = args[0];
+            var tExpression = args[1];
+            var nilExpression = args[2];
+            executionState.InsertOperation(new LispEvaluatorIfPredicate(tExpression, nilExpression));
+            executionState.InsertOperation(new LispEvaluatorObjectExpression(predicate));
             return Task.CompletedTask;
         }
     }

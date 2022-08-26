@@ -603,5 +603,122 @@ namespace IxMilia.Lisp.Test
             Assert.True(enteredSetValue);
             Assert.Equal("(1 2 3)", host.GetValue("X").ToString());
         }
+
+        [Fact]
+        public async Task EvaluationCanBeHaltedInsideCondPredicate()
+        {
+            var enteredPredicate = false;
+            var host = await LispHost.CreateAsync();
+            host.RootFrame.EvaluatingExpression += (s, e) =>
+            {
+                if (e.Expression.ToString() == "(+ 1 2)")
+                {
+                    enteredPredicate = true;
+                    e.HaltExecution = true;
+                }
+            };
+            var evalResult = await host.EvalAsync(@"
+(cond ((= (+ 1 2) 3)    1)
+      (t                2))
+(setf x 123) ; make sure we don't get here");
+            EnsureNotError(evalResult.LastResult);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.True(enteredPredicate);
+            Assert.Null(host.GetValue("X"));
+        }
+
+        [Fact]
+        public async Task EvaluationCanBeHaltedInsideCondResult()
+        {
+            var enteredResult = false;
+            var host = await LispHost.CreateAsync();
+            host.RootFrame.EvaluatingExpression += (s, e) =>
+            {
+                if (e.Expression.ToString() == "(+ 1 2)")
+                {
+                    enteredResult = true;
+                    e.HaltExecution = true;
+                }
+            };
+            var evalResult = await host.EvalAsync(@"
+(cond (t    (+ 1 2)))
+(setf x 123) ; make sure we don't get here");
+            EnsureNotError(evalResult.LastResult);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.True(enteredResult);
+            Assert.Null(host.GetValue("X"));
+        }
+
+        [Fact]
+        public async Task EvaluationCanBeHaltedInsideIfPredicate()
+        {
+            var enteredPredicate = false;
+            var host = await LispHost.CreateAsync();
+            host.RootFrame.EvaluatingExpression += (s, e) =>
+            {
+                if (e.Expression.ToString() == "(+ 1 2)")
+                {
+                    enteredPredicate = true;
+                    e.HaltExecution = true;
+                }
+            };
+            var evalResult = await host.EvalAsync(@"
+(if (= (+ 1 2) 3)
+    1
+    2)
+(setf x 123) ; make sure we don't get here");
+            EnsureNotError(evalResult.LastResult);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.True(enteredPredicate);
+            Assert.Null(host.GetValue("X"));
+        }
+
+        [Fact]
+        public async Task EvaluationCanBeHaltedInsideIfTrueBranch()
+        {
+            var enteredResult = false;
+            var host = await LispHost.CreateAsync();
+            host.RootFrame.EvaluatingExpression += (s, e) =>
+            {
+                if (e.Expression.ToString() == "(+ 1 2)")
+                {
+                    enteredResult = true;
+                    e.HaltExecution = true;
+                }
+            };
+            var evalResult = await host.EvalAsync(@"
+(if t
+    (+ 1 2)
+    2)
+(setf x 123) ; make sure we don't get here");
+            EnsureNotError(evalResult.LastResult);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.True(enteredResult);
+            Assert.Null(host.GetValue("X"));
+        }
+
+        [Fact]
+        public async Task EvaluationCanBeHaltedInsideIfFalseBranch()
+        {
+            var enteredResult = false;
+            var host = await LispHost.CreateAsync();
+            host.RootFrame.EvaluatingExpression += (s, e) =>
+            {
+                if (e.Expression.ToString() == "(+ 1 2)")
+                {
+                    enteredResult = true;
+                    e.HaltExecution = true;
+                }
+            };
+            var evalResult = await host.EvalAsync(@"
+(if nil
+    1
+    (+ 1 2))
+(setf x 123) ; make sure we don't get here");
+            EnsureNotError(evalResult.LastResult);
+            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.True(enteredResult);
+            Assert.Null(host.GetValue("X"));
+        }
     }
 }

@@ -13,6 +13,7 @@ namespace IxMilia.Lisp
 
         public LispInvocableObject Function { get; }
         public LispResolvedSymbol FunctionSymbol { get; }
+        public LispStackFrame CapturedFrame { get; }
         public LispStackFrame Parent { get; }
         public LispSourceLocation? SourceLocation { get; private set; }
 
@@ -21,15 +22,16 @@ namespace IxMilia.Lisp
 
         private Dictionary<string, (LispResolvedSymbol Symbol, LispObject Value)> _values = new Dictionary<string, (LispResolvedSymbol, LispObject)>();
 
-        protected LispStackFrame(LispResolvedSymbol functionSymbol, LispStackFrame parent)
+        protected LispStackFrame(LispResolvedSymbol functionSymbol, LispStackFrame parent, LispStackFrame capturedFrame = null)
         {
             FunctionSymbol = functionSymbol;
             Parent = parent;
             Depth = (Parent?.Depth ?? LispRootStackFrame.RootStackDepth) + 1;
+            CapturedFrame = capturedFrame;
         }
 
-        internal LispStackFrame(LispInvocableObject function, LispStackFrame parent)
-            : this(function.NameSymbol, parent)
+        internal LispStackFrame(LispInvocableObject function, LispStackFrame parent, LispStackFrame capturedFrame = null)
+            : this(function.NameSymbol, parent, capturedFrame)
         {
             Function = function;
             SourceLocation = function.SourceLocation;
@@ -59,12 +61,25 @@ namespace IxMilia.Lisp
 
         public virtual void SetValue(LispResolvedSymbol symbol, LispObject value)
         {
+            if (CapturedFrame?._values.TryGetValue(symbol.Value, out var pair) == true)
+            {
+                // captured frame had a value, set it there
+                CapturedFrame.SetValue(symbol, value);
+                return;
+            }
+
             _values[symbol.Value] = (symbol, value);
             Root.OnValueSet(symbol, value, this);
         }
 
         public virtual LispObject GetValue(LispResolvedSymbol symbol)
         {
+            var result = CapturedFrame?.GetValue(symbol);
+            if (result is { })
+            {
+                return result;
+            }
+
             if (_values.TryGetValue(symbol.Value, out var value))
             {
                 return value.Value;

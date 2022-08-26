@@ -231,9 +231,10 @@ namespace IxMilia.Lisp
             var textStream = new LispTextStream("", textReader, TextWriter.Null);
             var objectReader = new LispObjectReader(this, textStream, allowIncompleteObjects: true);
             var result = new List<LispObject>();
+            var executionState = LispExecutionState.CreateExecutionState(RootFrame, InitialFilePath, "", useTailCalls: false, allowHalting: false);
             while (true)
             {
-                var readResult = await objectReader.ReadAsync(RootFrame, false, eofValue, true, cancellationToken);
+                var readResult = await objectReader.ReadAsync(executionState, false, eofValue, true, cancellationToken);
                 if (ReferenceEquals(readResult.LastResult, eofValue))
                 {
                     break;
@@ -281,7 +282,7 @@ namespace IxMilia.Lisp
             }
             
             var objectReader = new LispObjectReader(this, executionState.CodeInputStream);
-            var readerResult = await ReadWithoutDribbleStreamAsync(objectReader, executionState.StackFrame, cancellationToken);
+            var readerResult = await ReadWithoutDribbleStreamAsync(objectReader, executionState, cancellationToken);
             while (!ReferenceEquals(readerResult.LastResult, _eofMarker))
             {
                 evalResult.ExpressionDepth = readerResult.ExpressionDepth;
@@ -301,7 +302,7 @@ namespace IxMilia.Lisp
                     break;
                 }
 
-                readerResult = await ReadWithoutDribbleStreamAsync(objectReader, executionState.StackFrame, cancellationToken);
+                readerResult = await ReadWithoutDribbleStreamAsync(objectReader, executionState, cancellationToken);
             }
 
             return evalResult;
@@ -314,11 +315,11 @@ namespace IxMilia.Lisp
             return evaluationState;
         }
 
-        private async Task<LispObjectReaderResult> ReadWithoutDribbleStreamAsync(LispObjectReader objectReader, LispStackFrame stackFrame, CancellationToken cancellationToken)
+        private async Task<LispObjectReaderResult> ReadWithoutDribbleStreamAsync(LispObjectReader objectReader, LispExecutionState executionState, CancellationToken cancellationToken)
         {
             var dribbleStream = RootFrame.DribbleStream;
             RootFrame.DribbleStream = null;
-            var obj = await objectReader.ReadAsync(stackFrame, false, _eofMarker, false, cancellationToken);
+            var obj = await objectReader.ReadAsync(executionState, false, _eofMarker, false, cancellationToken);
             RootFrame.DribbleStream = dribbleStream;
             return obj;
         }

@@ -79,9 +79,10 @@ namespace IxMilia.Lisp
             var textReader = new StringReader(code);
             var textStream = new LispTextStream("", textReader, TextWriter.Null);
             var objectReader = new LispObjectReader(Host, textStream, allowIncompleteObjects: true);
+            var executionState = LispExecutionState.CreateExecutionState(Host.RootFrame, Host.InitialFilePath, "", useTailCalls: false, allowHalting: false);
             while (true)
             {
-                var result = await objectReader.ReadAsync(Host.RootFrame, false, eofValue, true, cancellationToken);
+                var result = await objectReader.ReadAsync(executionState, false, eofValue, true, cancellationToken);
                 if (ReferenceEquals(result.LastResult, eofValue))
                 {
                     break;

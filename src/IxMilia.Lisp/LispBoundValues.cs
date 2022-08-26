@@ -45,7 +45,7 @@ namespace IxMilia.Lisp
                     {
                         case "COMMON-LISP:DEFUN":
                             {
-                                if (LispDefaultContext.TryGetCodeFunctionFromItems(listItems.Skip(1).ToArray(), currentPackage, out var codeFunction, out var _error) &&
+                                if (LispDefaultContext.TryGetCodeFunctionFromItems(listItems.Skip(1).ToArray(), currentPackage, null, out var codeFunction, out var _error) &&
                                     codeFunction != null)
                                 {
                                     SetBoundValue(codeFunction.NameSymbol, codeFunction);
