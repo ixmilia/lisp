@@ -15,20 +15,6 @@ namespace IxMilia.Lisp
             while (executionState.TryDequeueOperation(out var operation))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (executionState.LastResult is LispError error)
-                {
-                    // re-queue, because we can never finish
-                    executionState.InsertOperation(operation);
-                    error.StackFrame ??= executionState.StackFrame;
-                    if (!ReferenceEquals(executionState.LastReportedError, error))
-                    {
-                        // only report this if it's the first time we've seen it
-                        executionState.LastReportedError = error;
-                        executionState.StackFrame.Root.OnErrorOccured(error, executionState.StackFrame);
-                    }
-
-                    return LispEvaluationState.FatalHalt;
-                }
 
                 // value setting can only occur when evaluating a native macro or native function; if any of the set operations wants to halt, we do that below
                 var haltDueToValueSet = false;
@@ -39,6 +25,40 @@ namespace IxMilia.Lisp
                 executionState.StackFrame.Root.ValueSet += valueSet;
                 switch (operation)
                 {
+                    case LispEvaluatorThrowCondition thrw:
+                        {
+                            // find the appropriate `handler-case` operation
+                            if (executionState.TryRewindAndFindErrorHandler(thrw.Condition, out var handlerSet))
+                            {
+                                executionState.TryPopArgument(out var _);
+                                if (handlerSet.argument is not null)
+                                {
+                                    executionState.StackFrame.SetValue(handlerSet.argument, thrw.Condition);
+                                }
+
+                                executionState.InsertOperation(new LispEvaluatorObjectExpression(handlerSet.form));
+                            }
+                            else
+                            {
+                                if (thrw.Condition is LispError error)
+                                {
+                                    // clean up the error
+                                    error.StackFrame ??= executionState.StackFrame;
+                                    if (!ReferenceEquals(executionState.LastReportedError, error))
+                                    {
+                                        // only report this if it's the first time we've seen it
+                                        executionState.LastReportedError = error;
+                                        executionState.StackFrame.Root.OnErrorOccured(error, executionState.StackFrame);
+                                    }
+                                }
+
+                                return LispEvaluationState.FatalHalt;
+                            }
+                        }
+                        break;
+                    case LispEvaluatorHandlerCaseGuard _:
+                        // unused `handler-case`, just throw it away
+                        break;
                     case LispEvaluatorPopForTailCall tailPop:
                         {
                             // the shape of the operation stack at the time of a tail call should be either:
@@ -307,7 +327,7 @@ namespace IxMilia.Lisp
                     case LispEvaluatorPopArgument _:
                         if (!executionState.TryPopArgument(out var _))
                         {
-                            executionState.ReportError(new LispError($"Expected argument to pop off the stack but found nothing"), null);
+                            executionState.ReportError(new LispError($"Expected argument to pop off the stack but found nothing"));
                             return LispEvaluationState.FatalHalt;
                         }
                         break;

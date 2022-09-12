@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace IxMilia.Lisp
 {
@@ -22,6 +23,30 @@ namespace IxMilia.Lisp
         {
             return $"i: {InvocationObject.NameSymbol.LocalName}/{ArgumentCount}";
         }
+    }
+
+    internal class LispEvaluatorThrowCondition : ILispEvaluatorOperation
+    {
+        public LispObject Condition { get; }
+
+        public LispEvaluatorThrowCondition(LispObject condition)
+        {
+            Condition = condition;
+        }
+
+        public override string ToString() => $"throw: {Condition}";
+    }
+
+    internal class LispEvaluatorHandlerCaseGuard : ILispEvaluatorOperation
+    {
+        public (LispResolvedSymbol typeSpec, LispResolvedSymbol argument, LispObject form)[] Handlers { get; }
+
+        public LispEvaluatorHandlerCaseGuard((LispResolvedSymbol typeSpec, LispResolvedSymbol argument, LispObject form)[] handlers)
+        {
+            Handlers = handlers;
+        }
+
+        public override string ToString() => $"hc: {string.Join(" | ", Handlers.Select(h => h.typeSpec.ToString()))}";
     }
 
     internal class LispEvaluatorFunctionExit : ILispEvaluatorOperation

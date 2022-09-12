@@ -66,7 +66,8 @@ namespace IxMilia.Lisp
                     return Task.FromResult(__host.Nil);
                 }
 
-                return Task.FromResult<LispObject>(new LispError("Expected character and function reference"));
+                executionState.ReportError(new LispError("Expected character and function reference"), insertPop: true);
+                return Task.FromResult(__host.Nil);
             });
             _host.AddFunction("KERNEL:PROCESS-LIST-FORWARD-REFERENCE", async (__host, executionState, args, cancellationToken) =>
             {
@@ -75,7 +76,8 @@ namespace IxMilia.Lisp
                 var symbolReference = string.Concat("#", forwardReferenceId, "#");
                 if (trailingCharacter == null)
                 {
-                    return new LispError("Expected character");
+                    executionState.ReportError(new LispError("Expected character"), insertPop: true);
+                    return __host.Nil;
                 }
 
                 switch (trailingCharacter.Value)
@@ -90,12 +92,15 @@ namespace IxMilia.Lisp
                             case LispList innerList:
                                 return new LispForwardListReference(new LispResolvedSymbol(_host.CurrentPackage.Name, symbolReference, isPublic: true), innerList);
                             case LispError error:
-                                return error;
+                                executionState.ReportError(error, insertPop: true);
+                                return _host.Nil;
                             default:
-                                return new LispError("Expected list");
+                                executionState.ReportError(new LispError("Expected list"), insertPop: true);
+                                return _host.Nil;
                         }
                     default:
-                        return new LispError($"Unexpected character '{trailingCharacter}'");
+                        executionState.ReportError(new LispError($"Unexpected character '{trailingCharacter}'"), insertPop: true);
+                        return __host.Nil;
                 }
             });
         }

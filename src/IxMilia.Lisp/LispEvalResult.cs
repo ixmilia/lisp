@@ -7,7 +7,7 @@
         public LispError ReadError { get; internal set; }
         public string IncompleteInput { get; internal set; }
 
-        public LispObject LastResult => ExecutionState?.LastResult;
+        public LispObject LastResult => ExecutionState?.LastReportedError ?? ExecutionState?.LastResult;
 
         internal LispEvalResult(LispExecutionState executionState)
         {

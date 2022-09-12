@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -302,10 +303,6 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("test error", ((LispError)evalResult.LastResult).Message);
             Assert.Equal("test error", capturedError.Message);
             Assert.True(ReferenceEquals(capturedError, evalResult.LastResult));
-
-            // all future processing stops
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
         }
 
         [Fact]
@@ -327,10 +324,6 @@ namespace IxMilia.Lisp.Test
             Assert.Equal("Undefined macro/function 'NOT-A-METHOD', found '<null>'", ((LispError)evalResult.LastResult).Message);
             Assert.Equal("Undefined macro/function 'NOT-A-METHOD', found '<null>'", capturedError.Message);
             Assert.True(ReferenceEquals(capturedError, evalResult.LastResult));
-
-            // all future processing stops
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
         }
 
         [Fact]
@@ -359,9 +352,7 @@ namespace IxMilia.Lisp.Test
 
             // continue to the end (i.e., let the error bubble up, but don't halt again)
             await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.IsType<LispError>(evalResult.LastResult);
-            Assert.True(ReferenceEquals(capturedError, evalResult.LastResult));
+            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
         }
 
         [Theory]
@@ -602,6 +593,50 @@ namespace IxMilia.Lisp.Test
             Assert.False(evalResult.ExecutionState.IsExecutionComplete);
             Assert.True(enteredSetValue);
             Assert.Equal("(1 2 3)", host.GetValue("X").ToString());
+        }
+
+        [Fact]
+        public async Task HandlerCaseCanInterceptAnError()
+        {
+            LispError capturedError = null;
+            var host = await LispHost.CreateAsync();
+            host.AddFunction("MY-FUNCTION", (_host, executionState, args, cancellationToken) =>
+            {
+                capturedError = (LispError)args.Single();
+                return Task.FromResult(host.Nil);
+            });
+            var evalResult = await host.EvalAsync(@"
+(handler-case (error ""some error"")
+    (error (e) (progn (my-function e)
+                      2)))
+");
+            EnsureNotError(evalResult.LastResult);
+            Assert.Equal(2, ((LispInteger)evalResult.LastResult).Value);
+            Assert.NotNull(capturedError);
+            Assert.Equal("some error", capturedError.Message);
+        }
+
+        [Fact]
+        public async Task HandlerCaseCanInterceptAnErrorAfterSkippingALevel()
+        {
+            LispError capturedError = null;
+            var host = await LispHost.CreateAsync();
+            host.AddFunction("MY-FUNCTION", (_host, executionState, args, cancellationToken) =>
+            {
+                capturedError = (LispError)args.Single();
+                return Task.FromResult(host.Nil);
+            });
+            var evalResult = await host.EvalAsync(@"
+(handler-case
+    (handler-case (error ""some error"")
+        (not-handled-here () ()))
+    (error (e) (progn (my-function e)
+                      2)))
+");
+            EnsureNotError(evalResult.LastResult);
+            Assert.Equal(2, ((LispInteger)evalResult.LastResult).Value);
+            Assert.NotNull(capturedError);
+            Assert.Equal("some error", capturedError.Message);
         }
     }
 }

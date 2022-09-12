@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -77,7 +78,7 @@ namespace IxMilia.Lisp
             return false;
         }
 
-        internal void ReportError(LispError error, LispObject parent)
+        internal void ReportError(LispError error, LispObject parent = null, bool insertPop = false)
         {
             if (!error.SourceLocation.HasValue)
             {
@@ -89,7 +90,12 @@ namespace IxMilia.Lisp
                 error.StackFrame = StackFrame;
             }
 
-            PushArgument(error);
+            if (insertPop)
+            {
+                InsertOperation(new LispEvaluatorPopArgument());
+            }
+
+            InsertOperation(new LispEvaluatorThrowCondition(error));
         }
 
         internal void PushArgument(LispObject argument)
@@ -104,6 +110,39 @@ namespace IxMilia.Lisp
             {
                 arg = _argumentStack.Pop();
                 return true;
+            }
+
+            return false;
+        }
+
+        internal bool TryRewindAndFindErrorHandler(LispObject errorObject, out (LispResolvedSymbol typeSpec, LispResolvedSymbol argument, LispObject form) handlerSet)
+        {
+            if (errorObject is not LispError)
+            {
+                throw new NotSupportedException("Only actual error objects are currently supported");
+            }
+
+            handlerSet = default;
+            while (TryDequeueOperation(out var candidateHandler))
+            {
+                switch (candidateHandler)
+                {
+                    case LispEvaluatorPopArgument _:
+                        TryPopArgument(out var a);
+                        break;
+                    case LispEvaluatorHandlerCaseGuard handlerCaseGuard:
+                        foreach (var candidateHandlerSet in handlerCaseGuard.Handlers)
+                        {
+                            switch (candidateHandlerSet.typeSpec.Value)
+                            {
+                                case "COMMON-LISP:ERROR":
+                                    // TODO: this is the only thing supported at the moment
+                                    handlerSet = candidateHandlerSet;
+                                    return true;
+                            }
+                        }
+                        break;
+                }
             }
 
             return false;

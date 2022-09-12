@@ -12,24 +12,34 @@ namespace IxMilia.Lisp
         [LispFunction("ERROR", Documentation = "Raise an error.")]
         public async Task<LispObject> Error(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
+            LispError reportingError;
             if (args.Length >= 1)
             {
                 var formatArgs = new List<LispObject>();
                 formatArgs.Add(host.Nil); // force raw string generation
                 formatArgs.AddRange(args);
                 var candidateErrorString = await Format(host, executionState, formatArgs.ToArray(), cancellationToken);
+
                 switch (candidateErrorString)
                 {
                     case LispString errorString:
-                        return new LispError(errorString.Value);
+                        reportingError = new LispError(errorString.Value);
+                        break;
                     case LispError error:
-                        return error;
+                        reportingError = error;
+                        break;
                     default:
-                        return new LispError($"Unable to format error string, got: {candidateErrorString}");
+                        reportingError = new LispError($"Unable to format error string, got: {candidateErrorString}");
+                        break;
                 }
             }
+            else
+            {
+                reportingError = new LispError("Expected format string");
+            }
 
-            return new LispError("Expected format string");
+            executionState.ReportError(reportingError, insertPop: true);
+            return host.Nil;
         }
 
         [LispFunction("BREAK")]
@@ -59,7 +69,63 @@ namespace IxMilia.Lisp
                 return host.Nil;
             }
 
-            return new LispError("Expected format string");
+            executionState.ReportError(new LispError("Expected format string"), insertPop: true);
+            return host.Nil;
+        }
+
+        [LispMacro("HANDLER-CASE")]
+        public Task<LispObject> HandlerCase(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        {
+            if (args.Length >= 1)
+            {
+                var encounteredError = false;
+                var form = args[0];
+                var handlers = new List<(LispResolvedSymbol typeSpec, LispResolvedSymbol argument, LispObject form)>();
+                foreach (var candidateHandler in args.Skip(1))
+                {
+                    if (candidateHandler is LispList handlerList)
+                    {
+                        var handlerListValues = handlerList.ToList();
+                        if (handlerListValues.Count == 3 &&
+                            handlerListValues[0] is LispSymbol handlerSymbol &&
+                            handlerListValues[1] is LispList handlerArgumentList &&
+                            (handlerArgumentList.Length == 0 || handlerArgumentList.Length == 1))
+                        {
+                            LispResolvedSymbol handlerArgument = null;
+                            if (handlerArgumentList.Length > 0)
+                            {
+                                handlerArgument = ((LispSymbol)handlerArgumentList.Value).Resolve(host.CurrentPackage);
+                            }
+                            var resolvedHandlerSymbol = handlerSymbol.Resolve(host.CurrentPackage);
+                            handlers.Add((resolvedHandlerSymbol, handlerArgument, handlerListValues[2]));
+                        }
+                        else
+                        {
+                            executionState.ReportError(new LispError("Expected handler form with typespec, arguments, and result form"), insertPop: true);
+                            encounteredError = true;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        executionState.ReportError(new LispError("Expected handler form"), insertPop: true);
+                        encounteredError = true;
+                        break;
+                    }
+                }
+
+                if (!encounteredError)
+                {
+                    executionState.InsertOperation(new LispEvaluatorHandlerCaseGuard(handlers.ToArray()));
+                    executionState.InsertOperation(new LispEvaluatorObjectExpression(form));
+                }
+            }
+            else
+            {
+                executionState.ReportError(new LispError("Expected a form and optional handlers"), insertPop: true);
+            }
+
+            return Task.FromResult(host.Nil);
         }
 
         [LispMacro("DEFMACRO", Documentation = "Defines a macro.")]
@@ -348,35 +414,39 @@ namespace IxMilia.Lisp
                                                 var inheritedPackageName = PackageNameFromValue(candidatePackageName);
                                                 if (inheritedPackageName == null)
                                                 {
-                                                    return Task.FromResult<LispObject>(new LispError("Expected either a string or a keyword symbol")
+                                                    executionState.ReportError(new LispError("Expected either a string or a keyword symbol")
                                                     {
                                                         SourceLocation = candidatePackageName.SourceLocation
-                                                    });
+                                                    }, insertPop: true);
+                                                    return Task.FromResult(host.Nil);
                                                 }
 
                                                 inheritedPackageNames.Add(inheritedPackageName);
                                             }
                                             break;
                                         default:
-                                            return Task.FromResult<LispObject>(new LispError($"Unexpected keyword directive {s.LocalName}")
+                                            executionState.ReportError(new LispError($"Unexpected keyword directive {s.LocalName}")
                                             {
                                                 SourceLocation = s.SourceLocation
-                                            });
+                                            }, insertPop: true);
+                                            return Task.FromResult(host.Nil);
                                     }
                                     break;
                                 default:
-                                    return Task.FromResult<LispObject>(new LispError("Expected a keyword")
+                                    executionState.ReportError(new LispError("Expected a keyword")
                                     {
                                         SourceLocation = list.Value.SourceLocation
-                                    });
+                                    }, insertPop: true);
+                                    return Task.FromResult(host.Nil);
                             }
                         }
                         else
                         {
-                            return Task.FromResult<LispObject>(new LispError("Expected a keyword directive list")
+                            executionState.ReportError(new LispError("Expected a keyword directive list")
                             {
                                 SourceLocation = arg.SourceLocation
-                            });
+                            }, insertPop: true);
+                            return Task.FromResult(host.Nil);
                         }
                     }
 
@@ -386,7 +456,8 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected either a string or a keyword symbol"));
+            executionState.ReportError(new LispError("Expected either a string or a keyword symbol"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("IN-PACKAGE")]
@@ -403,7 +474,8 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected either a string or a keyword symbol."));
+            executionState.ReportError(new LispError("Expected either a string or a keyword symbol."), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         private static string PackageNameFromValue(LispObject obj)
@@ -426,7 +498,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                result = new LispError("Expected exactly one argument");
+                executionState.ReportError(new LispError("Expected exactly one argument"), insertPop: true);
+                result = host.Nil;
             }
 
             return result;
@@ -439,15 +512,23 @@ namespace IxMilia.Lisp
                 args[0] is LispFunctionReference functionRef &&
                 args[1] is LispList functionArguments)
             {
-                return await FunCallAsync(host, executionState.StackFrame, functionRef, functionArguments.ToList(), cancellationToken);
+                var result = await FunCallAsync(host, executionState.StackFrame, functionRef, functionArguments.ToList(), cancellationToken);
+                if (result is LispError error)
+                {
+                    executionState.ReportError(error, insertPop: true);
+                    return host.Nil;
+                }
+
+                return result;
             }
             else
             {
-                return new LispError("Expected function reference and list of arguments");
+                executionState.ReportError(new LispError("Expected function reference and list of arguments"), insertPop: true);
+                return host.Nil;
             }
         }
 
-        internal static async Task<LispObject> FunCallAsync(LispHost host, LispStackFrame evaluatingFrame, LispFunctionReference functionReference, IEnumerable<LispObject> functionArguments, CancellationToken cancellationToken)
+        internal static async Task<LispObject> FunCallAsync(LispHost host, LispStackFrame stackFrame, LispFunctionReference functionReference, IEnumerable<LispObject> functionArguments, CancellationToken cancellationToken)
         {
             string synthesizedFunctionName = null;
             Action preExecute = null;
@@ -459,9 +540,9 @@ namespace IxMilia.Lisp
             else if (functionReference is LispQuotedLambdaFunctionReference lambdaFunction)
             {
                 synthesizedFunctionName = lambdaFunction.Definition.NameSymbol.Value;
-                evaluatingFrame = lambdaFunction.StackFrame;
-                preExecute = () => evaluatingFrame.SetValue(lambdaFunction.Definition.NameSymbol, lambdaFunction.Definition);
-                postExecute = () => evaluatingFrame.DeleteValue(lambdaFunction.Definition.NameSymbol);
+                stackFrame = lambdaFunction.StackFrame;
+                preExecute = () => stackFrame.SetValue(lambdaFunction.Definition.NameSymbol, lambdaFunction.Definition);
+                postExecute = () => stackFrame.DeleteValue(lambdaFunction.Definition.NameSymbol);
             }
 
             if (synthesizedFunctionName != null)
@@ -475,7 +556,7 @@ namespace IxMilia.Lisp
                 synthesizedFunctionCall.SourceLocation = functionReference.SourceLocation;
 
                 preExecute?.Invoke();
-                var result = await host.EvalAtStackFrameAsync(evaluatingFrame, synthesizedFunctionCall, cancellationToken);
+                var result = await host.EvalAtStackFrameAsync(stackFrame, synthesizedFunctionCall, cancellationToken);
                 postExecute?.Invoke();
 
                 return result;
@@ -487,14 +568,25 @@ namespace IxMilia.Lisp
         [LispMacro("FUNCALL")]
         public async Task<LispObject> FunCallAsync(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            LispObject result = new LispError("Expected function reference");
+            LispObject result = null;
             if (args.Length >= 1)
             {
                 var candidateFunctionReference = await host.EvalAtStackFrameAsync(executionState.StackFrame, args[0], cancellationToken);
                 if (candidateFunctionReference is LispFunctionReference functionReference)
                 {
                     result = await FunCallAsync(host, executionState.StackFrame, functionReference, args.Skip(1), cancellationToken);
+                    if (result is LispError error)
+                    {
+                        executionState.ReportError(error, insertPop: true);
+                        return host.Nil;
+                    }
                 }
+            }
+
+            if (result is null)
+            {
+                executionState.ReportError(new LispError("Expected function reference"), insertPop: true);
+                result = host.Nil;
             }
 
             // the evalutated result is the result of the `funcall` macro, so it has to be quoted to allow it to pass through
@@ -529,7 +621,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return Task.FromResult<LispObject>(new LispError("Expected an input string"));
+                executionState.ReportError(new LispError("Expected an input string"), insertPop: true);
+                return Task.FromResult(host.Nil);
             }
         }
 
@@ -552,7 +645,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(new LispString(result));
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected exactly one text stream"));
+            executionState.ReportError(new LispError("Expected exactly one text stream"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("FORMAT")]
@@ -581,7 +675,8 @@ namespace IxMilia.Lisp
                     }
                     else
                     {
-                        return Task.FromResult<LispObject>(new LispError("Unsupported output stream"));
+                        executionState.ReportError(new LispError("Unsupported output stream"), insertPop: true);
+                        return Task.FromResult(host.Nil);
                     }
 
                     stream.Output.Write(result);
@@ -590,11 +685,13 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return Task.FromResult<LispObject>(new LispError(result));
+                    executionState.ReportError(new LispError(result), insertPop: true);
+                    return Task.FromResult(host.Nil);
                 }
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected output type and string"));
+            executionState.ReportError(new LispError("Expected output type and string"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("CODE-CHAR")]
@@ -607,7 +704,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(new LispCharacter(c));
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected an integer"));
+            executionState.ReportError(new LispError("Expected an integer"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("CHAR-CODE")]
@@ -620,7 +718,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(new LispInteger(i));
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected a character"));
+            executionState.ReportError(new LispError("Expected a character"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("CHAR=")]
@@ -635,7 +734,8 @@ namespace IxMilia.Lisp
                     : host.Nil);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected 2 characters"));
+            executionState.ReportError(new LispError("Expected 2 characters"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("PEEK-CHAR")]
@@ -663,7 +763,8 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return Task.FromResult<LispObject>(new LispError("Expected an input stream"));
+                    executionState.ReportError(new LispError("Expected an input stream"), insertPop: true);
+                    return Task.FromResult(host.Nil);
                 }
 
                 if (args.Length >= 2 + argumentOffset)
@@ -680,14 +781,15 @@ namespace IxMilia.Lisp
 
                             if (args.Length >= 5 + argumentOffset)
                             {
-                                return Task.FromResult<LispObject>(new LispError("Too many arguments"));
+                                executionState.ReportError(new LispError("Too many arguments"), insertPop: true);
+                                return Task.FromResult(host.Nil);
                             }
                         }
                     }
                 }
             }
 
-            return Task.FromResult(PeekChar(peekType, inputTextStream, errorOnEof, eofValue, _isRecursive));
+            return Task.FromResult(PeekChar(executionState, peekType, inputTextStream, errorOnEof, eofValue, _isRecursive));
         }
 
         [LispFunction("READ-CHAR")]
@@ -705,7 +807,8 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return Task.FromResult<LispObject>(new LispError("Expected an input stream"));
+                    executionState.ReportError(new LispError("Expected an input stream"), insertPop: true);
+                    return Task.FromResult(host.Nil);
                 }
 
                 if (args.Length >= 2)
@@ -722,17 +825,18 @@ namespace IxMilia.Lisp
 
                             if (args.Length >= 5)
                             {
-                                return Task.FromResult<LispObject>(new LispError("Too many arguments"));
+                                executionState.ReportError(new LispError("Too many arguments"), insertPop: true);
+                                return Task.FromResult(host.Nil);
                             }
                         }
                     }
                 }
             }
 
-            return Task.FromResult(ReadChar(inputTextStream, errorOnEof, eofValue, _isRecursive));
+            return Task.FromResult(ReadChar(executionState, inputTextStream, errorOnEof, eofValue, _isRecursive));
         }
 
-        internal static LispObject PeekChar(LispObject peekType, LispTextStream inputTextStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        internal static LispObject PeekChar(LispExecutionState executionState, LispObject peekType, LispTextStream inputTextStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             Func<char, bool> shouldConsumeAndSkip;
             if (peekType == null || peekType.IsNil())
@@ -752,7 +856,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return new LispError("Expected `nil`, `t` or character");
+                executionState.ReportError(new LispError("Expected `nil`, `t` or character"), insertPop: true);
+                return executionState.StackFrame.Root.Nil;
             }
 
             char peekedChar;
@@ -773,7 +878,8 @@ namespace IxMilia.Lisp
                 {
                     if (errorOnEof)
                     {
-                        return new LispError("EOF");
+                        executionState.ReportError(new LispError("EOF"), insertPop: true);
+                        return executionState.StackFrame.Root.Nil;
                     }
                     else
                     {
@@ -785,7 +891,7 @@ namespace IxMilia.Lisp
             return new LispCharacter(peekedChar);
         }
 
-        internal static LispObject ReadChar(LispTextStream inputTextStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
+        internal static LispObject ReadChar(LispExecutionState executionState, LispTextStream inputTextStream, bool errorOnEof, LispObject eofValue, bool isRecursive)
         {
             if (inputTextStream.Read() is LispCharacter lc)
             {
@@ -794,7 +900,8 @@ namespace IxMilia.Lisp
 
             if (errorOnEof)
             {
-                return new LispError("EOF");
+                executionState.ReportError(new LispError("EOF"), insertPop: true);
+                return executionState.StackFrame.Root.Nil;
             }
             else
             {
@@ -819,7 +926,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(lc);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected a character and an optional stream"));
+            executionState.ReportError(new LispError("Expected a character and an optional stream"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("READ")]
@@ -837,7 +945,8 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return new LispError("Expected an input stream");
+                    executionState.ReportError(new LispError("Expected an input stream"), insertPop: true);
+                    return host.Nil;
                 }
 
                 if (args.Length >= 2)
@@ -854,7 +963,8 @@ namespace IxMilia.Lisp
 
                             if (args.Length >= 5)
                             {
-                                return new LispError("Too many arguments");
+                                executionState.ReportError(new LispError("Too many arguments"), insertPop: true);
+                                return host.Nil;
                             }
                         }
                     }
@@ -864,6 +974,12 @@ namespace IxMilia.Lisp
             var objectReader = new LispObjectReader(host, inputTextStream);
             var readerResult = await objectReader.ReadAsync(executionState.StackFrame, errorOnEof, eofValue, isRecursive, cancellationToken);
             var result = readerResult.LastResult;
+            if (result is LispError error)
+            {
+                executionState.ReportError(error);
+                return host.Nil;
+            }
+
             return result;
         }
 
@@ -897,11 +1013,13 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return new LispError("Expected a string file path");
+                    executionState.ReportError(new LispError("Expected a string file path"), insertPop: true);
+                    return host.Nil;
                 }
             }
 
-            return new LispError("Expected `<(streamName filePath)> <body>`");
+            executionState.ReportError(new LispError("Expected `<(streamName filePath)> <body>`"), insertPop: true);
+            return host.Nil;
         }
 
         [LispFunction("CLOSE")]
@@ -915,7 +1033,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult(host.Nil);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected a file stream"));
+            executionState.ReportError(new LispError("Expected a file stream"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("DRIBBLE")]
@@ -927,7 +1046,8 @@ namespace IxMilia.Lisp
                 var dribbleStream = executionState.StackFrame.Root.DribbleStream;
                 if (dribbleStream is null)
                 {
-                    return new LispError("Dribble stream object not found");
+                    executionState.ReportError(new LispError("Dribble stream object not found"), insertPop: true);
+                    return host.Nil;
                 }
 
                 host.TerminalIO.Output.WriteLine($"Finished recording in file {dribbleStream.FileStream.Name}");
@@ -941,14 +1061,16 @@ namespace IxMilia.Lisp
                 var filePath = await host.EvalAtStackFrameAsync(executionState.StackFrame, args[0], cancellationToken);
                 if (filePath is LispError error)
                 {
-                    return error;
+                    executionState.ReportError(error, insertPop: true);
+                    return host.Nil;
                 }
                 else if (filePath is LispString dribblePath)
                 {
                     // start new recording
                     if (executionState.StackFrame.Root.DribbleStream is LispFileStream)
                     {
-                        return new LispError("Dribble recording already started");
+                        executionState.ReportError(new LispError("Dribble recording already started"), insertPop: true);
+                        return host.Nil;
                     }
 
                     var dribbleStream = new LispFileStream(dribblePath.Value, new FileStream(dribblePath.Value, FileMode.Create));
@@ -962,11 +1084,13 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return new LispError("Expected a string path to start dribble recording.");
+                    executionState.ReportError(new LispError("Expected a string path to start dribble recording."), insertPop: true);
+                    return host.Nil;
                 }
             }
 
-            return new LispError("Expected single file path arugment to start recording, or no arguments to stop");
+            executionState.ReportError(new LispError("Expected single file path arugment to start recording, or no arguments to stop"), insertPop: true);
+            return host.Nil;
         }
 
         [LispFunction("VECTOR")]
@@ -985,7 +1109,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult(result);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected a vector"));
+            executionState.ReportError(new LispError("Expected a vector"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("VECTOR-PUSH", Signature = "VALUE THE-VECTOR", Documentation = "Adds `VALUE` to the end of `THE-VECTOR`.")]
@@ -1004,7 +1129,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(error);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected value and vector"));
+            executionState.ReportError(new LispError("Expected value and vector"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("MAKE-ARRAY")]
@@ -1012,7 +1138,8 @@ namespace IxMilia.Lisp
         {
             if (args.Length == 0)
             {
-                return Task.FromResult<LispObject>(new LispError("Expected array dimensions"));
+                executionState.ReportError(new LispError("Expected array dimensions"), insertPop: true);
+                return Task.FromResult(host.Nil);
             }
 
             int size;
@@ -1026,7 +1153,8 @@ namespace IxMilia.Lisp
                     size = i.Value;
                     break;
                 default:
-                    return Task.FromResult<LispObject>(new LispError("Expected array dimensions"));
+                    executionState.ReportError(new LispError("Expected array dimensions"), insertPop: true);
+                    return Task.FromResult(host.Nil);
             }
             
             var initialElement = GetKeywordArgument(args.Skip(1), ":INITIAL-ELEMENT");
@@ -1111,7 +1239,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(new LispString(symbol.LocalName));
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected exactly 1 symbol."));
+            executionState.ReportError(new LispError("Expected exactly 1 symbol."), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("ZEROP")]
@@ -1124,7 +1253,8 @@ namespace IxMilia.Lisp
                 return n.IsZero ? Task.FromResult(host.T) : Task.FromResult(host.Nil);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected exactly one number"));
+            executionState.ReportError(new LispError("Expected exactly one number"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("PLUSP")]
@@ -1146,7 +1276,8 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return Task.FromResult<LispObject>(new LispError("wrong type input"));
+            executionState.ReportError(new LispError("wrong type input"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("EVENP")]
@@ -1220,7 +1351,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return new LispError("Expected a function symbol");
+                executionState.ReportError(new LispError("Expected a function symbol"), insertPop: true);
+                return host.Nil;
             }
         }
 
@@ -1251,7 +1383,8 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected a single sequence"));
+            executionState.ReportError(new LispError("Expected a single sequence"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("ELT")]
@@ -1283,7 +1416,8 @@ namespace IxMilia.Lisp
                 }
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected a sequence and an index"));
+            executionState.ReportError(new LispError("Expected a sequence and an index"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("CAR")]
@@ -1299,7 +1433,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return Task.FromResult<LispObject>(new LispError($"Expected a list, found {args[0]}"));
+                executionState.ReportError(new LispError($"Expected a list, found {args[0]}"), insertPop: true);
+                return Task.FromResult(host.Nil);
             }
         }
 
@@ -1316,7 +1451,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return Task.FromResult<LispObject>(new LispError($"Expected a list, found {args[0]}"));
+                executionState.ReportError(new LispError($"Expected a list, found {args[0]}"), insertPop: true);
+                return Task.FromResult(host.Nil);
             }
         }
 
@@ -1337,7 +1473,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(result);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected a list and a tail"));
+            executionState.ReportError(new LispError("Expected a list and a tail"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispMacro("NCONC")]
@@ -1357,7 +1494,8 @@ namespace IxMilia.Lisp
                 lastResult = await host.EvalAtStackFrameAsync(executionState.StackFrame, simulatedFunctionCall1, cancellationToken);
                 if (lastResult is LispError error)
                 {
-                    return error;
+                    executionState.ReportError(error, insertPop: true);
+                    return host.Nil;
                 }
 
                 lastResult = LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), lastResult);
@@ -1384,7 +1522,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return Task.FromResult<LispObject>(new LispError("Expected a single list"));
+                executionState.ReportError(new LispError("Expected a single list"), insertPop: true);
+                return Task.FromResult(host.Nil);
             }
         }
 
@@ -1401,7 +1540,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return Task.FromResult<LispObject>(new LispError("Expected 2 lists"));
+                executionState.ReportError(new LispError("Expected 2 lists"), insertPop: true);
+                return Task.FromResult(host.Nil);
             }
         }
 
@@ -1422,7 +1562,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return Task.FromResult<LispObject>(new LispError("Expected 2 lists"));
+                executionState.ReportError(new LispError("Expected 2 lists"), insertPop: true);
+                return Task.FromResult(host.Nil);
             }
         }
 
@@ -1443,7 +1584,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return Task.FromResult<LispObject>(new LispError("Expected 2 lists"));
+                executionState.ReportError(new LispError("Expected 2 lists"), insertPop: true);
+                return Task.FromResult(host.Nil);
             }
         }
 
@@ -1462,7 +1604,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return Task.FromResult<LispObject>(new LispError("Expected 2 lists"));
+                executionState.ReportError(new LispError("Expected 2 lists"), insertPop: true);
+                return Task.FromResult(host.Nil);
             }
         }
 
@@ -1524,7 +1667,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return Task.FromResult<LispObject>(new LispError("Expected a list"));
+                executionState.ReportError(new LispError("Expected a list"), insertPop: true);
+                return Task.FromResult(host.Nil);
             }
         }
 
@@ -1552,9 +1696,10 @@ namespace IxMilia.Lisp
                         LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), item)
                     };
                     var result = await FunCallAsync(host, executionState.StackFrame, functionReference, functionArguments, cancellationToken);
-                    if (result is LispError)
+                    if (result is LispError e)
                     {
-                        return result;
+                        executionState.ReportError(e, insertPop: true);
+                        return host.Nil;
                     }
 
                     if (result.IsTLike())
@@ -1567,7 +1712,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return new LispError("Expected a function reference and list");
+                executionState.ReportError(new LispError("Expected a function reference and list"), insertPop: true);
+                return host.Nil;
             }
         }
 
@@ -1589,9 +1735,10 @@ namespace IxMilia.Lisp
                 foreach (var item in items)
                 {
                     var result = await FunCallAsync(host, executionState.StackFrame, functionReference, new LispObject[] { item }, cancellationToken);
-                    if (result is LispError)
+                    if (result is LispError e)
                     {
-                        return result;
+                        executionState.ReportError(e, insertPop: true);
+                        return host.Nil;
                     }
 
                     if (result.IsTLike() && removed < count)
@@ -1610,7 +1757,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return new LispError("Expected a function reference and list");
+                executionState.ReportError(new LispError("Expected a function reference and list"), insertPop: true);
+                return host.Nil;
             }
         }
 
@@ -1632,9 +1780,10 @@ namespace IxMilia.Lisp
                 foreach (var item in items)
                 {
                     var result = await FunCallAsync(host, executionState.StackFrame, functionReference, new LispObject[] { item }, cancellationToken);
-                    if (result is LispError)
+                    if (result is LispError e)
                     {
-                        return result;
+                        executionState.ReportError(e, insertPop: true);
+                        return host.Nil;
                     }
 
                     if (result.IsNil() && removed < count)
@@ -1653,7 +1802,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return new LispError("Expected a function reference and list");
+                executionState.ReportError(new LispError("Expected a function reference and list"), insertPop: true);
+                return host.Nil;
             }
         }
 
@@ -1680,9 +1830,10 @@ namespace IxMilia.Lisp
                     items.RemoveAt(0);
                     items.RemoveAt(0);
                     var result = await FunCallAsync(host, executionState.StackFrame, functionReference, new LispObject[] { LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), arg1), LispList.FromItems(LispSymbol.CreateFromString("COMMON-LISP:QUOTE"), arg2) }, cancellationToken);
-                    if (result is LispError)
+                    if (result is LispError e)
                     {
-                        return result;
+                        executionState.ReportError(e, insertPop: true);
+                        return host.Nil;
                     }
 
                     items.Insert(0, result);
@@ -1699,7 +1850,8 @@ namespace IxMilia.Lisp
             }
             else
             {
-                return new LispError("Expected a function reference and list");
+                executionState.ReportError(new LispError("Expected a function reference and list"), insertPop: true);
+                return host.Nil;
             }
         }
 
@@ -1724,7 +1876,8 @@ namespace IxMilia.Lisp
                 var candidateLists = args.Skip(1).Select(a => a as LispList).ToArray();
                 if (candidateLists.Any(a => a == null))
                 {
-                    return new LispError("Expected function reference and only lists");
+                    executionState.ReportError(new LispError("Expected function reference and only lists"), insertPop: true);
+                    return host.Nil;
                 }
 
                 Func<IEnumerable<LispObject>, Task<LispObject>> evaluator;
@@ -1743,7 +1896,8 @@ namespace IxMilia.Lisp
                         evaluator = (functionArguments) => FunCallAsync(host, executionState.StackFrame, functionRef, functionArguments, cancellationToken);
                         break;
                     default:
-                        return new LispError($"Unsupported `mapcar` execution target: {args[0].GetType().Name}");
+                        executionState.ReportError(new LispError($"Unsupported `mapcar` execution target: {args[0].GetType().Name}"), insertPop: true);
+                        return host.Nil;
                 }
 
                 var resultItems = new List<LispObject>();
@@ -1753,9 +1907,10 @@ namespace IxMilia.Lisp
                 {
                     var functionArguments = lists.Select(l => l[i]);
                     var result = await evaluator(functionArguments);
-                    if (result is LispError)
+                    if (result is LispError e)
                     {
-                        return result;
+                        executionState.ReportError(e, insertPop: true);
+                        return host.Nil;
                     }
 
                     resultItems.Add(result);
@@ -1764,7 +1919,8 @@ namespace IxMilia.Lisp
                 return LispList.FromEnumerable(resultItems);
             }
 
-            return new LispError("Expected function reference and list");
+            executionState.ReportError(new LispError("Expected function reference and list"), insertPop: true);
+            return host.Nil;
         }
 
         [LispFunction("COMPLEX")]
@@ -1777,49 +1933,50 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(new LispComplexNumber(real, img).Simplify());
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected exactly 2 simple numbers"));
+            executionState.ReportError(new LispError("Expected exactly 2 simple numbers"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("<")]
         public Task<LispObject> LessThan(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return Task.FromResult<LispObject>(FoldComparison(executionState.StackFrame, args, (a, b) => LispNumber.LessThan(a, b)));
+            return Task.FromResult<LispObject>(FoldComparison(executionState, args, (a, b) => LispNumber.LessThan(a, b)));
         }
 
         [LispFunction("<=")]
         public Task<LispObject> LessThanOrEqual(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return Task.FromResult<LispObject>(FoldComparison(executionState.StackFrame, args, (a, b) => LispNumber.LessThanOrEqual(a, b)));
+            return Task.FromResult<LispObject>(FoldComparison(executionState, args, (a, b) => LispNumber.LessThanOrEqual(a, b)));
         }
 
         [LispFunction(">")]
         public Task<LispObject> GreaterThan(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return Task.FromResult<LispObject>(FoldComparison(executionState.StackFrame, args, (a, b) => LispNumber.GreaterThan(a, b)));
+            return Task.FromResult<LispObject>(FoldComparison(executionState, args, (a, b) => LispNumber.GreaterThan(a, b)));
         }
 
         [LispFunction(">=")]
         public Task<LispObject> GreaterThanOrEqual(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return Task.FromResult<LispObject>(FoldComparison(executionState.StackFrame, args, (a, b) => LispNumber.GreaterThanOrEqual(a, b)));
+            return Task.FromResult<LispObject>(FoldComparison(executionState, args, (a, b) => LispNumber.GreaterThanOrEqual(a, b)));
         }
 
         [LispFunction("=")]
         public Task<LispObject> NumberEqual(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return Task.FromResult<LispObject>(FoldComparison(executionState.StackFrame, args, (a, b) => LispNumber.Equal(a, b)));
+            return Task.FromResult<LispObject>(FoldComparison(executionState, args, (a, b) => LispNumber.Equal(a, b)));
         }
 
         [LispFunction("EQUAL")]
         public Task<LispObject> Equal(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return Task.FromResult<LispObject>(FoldObj(executionState.StackFrame, args, (a, b) => a.Equals(b)));
+            return Task.FromResult<LispObject>(FoldObj(executionState, args, (a, b) => a.Equals(b)));
         }
 
         [LispFunction("EQUALP")]
         public Task<LispObject> EqualP(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return Task.FromResult<LispObject>(FoldObj(executionState.StackFrame, args, (a, b) =>
+            return Task.FromResult<LispObject>(FoldObj(executionState, args, (a, b) =>
             {
                 if (a is LispString sa && b is LispString sb)
                 {
@@ -1833,13 +1990,13 @@ namespace IxMilia.Lisp
         [LispFunction("EQ")]
         public Task<LispObject> Eq(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return Task.FromResult<LispObject>(FoldObj(executionState.StackFrame, args, (a, b) => ReferenceEquals(a, b)));
+            return Task.FromResult<LispObject>(FoldObj(executionState, args, (a, b) => ReferenceEquals(a, b)));
         }
 
         [LispFunction("EQL")]
         public Task<LispObject> Eql(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return Task.FromResult<LispObject>(FoldObj(executionState.StackFrame, args, (a, b) =>
+            return Task.FromResult<LispObject>(FoldObj(executionState, args, (a, b) =>
             {
                 if (a is LispInteger ia && b is LispInteger ib && ia.Value == ib.Value)
                 {
@@ -1881,19 +2038,19 @@ namespace IxMilia.Lisp
         [LispFunction("<>")]
         public Task<LispObject> NotEqual(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return Task.FromResult<LispObject>(FoldObj(executionState.StackFrame, args, (a, b) => !a.Equals(b)));
+            return Task.FromResult<LispObject>(FoldObj(executionState, args, (a, b) => !a.Equals(b)));
         }
 
         [LispMacro("AND")]
         public Task<LispObject> And(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return FoldBoolean(host, executionState.StackFrame, args, true, false, (a, b) => a && b, cancellationToken);
+            return FoldBoolean(host, executionState, args, true, false, (a, b) => a && b, cancellationToken);
         }
 
         [LispMacro("OR")]
         public Task<LispObject> Or(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {
-            return FoldBoolean(host, executionState.StackFrame, args, false, true, (a, b) => a || b, cancellationToken);
+            return FoldBoolean(host, executionState, args, false, true, (a, b) => a || b, cancellationToken);
         }
 
         [LispMacro("COND")]
@@ -1918,10 +2075,11 @@ namespace IxMilia.Lisp
                 }
                 else
                 {
-                    return new LispError("Expected list of length 2")
+                    executionState.ReportError(new LispError("Expected list of length 2")
                     {
                         SourceLocation = arg.SourceLocation,
-                    };
+                    }, insertPop: true);
+                    return host.Nil;
                 }
             }
 
@@ -1941,7 +2099,8 @@ namespace IxMilia.Lisp
                 case LispRatio r:
                     return Task.FromResult<LispObject>(new LispRatio(Math.Abs(r.Numerator), Math.Abs(r.Denominator)));
                 default:
-                    return Task.FromResult<LispObject>(new LispError($"Expected {nameof(LispInteger)} or {nameof(LispFloat)} but found {args[0].GetType().Name} with value {args[0]}"));
+                    executionState.ReportError(new LispError($"Expected {nameof(LispInteger)} or {nameof(LispFloat)} but found {args[0].GetType().Name} with value {args[0]}"), insertPop: true);
+                    return Task.FromResult(host.Nil);
             }
         }
 
@@ -1958,7 +2117,8 @@ namespace IxMilia.Lisp
                 case LispRatio r:
                     return Task.FromResult<LispObject>(new LispFloat(Math.Sqrt(((LispFloat)r).Value)));
                 default:
-                    return Task.FromResult<LispObject>(new LispError($"Expected {nameof(LispInteger)} or {nameof(LispFloat)} but found {args[0].GetType().Name} with value {args[0]}"));
+                    executionState.ReportError(new LispError($"Expected {nameof(LispInteger)} or {nameof(LispFloat)} but found {args[0].GetType().Name} with value {args[0]}"), insertPop: true);
+                    return Task.FromResult(host.Nil);
             }
         }
 
@@ -1973,7 +2133,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(result);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected exactly two numbers"));
+            executionState.ReportError(new LispError("Expected exactly two numbers"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("KERNEL:+/2")]
@@ -1987,7 +2148,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(result);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected exactly two numbers"));
+            executionState.ReportError(new LispError("Expected exactly two numbers"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("KERNEL:-/1")]
@@ -2006,11 +2168,13 @@ namespace IxMilia.Lisp
                     case LispRatio num:
                         return Task.FromResult<LispObject>(new LispRatio(num.Numerator * -1, num.Denominator).Simplify());
                     default:
-                        return Task.FromResult<LispObject>(new LispError($"Expected type number but found {value.GetType()}"));
+                        executionState.ReportError(new LispError($"Expected type number but found {value.GetType()}"), insertPop: true);
+                        return Task.FromResult(host.Nil);
                 }
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected exactly two numbers"));
+            executionState.ReportError(new LispError("Expected exactly two numbers"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("KERNEL:-/2")]
@@ -2024,7 +2188,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(result);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected exactly two numbers"));
+            executionState.ReportError(new LispError("Expected exactly two numbers"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("KERNEL:*/2")]
@@ -2038,7 +2203,8 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(result);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected exactly two numbers"));
+            executionState.ReportError(new LispError("Expected exactly two numbers"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
         [LispFunction("KERNEL://2")]
@@ -2052,25 +2218,28 @@ namespace IxMilia.Lisp
                 return Task.FromResult<LispObject>(result);
             }
 
-            return Task.FromResult<LispObject>(new LispError("Expected exactly two numbers"));
+            executionState.ReportError(new LispError("Expected exactly two numbers"), insertPop: true);
+            return Task.FromResult(host.Nil);
         }
 
-        private static async Task<LispObject> FoldBoolean(LispHost host, LispStackFrame frame, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation, CancellationToken cancellationToken)
+        private static async Task<LispObject> FoldBoolean(LispHost host, LispExecutionState executionState, LispObject[] args, bool init, bool shortCircuitValue, Func<bool, bool, bool> operation, CancellationToken cancellationToken)
         {
             LispObject result;
             if (args.Length == 0)
             {
-                result = new LispError("Missing arguments");
+                executionState.ReportError(new LispError("Missing arguments"), insertPop: true);
+                result = host.Nil;
             }
             else
             {
                 var collected = init;
                 foreach (var value in args)
                 {
-                    var evaluated = await host.EvalAtStackFrameAsync(frame, value, cancellationToken);
+                    var evaluated = await host.EvalAtStackFrameAsync(executionState.StackFrame, value, cancellationToken);
                     if (evaluated is LispError error)
                     {
-                        return error;
+                        executionState.ReportError(error, insertPop: true);
+                        return host.Nil;
                     }
                     // TODO: non zero
                     var next = evaluated.IsTLike();
@@ -2088,11 +2257,12 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        private static LispObject FoldObj(LispStackFrame frame, LispObject[] args, Func<LispObject, LispObject, bool> operation)
+        private static LispObject FoldObj(LispExecutionState executionState, LispObject[] args, Func<LispObject, LispObject, bool> operation)
         {
             if (args.Length < 2)
             {
-                return new LispError("At least 2 arguments needed");
+                executionState.ReportError(new LispError("At least 2 arguments needed"), insertPop: true);
+                return executionState.StackFrame.Root.Nil;
             }
 
             var result = true;
@@ -2101,18 +2271,19 @@ namespace IxMilia.Lisp
                 result &= operation(args[i], args[i + 1]);
                 if (!result)
                 {
-                    return frame.Root.Nil;
+                    return executionState.StackFrame.Root.Nil;
                 }
             }
 
-            return frame.Root.T;
+            return executionState.StackFrame.Root.T;
         }
 
-        private static LispObject FoldComparison(LispStackFrame frame, LispObject[] args, Func<LispNumber, LispNumber, bool> operation)
+        private static LispObject FoldComparison(LispExecutionState executionState, LispObject[] args, Func<LispNumber, LispNumber, bool> operation)
         {
             if (args.Length < 2)
             {
-                return new LispError("At least 2 arguments needed");
+                executionState.ReportError(new LispError("At least 2 arguments needed"), insertPop: true);
+                return executionState.StackFrame.Root.Nil;
             }
 
             LispNumber lastValue;
@@ -2128,7 +2299,8 @@ namespace IxMilia.Lisp
                     lastValue = r;
                     break;
                 default:
-                    return new LispError($"Expected number, got {args[0].GetType().Name} with value {args[0]}");
+                    executionState.ReportError(new LispError($"Expected number, got {args[0].GetType().Name} with value {args[0]}"), insertPop: true);
+                    return executionState.StackFrame.Root.Nil;
             }
 
             foreach (var value in args.Skip(1))
@@ -2146,19 +2318,20 @@ namespace IxMilia.Lisp
                         nextValue = r;
                         break;
                     default:
-                        return new LispError($"Expected number, got {value.GetType().Name} with value {value}");
+                        executionState.ReportError(new LispError($"Expected number, got {value.GetType().Name} with value {value}"), insertPop: true);
+                        return executionState.StackFrame.Root.Nil;
                 }
 
                 var result = operation(lastValue, nextValue);
                 if (!result)
                 {
-                    return frame.Root.Nil;
+                    return executionState.StackFrame.Root.Nil;
                 }
 
                 lastValue = nextValue;
             }
 
-            return frame.Root.T;
+            return executionState.StackFrame.Root.T;
         }
 
         private static LispObject GetKeywordArgument(IEnumerable<LispObject> args, string keyword)
