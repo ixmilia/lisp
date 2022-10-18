@@ -142,8 +142,7 @@ namespace IxMilia.Lisp.Interactive.Test
         public async Task VariableDeclarerSetsValueInKernel()
         {
             var kernel = new LispKernel();
-            var declarer = kernel.GetValueDeclarer();
-            Assert.True(declarer.TryGetValueDeclaration(new ValueProduced(null, "X", new FormattedValue("application/json", "[1,2]"), new RequestValue("X")), out var command));
+            var command = new SendValue("X", null, new FormattedValue("application/json", "[1,2]"));
             var commandResult = await kernel.SendAsync(command);
             var events = GetEventList(commandResult.KernelEvents);
             AssertNoErrors(events);

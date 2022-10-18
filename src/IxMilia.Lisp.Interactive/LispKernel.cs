@@ -2,14 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reactive.Subjects;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.DotNet.Interactive;
 using Microsoft.DotNet.Interactive.Commands;
 using Microsoft.DotNet.Interactive.Events;
 using Microsoft.DotNet.Interactive.ValueSharing;
+using Newtonsoft.Json.Linq;
 
 namespace IxMilia.Lisp.Interactive
 {
@@ -19,11 +18,11 @@ namespace IxMilia.Lisp.Interactive
         IKernelCommandHandler<RequestHoverText>,
         IKernelCommandHandler<RequestValue>,
         IKernelCommandHandler<RequestValueInfos>,
+        IKernelCommandHandler<SendValue>,
         IKernelCommandHandler<SubmitCode>
     {
         private Lazy<Task<LispRepl>> _repl;
         private HashSet<string> _suppressedValues = new HashSet<string>();
-        private LispValueDeclarer _valueDeclarer = new LispValueDeclarer();
 
         public LispKernel()
             : base("lisp", "Lisp")
@@ -37,8 +36,6 @@ namespace IxMilia.Lisp.Interactive
 
             this.UseValueSharing();
         }
-
-        public override IKernelValueDeclarer GetValueDeclarer() => _valueDeclarer;
 
         public async Task HandleAsync(RequestCompletions command, KernelInvocationContext context)
         {
@@ -84,13 +81,13 @@ namespace IxMilia.Lisp.Interactive
             }
         }
 
-        public override async Task HandleAsync(RequestValue command, KernelInvocationContext context)
+        public async Task HandleAsync(RequestValue command, KernelInvocationContext context)
         {
             if (_repl.IsValueCreated)
             {
                 var repl = await _repl.Value;
                 var foundValuePair = repl.Host.RootFrame.GetValues().FirstOrDefault(v => v.Item1.LocalName == command.Name || v.Item1.Value == command.Name);
-                if (foundValuePair is {})
+                if (foundValuePair is { })
                 {
                     var formatted = command.MimeType switch
                     {
@@ -102,7 +99,7 @@ namespace IxMilia.Lisp.Interactive
             }
         }
 
-        public override async Task HandleAsync(RequestValueInfos command, KernelInvocationContext context)
+        public async Task HandleAsync(RequestValueInfos command, KernelInvocationContext context)
         {
             var kernelValueInfos = new KernelValueInfo[0];
             if (_repl.IsValueCreated)
@@ -117,6 +114,25 @@ namespace IxMilia.Lisp.Interactive
             }
 
             context.Publish(new ValueInfosProduced(kernelValueInfos, command));
+        }
+
+        public async Task HandleAsync(SendValue command, KernelInvocationContext context)
+        {
+            switch (command.FormattedValue.MimeType)
+            {
+                case "application/json":
+                    if (TryGetLispObjectFromJson(command.FormattedValue.Value, out var obj) &&
+                        TryGetDeclarationStatementForObject(obj, command.Name, out var declarationStatement))
+                    {
+                        var repl = await _repl.Value;
+                        await repl.EvalAsync(declarationStatement, consumeIncompleteInput: false);
+                    }
+
+                    break;
+                default:
+                    // TODO: handle other mime types
+                    break;
+            }
         }
 
         public async Task HandleAsync(SubmitCode command, KernelInvocationContext context)
@@ -172,6 +188,95 @@ namespace IxMilia.Lisp.Interactive
                     context.Publish(new DiagnosticsProduced(new Microsoft.DotNet.Interactive.Diagnostic[0], command));
                     break;
             }
+        }
+
+        public static bool TryGetLispObjectFromJson(string json, out LispObject result)
+        {
+            var token = JToken.Parse(json);
+            return TryGetLispObjectFromJToken(token, out result);
+        }
+
+        private static bool TryGetLispObjectFromJToken(JToken token, out LispObject result)
+        {
+            result = null;
+            switch (token.Type)
+            {
+                case JTokenType.Array:
+                    {
+                        var array = (JArray)token;
+                        var arrayValues = new List<LispObject>();
+                        foreach (var value in array.Values())
+                        {
+                            if (TryGetLispObjectFromJToken(value, out var item))
+                            {
+                                arrayValues.Add(item);
+                            }
+                        }
+
+                        result = LispList.FromEnumerable(arrayValues);
+                    }
+                    break;
+                case JTokenType.Boolean:
+                    {
+                        var value = (bool)((JValue)token).Value;
+                        result = value ? (LispObject)new LispInteger(1) : LispList.FromItems();
+                    }
+                    break;
+                case JTokenType.Integer:
+                    {
+                        var value = (int)(long)((JValue)token).Value;
+                        result = new LispInteger(value);
+                    }
+                    break;
+                case JTokenType.Float:
+                    {
+                        var value = (double)((JValue)token).Value;
+                        result = new LispFloat(value);
+                    }
+                    break;
+                case JTokenType.String:
+                    {
+                        var value = (string)((JValue)token).Value;
+                        result = new LispString(value);
+                    }
+                    break;
+                case JTokenType.Null:
+                case JTokenType.Undefined:
+                    result = LispList.FromItems();
+                    break;
+                case JTokenType.Object:
+                    {
+                        var obj = (JObject)token;
+                        var values = new List<LispObject>();
+                        foreach (var prop in obj.Properties())
+                        {
+                            if (TryGetLispObjectFromJToken(prop.Value, out var propertyValue))
+                            {
+                                values.Add(LispSymbol.CreateFromString(prop.Name, "KEYWORD"));
+                                values.Add(propertyValue);
+                            }
+                        }
+
+                        result = LispList.FromEnumerable(values);
+                    }
+                    break;
+            }
+
+            return result is { };
+        }
+
+        public static bool TryGetDeclarationStatementForObject(LispObject obj, string valueName, out string declarationStatement)
+        {
+            var valueToSet = obj.FormatAsSExpression();
+            if (obj is LispList)
+            {
+                // lists need to be quoted
+                valueToSet = "'" + valueToSet;
+            }
+
+            // add a trailing `()` so there is no `ReturnValueProduced` generated when executing this code
+            declarationStatement = $"(SETF {valueName} {valueToSet}) ()";
+            return valueToSet is { };
         }
     }
 }

@@ -2,7 +2,7 @@
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="6.0.7" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="6.0.7" />
-    <PackageVersion Include="Microsoft.DotNet.Interactive" Version="1.0.0-beta.22405.1" />
+    <PackageVersion Include="Microsoft.DotNet.Interactive" Version="1.0.0-beta.22518.2" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.2.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.1" />
