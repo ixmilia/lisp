@@ -76,7 +76,7 @@
     "watch": "tsc -watch -p ./",
     "clean-server": "npx rimraf ./server",
     "publish-server": "dotnet publish ../IxMilia.Lisp.EditorServer/IxMilia.Lisp.EditorServer.csproj --configuration Release",
-    "copy-server": "npx copyfiles --up 8 --error --verbose \"../../artifacts/bin/IxMilia.Lisp.EditorServer/Release/net6.0/publish/*\" ./server/",
+    "copy-server": "npx copyfiles --up 8 --error --verbose \"../../artifacts/bin/IxMilia.Lisp.EditorServer/Release/net7.0/publish/*\" ./server/",
     "package": "npm run compile && npm run clean-server && npm run publish-server && npm run copy-server && npx vsce package"
   },
   "repository": {

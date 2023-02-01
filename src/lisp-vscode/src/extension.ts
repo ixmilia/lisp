@@ -27,7 +27,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     const debugArgs = [
-        path.join(__dirname, '..', '..', '..', 'artifacts', 'bin', 'IxMilia.Lisp.EditorServer', 'Debug', 'net6.0', 'IxMilia.Lisp.EditorServer.dll')
+        path.join(__dirname, '..', '..', '..', 'artifacts', 'bin', 'IxMilia.Lisp.EditorServer', 'Debug', 'net7.0', 'IxMilia.Lisp.EditorServer.dll')
     ];
     const releaseArgs = [
         path.join(__dirname, '..', 'server', 'IxMilia.Lisp.EditorServer.dll')

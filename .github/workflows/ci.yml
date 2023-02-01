@@ -11,9 +11,9 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         configuration: [Debug, Release]
     steps:
-    - uses: actions/checkout@v1
-    - uses: actions/setup-dotnet@v1
-    - uses: actions/setup-node@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-dotnet@v3
+    - uses: actions/setup-node@v3
       with:
         node-version: lts/*
     - name: Build and test
@@ -25,9 +25,9 @@ jobs:
     needs: [build]
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
-    - uses: actions/setup-dotnet@v1
-    - uses: actions/setup-node@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-dotnet@v3
+    - uses: actions/setup-node@v3
       with:
         node-version: lts/*
     - run: .\create-version-suffix.ps1
@@ -39,9 +39,9 @@ jobs:
     needs: [build]
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
-    - uses: actions/setup-dotnet@v1
-    - uses: actions/setup-node@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-dotnet@v3
+    - uses: actions/setup-node@v3
       with:
         node-version: lts/*
     - run: .\build-and-test.ps1 -configuration Release -notest
