@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="$(OutputPath)/IxMilia.Lisp.Interactive.dll" Pack="true" PackagePath="interactive-extensions/dotnet" />
+    <None Include="extension.dib" Pack="true" PackagePath="interactive-extensions/dotnet" />
   </ItemGroup>
 
   <ItemGroup>

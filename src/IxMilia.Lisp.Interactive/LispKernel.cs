@@ -25,8 +25,10 @@ namespace IxMilia.Lisp.Interactive
         private HashSet<string> _suppressedValues = new HashSet<string>();
 
         public LispKernel()
-            : base("lisp", "Lisp")
+            : base("lisp")
         {
+            KernelInfo.LanguageName = "Lisp";
+            KernelInfo.DisplayName = "Lisp";
             _repl = new Lazy<Task<LispRepl>>(async () =>
             {
                 var repl = await LispRepl.CreateAsync(location: "*REPL*");
@@ -86,15 +88,10 @@ namespace IxMilia.Lisp.Interactive
             if (_repl.IsValueCreated)
             {
                 var repl = await _repl.Value;
-                var foundValuePair = repl.Host.RootFrame.GetValues().FirstOrDefault(v => v.Item1.LocalName == command.Name || v.Item1.Value == command.Name);
-                if (foundValuePair is { })
+                var formattedValue = await GetFormattedValue(command.Name, command.MimeType);
+                if (formattedValue is { })
                 {
-                    var formatted = command.MimeType switch
-                    {
-                        "application/json" => foundValuePair.Item2.ToJsonString(),
-                        _ => foundValuePair.Item2.ToDisplayString(repl.Host.CurrentPackage),
-                    };
-                    context.Publish(new ValueProduced(null, command.Name, new FormattedValue(command.MimeType, formatted), command));
+                    context.Publish(new ValueProduced(null, command.Name, formattedValue, command));
                 }
             }
         }
@@ -105,12 +102,17 @@ namespace IxMilia.Lisp.Interactive
             if (_repl.IsValueCreated)
             {
                 var repl = await _repl.Value;
-                kernelValueInfos = repl.Host.RootFrame.GetValues()
+                var valueInfoTasks = repl.Host.RootFrame.GetValues()
                     .Where(v => !(v.Item2 is LispInvocableObject))
                     .Select(v => v.Item1)
                     .Where(v => !_suppressedValues.Contains(v.Value))
-                    .Select(v => new KernelValueInfo(v.ToDisplayString(repl.Host.CurrentPackage)))
-                    .ToArray();
+                    .Select(async v =>
+                    {
+                        var displayName = v.ToDisplayString(repl.Host.CurrentPackage);
+                        var formattedValue = await GetFormattedValue(displayName, command.MimeType);
+                        return new KernelValueInfo(displayName, formattedValue);
+                    });
+                kernelValueInfos = await Task.WhenAll(valueInfoTasks);
             }
 
             context.Publish(new ValueInfosProduced(kernelValueInfos, command));
@@ -188,6 +190,24 @@ namespace IxMilia.Lisp.Interactive
                     context.Publish(new DiagnosticsProduced(new Microsoft.DotNet.Interactive.Diagnostic[0], command));
                     break;
             }
+        }
+
+        public async Task<FormattedValue> GetFormattedValue(string valueName, string mimeType)
+        {
+            var repl = await _repl.Value;
+            var foundValuePair = repl.Host.RootFrame.GetValues().FirstOrDefault(v => v.Item1.LocalName == valueName || v.Item1.Value == valueName);
+            if (foundValuePair is { })
+            {
+                var formatted = mimeType switch
+                {
+                    "application/json" => foundValuePair.Item2.ToJsonString(),
+                    _ => foundValuePair.Item2.ToDisplayString(repl.Host.CurrentPackage),
+                };
+
+                return new FormattedValue(mimeType, formatted); ;
+            }
+
+            return null;
         }
 
         public static bool TryGetLispObjectFromJson(string json, out LispObject result)
