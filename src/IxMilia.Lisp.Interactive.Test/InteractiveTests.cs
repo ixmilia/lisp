@@ -112,7 +112,7 @@ namespace IxMilia.Lisp.Interactive.Test
             var events = GetEventList(commandResult.KernelEvents);
             AssertNoErrors(events);
             var returnValue = events.OfType<ReturnValueProduced>().Single();
-            Assert.Equal("3", returnValue.FormattedValues.Single().Value);
+            Assert.Equal("3", returnValue.FormattedValues.Single(f => f.MimeType == "text/plain").Value);
         }
 
         [Fact]
@@ -151,7 +151,7 @@ namespace IxMilia.Lisp.Interactive.Test
             events = GetEventList(commandResult.KernelEvents);
             AssertNoErrors(events);
             var ret = events.OfType<ReturnValueProduced>().Single();
-            Assert.Equal("(1 2)", ret.FormattedValues.Single().Value);
+            Assert.Equal("(1 2)", ret.FormattedValues.Single(fv => fv.MimeType == "text/plain").Value);
         }
 
         private static void AssertNoErrors(IEnumerable<KernelEvent> events)

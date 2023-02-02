@@ -183,8 +183,9 @@ namespace IxMilia.Lisp.Interactive
                 case LispObject obj:
                     if (!obj.IsNil())
                     {
-                        var formatted = new FormattedValue("text/plain", obj.ToString()); // TODO: return strings, ints, etc.
-                        context.Publish(new ReturnValueProduced(obj, command, new[] { formatted }));
+                        var formattedText = new FormattedValue("text/plain", obj.ToString());
+                        var formattedJson = new FormattedValue("application/json", obj.ToJsonString());
+                        context.Publish(new ReturnValueProduced(obj, command, new[] { formattedText, formattedJson }));
                     }
 
                     context.Publish(new DiagnosticsProduced(new Microsoft.DotNet.Interactive.Diagnostic[0], command));
