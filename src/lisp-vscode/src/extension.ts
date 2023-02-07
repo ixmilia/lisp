@@ -17,9 +17,11 @@ const languageName = 'lisp';
 const outputChannelName = 'IxMilia.Lisp Language Server';
 
 export async function activate(context: vscode.ExtensionContext) {
+    const targetFrameworkMoniker = 'net7.0';
+    const runtimeVersion = targetFrameworkMoniker.replace('net', '');
     if (context.extensionMode === vscode.ExtensionMode.Production) {
         const acquireContext = {
-            version: '6.0',
+            version: runtimeVersion,
             requestingExtensionId: context.extension.id,
         };
         const dotnetResult = <any>await vscode.commands.executeCommand('dotnet.acquire', acquireContext);
@@ -27,7 +29,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     const debugArgs = [
-        path.join(__dirname, '..', '..', '..', 'artifacts', 'bin', 'IxMilia.Lisp.EditorServer', 'Debug', 'net7.0', 'IxMilia.Lisp.EditorServer.dll')
+        path.join(__dirname, '..', '..', '..', 'artifacts', 'bin', 'IxMilia.Lisp.EditorServer', 'Debug', targetFrameworkMoniker, 'IxMilia.Lisp.EditorServer.dll')
     ];
     const releaseArgs = [
         path.join(__dirname, '..', 'server', 'IxMilia.Lisp.EditorServer.dll')
