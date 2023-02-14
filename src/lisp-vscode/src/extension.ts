@@ -100,9 +100,29 @@ function startLspServer(): cp.ChildProcess {
 
 function registerCommands(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand('ixmilia-lisp.eval', async () => {
-        const currentDocument = vscode.window.activeTextEditor.document;
+        const textEditor = vscode.window.activeTextEditor;
+        const currentDocument = textEditor.document;
         const uri = currentDocument.uri.toString();
-        const rawResult = await client.sendRequest('textDocument/eval', { textDocument: { uri } });
+        const range = {
+            start: {
+                line: textEditor.selection.start.line,
+                character: textEditor.selection.start.character
+            },
+            end: {
+                line: textEditor.selection.end.line,
+                character: textEditor.selection.end.character
+            }
+        };
+        const arg = {
+            textDocument: {
+                uri
+            }
+        };
+        if (range.start.line !== range.end.line || range.start.character !== range.end.character) {
+            arg['range'] = range;
+        }
+
+        const rawResult = await client.sendRequest('textDocument/eval', arg);
         const result: { isError: string, content: string } = <any>rawResult;
         outputChannel.show(true);
         const errorPrefix = result.isError ? 'err ' : '';

@@ -91,12 +91,22 @@ namespace IxMilia.Lisp.LanguageServer
                 resettableTextWriter.Reset();
 
                 var executionState = pair.Host.CreateExecutionState();
-                var evalResult = await pair.Host.EvalAsync(param.TextDocument.Uri, pair.Content, executionState);
+                var inputName = param.TextDocument.Uri;
+                var content = pair.Content;
+                if (param.Range is { })
+                {
+                    inputName += $":{param.Range}";
+                    var startIndex = param.Range.Start.GetIndex(content);
+                    var endIndex = param.Range.End.GetIndex(content);
+                    content = content.Substring(startIndex, endIndex - startIndex);
+                }
+
+                var evalResult = await pair.Host.EvalAsync(inputName, content, executionState);
                 var error = executionState.LastReportedError;
 
                 if (error is { })
                 {
-                    AddErrorToDiagnosticCollection(diagnostics, error);
+                    AddErrorToDiagnosticCollection(diagnostics, error, param.Range?.Start);
                 }
 
                 var fullOutput = new StringBuilder();
@@ -223,11 +233,18 @@ namespace IxMilia.Lisp.LanguageServer
             return diagnostics.ToArray();
         }
 
-        private static void AddErrorToDiagnosticCollection(List<Diagnostic> diagnostics, LispError error)
+        private static void AddErrorToDiagnosticCollection(List<Diagnostic> diagnostics, LispError error, Position offset = null)
         {
             var range = RangeFromError(error);
             if (range is { })
             {
+                if (offset is { })
+                {
+                    range = new Range(
+                        new Position(range.Start.Line + offset.Line, range.Start.Character + offset.Character),
+                        new Position(range.End.Line + offset.Line, range.End.Character + offset.Character));
+                }
+
                 var diagnostic = new Diagnostic(range, DiagnosticSeverity.Error, error.Message);
                 diagnostics.Add(diagnostic);
             }

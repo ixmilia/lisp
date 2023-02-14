@@ -102,7 +102,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var diagnosticReport = (FullDocumentDiagnosticReport)await server.TextDocumentDiagnosticAsync(new DocumentDiagnosticParams(new TextDocumentIdentifier("file:///some-uri")));
             Assert.Equal(DocumentDiagnosticReportKind.Full, diagnosticReport.Kind);
             var diagnostic = diagnosticReport.Items.Single();
-            Assert.Equal("(0, 0)-(0, 16)", diagnostic.Range.ToString());
+            Assert.Equal("(0,0)-(0,16)", diagnostic.Range.ToString());
             Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
             Assert.Equal("Unexpected end of string", diagnostic.Message);
         }
@@ -184,6 +184,24 @@ namespace IxMilia.Lisp.LanguageServer.Test
         }
 
         [Fact]
+        public async Task EvalDoesTheWholeFileWhenNoRangeIsSpecified()
+        {
+            var server = await GetServerWithFileContentAsync("file:///some-uri", "(+ 1 1)(+ 3 3)");
+            var evalResult = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
+            Assert.False(evalResult.IsError);
+            Assert.Equal("6", evalResult.Content);
+        }
+
+        [Fact]
+        public async Task EvalDoesTheSelectionWhenSpecified()
+        {
+            var server = await GetServerWithFileContentAsync("file:///some-uri", "(+ 1 1)(+ 3 3)");
+            var evalResult = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri"), range: new Protocol.Range(new Position(0, 0), new Position(0, 7))));
+            Assert.False(evalResult.IsError);
+            Assert.Equal("2", evalResult.Content);
+        }
+
+        [Fact]
         public async Task TextDocumentDidOpenPublishesDiagnostics()
         {
             var (stream1, stream2) = FullDuplexStream.CreatePair();
@@ -213,7 +231,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var diagnostic = diagnostics.Single();
             Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
             Assert.Equal("Unexpected end of string", diagnostic.Message);
-            Assert.Equal("(0, 0)-(0, 20)", diagnostic.Range.ToString());
+            Assert.Equal("(0,0)-(0,20)", diagnostic.Range.ToString());
         }
 
         [Fact]
@@ -247,7 +265,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var diagnostic = diagnostics.Single();
             Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
             Assert.Equal("Unexpected end of string", diagnostic.Message);
-            Assert.Equal("(0, 0)-(0, 20)", diagnostic.Range.ToString());
+            Assert.Equal("(0,0)-(0,20)", diagnostic.Range.ToString());
         }
 
         [Fact]
@@ -282,7 +300,42 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var diagnostic = diagnostics.Single();
             Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
             Assert.Equal("Expected exactly two numbers", diagnostic.Message);
-            Assert.Equal("(0, 5)-(0, 7)", diagnostic.Range.ToString());
+            Assert.Equal("(0,5)-(0,7)", diagnostic.Range.ToString());
+        }
+
+        [Fact]
+        public async Task EvalPublishedDiagnosticsAreOffsetForRange()
+        {
+            var (stream1, stream2) = FullDuplexStream.CreatePair();
+            var server = new LanguageServer(stream1, stream1);
+            server.Start();
+
+            var messageHandler = LanguageServer.CreateMessageHandler(stream2, stream2);
+            var client = new JsonRpc(messageHandler);
+            var publishDiagnosticsCompletionSource = new TaskCompletionSource<Diagnostic[]>();
+            var diagnosticPublishEntryCount = 0;
+            Delegate publishDiagnostics = (PublishDiagnosticsParams param) =>
+            {
+                diagnosticPublishEntryCount++;
+                if (diagnosticPublishEntryCount >= 2)
+                {
+                    publishDiagnosticsCompletionSource.SetResult(param.Diagnostics);
+                }
+            };
+            client.AddLocalRpcMethod(publishDiagnostics.GetMethodInfo(), publishDiagnostics.Target, new LspMethodAttribute("textDocument/publishDiagnostics"));
+            client.StartListening();
+            await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"(+ 3 3) (+ 1 ())")));
+            var evalResult = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri"), range: new Protocol.Range(new Position(0, 8), new Position(0, 16))));
+            await Task.Yield();
+            var publishDiagnosticsTimeout = Task.Delay(1000);
+            var result = await Task.WhenAny(publishDiagnosticsCompletionSource.Task, publishDiagnosticsTimeout);
+            Assert.NotStrictEqual(result, publishDiagnosticsTimeout);
+            Assert.True(evalResult.IsError);
+            var diagnostics = await publishDiagnosticsCompletionSource.Task;
+            var diagnostic = diagnostics.Single();
+            Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.Equal("Expected exactly two numbers", diagnostic.Message);
+            Assert.Equal("(0,13)-(0,15)", diagnostic.Range.ToString());
         }
     }
 }

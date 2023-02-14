@@ -13,7 +13,7 @@ namespace IxMilia.Lisp.LanguageServer.Protocol
 
         public override string ToString()
         {
-            return $"({Line}, {Character})";
+            return $"({Line},{Character})";
         }
 
         internal int GetIndex(string value)
