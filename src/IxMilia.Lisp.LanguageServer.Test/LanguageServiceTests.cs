@@ -295,7 +295,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
             Assert.Equal("(1,5)-(1,7)", diagnostic.Range.ToString());
         }
 
-        private static async Task<Diagnostic> EvalAndGetDiagnostic(string code, Protocol.Range? selection = null)
+        private static async Task<Diagnostic> EvalAndGetDiagnostic(string code, Protocol.Range selection = null)
         {
             var (stream1, stream2) = FullDuplexStream.CreatePair();
             var server = new LanguageServer(stream1, stream1);
@@ -325,9 +325,6 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var diagnostics = await publishDiagnosticsCompletionSource.Task;
             var diagnostic = diagnostics.Single();
             return diagnostic;
-            Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-            Assert.Equal("Expected exactly two numbers", diagnostic.Message);
-            Assert.Equal("(0,13)-(0,15)", diagnostic.Range.ToString());
         }
     }
 }
