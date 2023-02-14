@@ -271,33 +271,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
         [Fact]
         public async Task EvalPublishesDiagnostics()
         {
-            var (stream1, stream2) = FullDuplexStream.CreatePair();
-            var server = new LanguageServer(stream1, stream1);
-            server.Start();
-
-            var messageHandler = LanguageServer.CreateMessageHandler(stream2, stream2);
-            var client = new JsonRpc(messageHandler);
-            var publishDiagnosticsCompletionSource = new TaskCompletionSource<Diagnostic[]>();
-            var diagnosticPublishEntryCount = 0;
-            Delegate publishDiagnostics = (PublishDiagnosticsParams param) =>
-            {
-                diagnosticPublishEntryCount++;
-                if (diagnosticPublishEntryCount >= 2)
-                {
-                    publishDiagnosticsCompletionSource.SetResult(param.Diagnostics);
-                }
-            };
-            client.AddLocalRpcMethod(publishDiagnostics.GetMethodInfo(), publishDiagnostics.Target, new LspMethodAttribute("textDocument/publishDiagnostics"));
-            client.StartListening();
-            await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"(+ 1 ())")));
-            var evalResult = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri")));
-            await Task.Yield();
-            var publishDiagnosticsTimeout = Task.Delay(1000);
-            var result = await Task.WhenAny(publishDiagnosticsCompletionSource.Task, publishDiagnosticsTimeout);
-            Assert.NotStrictEqual(result, publishDiagnosticsTimeout);
-            Assert.True(evalResult.IsError);
-            var diagnostics = await publishDiagnosticsCompletionSource.Task;
-            var diagnostic = diagnostics.Single();
+            var diagnostic = await EvalAndGetDiagnostic("(+ 1 ())");
             Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
             Assert.Equal("Expected exactly two numbers", diagnostic.Message);
             Assert.Equal("(0,5)-(0,7)", diagnostic.Range.ToString());
@@ -305,6 +279,23 @@ namespace IxMilia.Lisp.LanguageServer.Test
 
         [Fact]
         public async Task EvalPublishedDiagnosticsAreOffsetForRange()
+        {
+            var diagnostic = await EvalAndGetDiagnostic("(+ 3 3) (+ 1 ())", new Protocol.Range(new Position(0, 8), new Position(0, 16)));
+            Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.Equal("Expected exactly two numbers", diagnostic.Message);
+            Assert.Equal("(0,13)-(0,15)", diagnostic.Range.ToString());
+        }
+
+        [Fact]
+        public async Task EvalPublishedDiagnosticsAreOffsetForRangeOnSeparateLine()
+        {
+            var diagnostic = await EvalAndGetDiagnostic("(+ 3 3)       \n(+ 1 ())", new Protocol.Range(new Position(0, 8), new Position(1, 8)));
+            Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.Equal("Expected exactly two numbers", diagnostic.Message);
+            Assert.Equal("(1,5)-(1,7)", diagnostic.Range.ToString());
+        }
+
+        private static async Task<Diagnostic> EvalAndGetDiagnostic(string code, Protocol.Range? selection = null)
         {
             var (stream1, stream2) = FullDuplexStream.CreatePair();
             var server = new LanguageServer(stream1, stream1);
@@ -324,8 +315,8 @@ namespace IxMilia.Lisp.LanguageServer.Test
             };
             client.AddLocalRpcMethod(publishDiagnostics.GetMethodInfo(), publishDiagnostics.Target, new LspMethodAttribute("textDocument/publishDiagnostics"));
             client.StartListening();
-            await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, @"(+ 3 3) (+ 1 ())")));
-            var evalResult = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri"), range: new Protocol.Range(new Position(0, 8), new Position(0, 16))));
+            await server.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem("file:///some-uri", "lisp", 1, code)));
+            var evalResult = await server.TextDocumentEvalAsync(new EvalTextDocumentParams(new TextDocumentIdentifier("file:///some-uri"), range: selection));
             await Task.Yield();
             var publishDiagnosticsTimeout = Task.Delay(1000);
             var result = await Task.WhenAny(publishDiagnosticsCompletionSource.Task, publishDiagnosticsTimeout);
@@ -333,6 +324,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
             Assert.True(evalResult.IsError);
             var diagnostics = await publishDiagnosticsCompletionSource.Task;
             var diagnostic = diagnostics.Single();
+            return diagnostic;
             Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
             Assert.Equal("Expected exactly two numbers", diagnostic.Message);
             Assert.Equal("(0,13)-(0,15)", diagnostic.Range.ToString());

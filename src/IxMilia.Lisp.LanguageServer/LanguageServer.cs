@@ -240,9 +240,10 @@ namespace IxMilia.Lisp.LanguageServer
             {
                 if (offset is { })
                 {
+                    var characterOffset = range.Start.Line == 0 ? offset.Character : 0;
                     range = new Range(
-                        new Position(range.Start.Line + offset.Line, range.Start.Character + offset.Character),
-                        new Position(range.End.Line + offset.Line, range.End.Character + offset.Character));
+                        new Position(range.Start.Line + offset.Line, range.Start.Character + characterOffset),
+                        new Position(range.End.Line + offset.Line, range.End.Character + characterOffset));
                 }
 
                 var diagnostic = new Diagnostic(range, DiagnosticSeverity.Error, error.Message);
