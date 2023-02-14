@@ -17,6 +17,13 @@ namespace IxMilia.Lisp
             }
         }
 
+        public static bool IsT(this LispObject o)
+        {
+            return o is LispResolvedSymbol symbol
+                && symbol.PackageName == "COMMON-LISP"
+                && symbol.LocalName == "T";
+        }
+
         public static bool IsTLike(this LispObject o)
         {
             switch (o)
@@ -26,6 +33,41 @@ namespace IxMilia.Lisp
                     return false;
                 default:
                     return true;
+            }
+        }
+
+        public static bool IsEof(this LispObject o)
+        {
+            switch (o)
+            {
+                case LispError error:
+                    return error.Message == "EOF";
+                default:
+                    return false;
+            }
+        }
+
+        public static LispObject LastItem(this LispList list)
+        {
+            while (true)
+            {
+                if (list.IsNil())
+                {
+                    // went too far?
+                    return null;
+                }
+
+                if (list.Next.IsNil())
+                {
+                    // found it
+                    return list.Value;
+                }
+
+                if (list.Next is LispList nextList)
+                {
+                    // keep going
+                    list = nextList;
+                }
             }
         }
 
@@ -79,7 +121,7 @@ namespace IxMilia.Lisp
                     return $@"
 ``` lisp
 ; <in module {codeFunction.NameSymbol.PackageName}>
-(DEFUN {codeFunction.NameSymbol.ToDisplayString(host.CurrentPackage)} ({codeFunction.ArgumentCollection}) ...)
+(DEFUN {codeFunction.NameSymbol.ToDisplayString(host.CurrentPackage)} ({codeFunction.ArgumentCollection.ToDisplayString(host.CurrentPackage)}) ...)
 ```
 
 {codeFunction.Documentation}".Trim();
@@ -96,7 +138,7 @@ namespace IxMilia.Lisp
                     return $@"
 ``` lisp
 ; <in module {codeMacro.NameSymbol.PackageName}>
-(DEFMACRO {codeMacro.NameSymbol.ToDisplayString(host.CurrentPackage)} ({codeMacro.ArgumentCollection}) ...)
+(DEFMACRO {codeMacro.NameSymbol.ToDisplayString(host.CurrentPackage)} ({codeMacro.ArgumentCollection.ToDisplayString(host.CurrentPackage)}) ...)
 ```
 
 {codeMacro.Documentation}".Trim();
@@ -122,7 +164,7 @@ namespace IxMilia.Lisp
                     // TODO: don't display current package qualifier
                     return $"`{symbol.Value}`: {host.GetValue(symbol.Value)}";
                 default:
-                    return obj?.ToString();
+                    return obj?.ToDisplayString(host.CurrentPackage);
             }
         }
 
@@ -229,19 +271,25 @@ namespace IxMilia.Lisp
                     break;
                 case LispResolvedSymbol rs:
                     {
-                        var packageEnd = new LispSourcePosition(start.Line, start.Column + rs.PackageName.Length);
-                        var symbolStart = new LispSourcePosition(end.Line, end.Column - rs.LocalName.Length);
-                        tokens.Add(new LispToken(LispTokenType.Package, start, packageEnd));
-                        var resolvedValue = host.RootFrame.GetValue(rs);
-                        switch (resolvedValue)
+                        if (rs.PackageSpan != null)
                         {
-                            case LispFunction _:
-                                tokens.Add(new LispToken(LispTokenType.Function, symbolStart, end));
-                                break;
-                            case LispMacro _:
-                                tokens.Add(new LispToken(LispTokenType.Macro, symbolStart, end));
-                                break;
+                            tokens.Add(new LispToken(LispTokenType.Package, rs.PackageSpan.Item1, rs.PackageSpan.Item2));
                         }
+
+                        if (rs.SymbolSpan != null)
+                        {
+                            var resolvedValue = host.RootFrame.GetValue(rs);
+                            switch (resolvedValue)
+                            {
+                                case LispFunction _:
+                                    tokens.Add(new LispToken(LispTokenType.Function, rs.SymbolSpan.Item1, rs.SymbolSpan.Item2));
+                                    break;
+                                case LispMacro _:
+                                    tokens.Add(new LispToken(LispTokenType.Macro, rs.SymbolSpan.Item1, rs.SymbolSpan.Item2));
+                                    break;
+                            }
+                        }
+                        
                     }
                     break;
             }

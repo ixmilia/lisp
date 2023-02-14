@@ -2,13 +2,13 @@
 {
     public class LispReplResult
     {
+        public LispObject LastResult { get; }
         public LispExecutionState ExecutionState { get; }
         public int ExpressionDepth { get; }
 
-        public LispObject LastResult => ExecutionState?.LastReportedError ?? ExecutionState?.LastResult;
-
-        public LispReplResult(LispExecutionState executionState, int expressionDepth)
+        public LispReplResult(LispObject lastResult, LispExecutionState executionState, int expressionDepth)
         {
+            LastResult = lastResult;
             ExecutionState = executionState;
             ExpressionDepth = expressionDepth;
         }

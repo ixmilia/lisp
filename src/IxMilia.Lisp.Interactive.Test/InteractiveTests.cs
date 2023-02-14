@@ -139,19 +139,22 @@ namespace IxMilia.Lisp.Interactive.Test
         }
 
         [Fact]
-        public async Task VariableDeclarerSetsValueInKernel()
+        public async Task SendValueSetsValueInKernel()
         {
             var kernel = new LispKernel();
-            var command = new SendValue("X", null, new FormattedValue("application/json", "[1,2]"));
+            var command = new SendValue("x", null, new FormattedValue("application/json", "[1,2]"));
             var commandResult = await kernel.SendAsync(command);
             var events = GetEventList(commandResult.KernelEvents);
             AssertNoErrors(events);
 
-            commandResult = await kernel.SendAsync(new SubmitCode("X"));
+            commandResult = await kernel.SendAsync(new RequestValueInfos());
             events = GetEventList(commandResult.KernelEvents);
             AssertNoErrors(events);
-            var ret = events.OfType<ReturnValueProduced>().Single();
-            Assert.Equal("(1 2)", ret.FormattedValues.Single(fv => fv.MimeType == "text/plain").Value);
+            var valueInfos = events.OfType<ValueInfosProduced>().Single();
+            var valueInfo = valueInfos.ValueInfos.Single();
+            Assert.Equal("X", valueInfo.Name);
+            Assert.Equal("text/plain+summary", valueInfo.FormattedValue.MimeType);
+            Assert.Equal("(1 2)", valueInfo.FormattedValue.Value);
         }
 
         private static void AssertNoErrors(IEnumerable<KernelEvent> events)

@@ -3,12 +3,14 @@
     public abstract class LispInvocationArgument
     {
         public LispSymbol Declaration { get; }
-        public string Name => Declaration.LocalName;
+        public string Name => Declaration.ToString();
 
         protected LispInvocationArgument(LispSymbol declaration)
         {
             Declaration = declaration;
         }
+
+        public virtual string ToDisplayString(LispPackage currentPackage) => Declaration.ToDisplayString(currentPackage);
     }
 
     public class LispRegularInvocationArgument : LispInvocationArgument
@@ -18,10 +20,7 @@
         {
         }
 
-        public override string ToString()
-        {
-            return Name;
-        }
+        public override string ToString() => Name;
     }
 
     public class LispOptionalInvocationArgument : LispInvocationArgument
@@ -34,10 +33,9 @@
             DefaultValue = defaultValue;
         }
 
-        public override string ToString()
-        {
-            return $"&OPTIONAL ({Name} {DefaultValue})";
-        }
+        public override string ToString() => $"&OPTIONAL ({Name} {DefaultValue})";
+
+        public override string ToDisplayString(LispPackage currentPackage) => $"&OPTIONAL ({Name} {DefaultValue.ToDisplayString(currentPackage)})";
     }
 
     public class LispKeywordInvocationArgument : LispInvocationArgument
@@ -50,10 +48,9 @@
             DefaultValue = defaultValue;
         }
 
-        public override string ToString()
-        {
-            return $"&KEY ({Name} {DefaultValue})";
-        }
+        public override string ToString() => $"&KEY ({Name} {DefaultValue})";
+
+        public override string ToDisplayString(LispPackage currentPackage) => $"&KEY ({Name} {DefaultValue.ToDisplayString(currentPackage)})";
     }
 
     public class LispAuxiliaryInvocationArgument : LispInvocationArgument
@@ -66,10 +63,9 @@
             InitialValue = initialValue;
         }
 
-        public override string ToString()
-        {
-            return $"&AUX ({Name} {InitialValue})";
-        }
+        public override string ToString() => $"&AUX ({Name} {InitialValue})";
+
+        public override string ToDisplayString(LispPackage currentPackage) => $"&AUX ({Name} {InitialValue.ToDisplayString(currentPackage)})";
     }
 
     public class LispRestInvocationArgument : LispInvocationArgument
@@ -79,9 +75,6 @@
         {
         }
 
-        public override string ToString()
-        {
-            return $"&REST {Name}";
-        }
+        public override string ToString() => $"&REST {Name}";
     }
 }

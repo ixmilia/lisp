@@ -204,11 +204,10 @@ namespace IxMilia.Lisp.DebugAdapter
         private async Task ContinueEvaluationAsync()
         {
             var result = await _host.EvalContinueAsync(_executionState);
-            _executionState = result.ExecutionState;
 
             if (_executionState.IsExecutionComplete)
             {
-                PushMessage(new OutputEvent(GetNextSeq(), new OutputEventBody(OutputEventCategory.Console, $"Evaluation finished with: {_executionState.LastResult}\n")));
+                PushMessage(new OutputEvent(GetNextSeq(), new OutputEventBody(OutputEventCategory.Console, $"Evaluation finished with: {result.Value}\n")));
                 PushMessage(new TerminatedEvent(GetNextSeq()));
             }
             else
@@ -231,7 +230,7 @@ namespace IxMilia.Lisp.DebugAdapter
                         break;
                     case null:
                         // finished with some result, error or not
-                        PushMessage(new OutputEvent(GetNextSeq(), new OutputEventBody(OutputEventCategory.Console, $"Evaluation finished with: {_executionState.LastResult}\n")));
+                        PushMessage(new OutputEvent(GetNextSeq(), new OutputEventBody(OutputEventCategory.Console, $"Evaluation finished with: {result.Value}\n")));
                         PushMessage(new TerminatedEvent(GetNextSeq()));
                         break;
                 }
@@ -282,8 +281,9 @@ namespace IxMilia.Lisp.DebugAdapter
                 }
             }
 
-            var result = await _host.EvalAtStackFrameAsync(evaluationFrame, evaluate.Arguments.Expression);
-            PushMessage(new EvaluateResponse(GetNextSeq(), evaluate.Seq, new EvaluateResponseBody(result?.ToDisplayString(_host.CurrentPackage) ?? "<unknown>", 0)));
+            var executionState = LispExecutionState.CreateExecutionState(evaluationFrame, allowHalting: false);
+            var evalResult = await _host.EvalAsync("<eval>", evaluate.Arguments.Expression, executionState);
+            PushMessage(new EvaluateResponse(GetNextSeq(), evaluate.Seq, new EvaluateResponseBody(evalResult.Value?.ToDisplayString(_host.CurrentPackage) ?? "<unknown>", 0)));
         }
 
         private void Initialize(InitializeRequest initialize)
@@ -297,17 +297,19 @@ namespace IxMilia.Lisp.DebugAdapter
         {
             var fileContent = await Options.ResolveFileContents(launch.Arguments.Program);
             var output = new ListeningTextWriter(line => PushMessage(new OutputEvent(GetNextSeq(), new OutputEventBody(OutputEventCategory.Stdout, line))));
-            _host = await LispHost.CreateAsync(filePath: launch.Arguments.Program, output: output);
-            _executionState = _host.CreateExecutionState(fileContent);
-            _host.RootFrame.ErrorOccured += RootFrame_ErrorOccured;
+            var configuration = new LispHostConfiguration(output: output);
+            _host = await LispHost.CreateAsync(configuration);
+            _executionState = _host.CreateExecutionState();
+            _host.RootFrame.ErrorOccurred += RootFrame_ErrorOccurred;
             _host.RootFrame.EvaluatingExpression += RootFrame_EvaluatingExpression;
             _host.RootFrame.FunctionEntered += RootFrame_FunctionEntered;
             await _configurationDone.Task;
+            _executionState.InsertCodeOperations(launch.Arguments.Program, fileContent);
             PushMessage(new LaunchResponse(GetNextSeq(), launch.Seq));
             await ContinueEvaluationAsync();
         }
 
-        private void RootFrame_ErrorOccured(object sender, LispErrorOccuredEventArgs e)
+        private void RootFrame_ErrorOccurred(object sender, LispErrorOccuredEventArgs e)
         {
             _breakReason = new ErrorBreakReason(e.Error);
         }

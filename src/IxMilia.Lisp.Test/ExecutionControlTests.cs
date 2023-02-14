@@ -10,7 +10,8 @@ namespace IxMilia.Lisp.Test
         [Fact]
         public async Task HaltExecutionOnFunctionEnter()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.RootFrame.FunctionEntered += (s, e) =>
             {
                 if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:INNER-FUNCTION")
@@ -18,24 +19,23 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun inner-function ()
     42)
 (defun outer-function ()
     (inner-function))
 (outer-function)
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Null(evalResult.LastResult);
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(42, ((LispInteger)evalResult.LastResult).Value);
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal(42, ((LispInteger)evalResult.Value).Value);
         }
 
         [Fact]
         public async Task HaltExecutionOnFunctionReturn()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             bool sentinelHit = false;
             host.AddFunction("SENTINEL", (host, executionState, args, _cancellationToken) =>
             {
@@ -51,28 +51,28 @@ namespace IxMilia.Lisp.Test
                     capturedReturnValue = e.ReturnValue;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun inner-function ()
     42)
 (defun outer-function ()
     (inner-function)
     (sentinel))
 (outer-function)
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
             Assert.Equal(42, ((LispInteger)capturedReturnValue).Value);
-            Assert.Equal(42, ((LispInteger)evalResult.LastResult).Value);
+            Assert.Equal(42, ((LispInteger)evalResult.Value).Value);
             Assert.False(sentinelHit);
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(54, ((LispInteger)evalResult.LastResult).Value);
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal(54, ((LispInteger)evalResult.Value).Value);
             Assert.True(sentinelHit);
         }
 
         [Fact]
         public async Task HaltExecutionOnMacroExpansion()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.AddMacro("FOURTY-TWO", (host, executionState, args, _cancellationToken) =>
             {
                 return Task.FromResult<LispObject>(new LispInteger(42));
@@ -84,22 +84,22 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (fourty-two)
 (+ 1 2)
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: 42", evalResult.ExecutionState.PeekOperation().ToString());
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: 42", executionState.PeekOperation().ToString());
 
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(3, ((LispInteger)evalResult.LastResult).Value);
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal(3, ((LispInteger)evalResult.Value).Value);
         }
 
         [Fact]
         public async Task HaltExecutionOnExpressionEvaluation()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             bool hitBreakpoint = false;
             bool sentinelHit = false;
             host.AddFunction("SENTINEL", (host, executionState, args, _cancellationToken) =>
@@ -118,28 +118,27 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun inner-function ()
     (+ 40 2))
 (defun outer-function ()
     (inner-function)
     (sentinel))
 (outer-function)
-");
+", executionState);
             Assert.True(hitBreakpoint);
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Null(evalResult.LastResult);
+            Assert.False(executionState.IsExecutionComplete);
             Assert.False(sentinelHit);
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(54, ((LispInteger)evalResult.LastResult).Value);
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal(54, ((LispInteger)evalResult.Value).Value);
             Assert.True(sentinelHit);
         }
 
         [Fact]
         public async Task HaltExecutionAfterSimpleExpressionEvaluation()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.RootFrame.EvaluatedExpression += (s, e) =>
             {
                 if (e.Expression.ToString() == "2" &&
@@ -149,69 +148,68 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (+ (* 2 3) (/ 12 4))
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(2, ((LispInteger)evalResult.LastResult).Value);
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(9, ((LispInteger)evalResult.LastResult).Value);
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal(2, ((LispInteger)evalResult.Value).Value);
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal(9, ((LispInteger)evalResult.Value).Value);
         }
 
         [Fact]
         public async Task HaltExecutionAfterInvokeExpressionEvaluation()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.RootFrame.EvaluatedExpression += (s, e) =>
             {
-                if (e.Expression.ToString() == "(* 2 3)" &&
+                if (e.Expression.ToString() == "(COMMON-LISP:* 2 3)" &&
                     e.Result is LispInteger i &&
                     i.Value == 6)
                 {
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (+ (* 2 3) (/ 10 2))
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(6, ((LispInteger)evalResult.LastResult).Value);
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(11, ((LispInteger)evalResult.LastResult).Value);
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal(6, ((LispInteger)evalResult.Value).Value);
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal(11, ((LispInteger)evalResult.Value).Value);
         }
 
         [Fact]
         public async Task HaltExecutionOnEvaluatingFunctionArgument()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             var hitBreakpoint = false;
             host.RootFrame.EvaluatingExpression += (s, e) =>
             {
                 if (!hitBreakpoint &&
                     e.Expression is LispList list &&
-                    list.ToString() == "(* 2 2)")
+                    list.ToDisplayString(host.CurrentPackage) == "(* 2 2)")
                 {
                     hitBreakpoint = true;
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (+ (* 2 2) (* 3 3))
-");
+", executionState);
             Assert.True(hitBreakpoint);
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Null(evalResult.LastResult);
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(13, ((LispInteger)evalResult.LastResult).Value);
+            Assert.False(executionState.IsExecutionComplete);
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal(13, ((LispInteger)evalResult.Value).Value);
         }
 
         [Fact]
         public async Task ExecutionCannotBeHaltedWhenEvaluatingFromWithinANativeFunction()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.AddFunction("NATIVE-FUNCTION", async (host, executionState, args, _cancellationToken) =>
             {
                 var result = await host.EvalAtStackFrameAsync(executionState.StackFrame, LispList.FromEnumerable(new LispObject[] { LispSymbol.CreateFromString("*"), new LispInteger(2), new LispInteger(2) }));
@@ -228,16 +226,16 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true; // this should not be honored
                 }
             };
-            var evalResult = await host.EvalAsync("(native-function)");
+            var evalResult = await host.EvalAsync("test.lisp", "(native-function)", executionState);
             Assert.True(hitBreakpoint);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(4, ((LispInteger)evalResult.LastResult).Value);
+            Assert.Equal(4, ((LispInteger)evalResult.Value).Value);
         }
 
         [Fact]
         public async Task ExecutionCannotBeHaltedWhenEvaluatingFromWithinANativeMacro()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.AddMacro("NATIVE-FUNCTION", async (host, executionState, args, _cancellationToken) =>
             {
                 var result = await host.EvalAtStackFrameAsync(executionState.StackFrame, LispList.FromEnumerable(new LispObject[] { LispSymbol.CreateFromString("*"), new LispInteger(2), new LispInteger(2) }));
@@ -254,16 +252,16 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true; // this should not be honored
                 }
             };
-            var evalResult = await host.EvalAsync("(native-function)");
+            var evalResult = await host.EvalAsync("test.lisp", "(native-function)", executionState);
             Assert.True(hitBreakpoint);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(4, ((LispInteger)evalResult.LastResult).Value);
+            Assert.Equal(4, ((LispInteger)evalResult.Value).Value);
         }
 
         [Fact]
         public async Task ExecutionCanBeHaltedAfterSettingAValue()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.RootFrame.ValueSet += (s, e) =>
             {
                 if (e.Symbol.Value == "COMMON-LISP-USER:THE-ANSWER" &&
@@ -273,65 +271,71 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (+ 1 2)
 (setf the-answer (+ 40 2))
 (+ the-answer 2)
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(44, ((LispInteger)evalResult.LastResult).Value);
+", executionState);
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal(44, ((LispInteger)evalResult.Value).Value);
         }
 
         [Fact]
         public async Task ExecutionCanBeHaltedWhenAnErrorIsExplicitlyRaised()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             LispError capturedError = null;
-            host.RootFrame.ErrorOccured += (s, e) =>
+            var isExecutionCompleteAtError = false;
+            host.RootFrame.ErrorOccurred += (s, e) =>
             {
                 capturedError = e.Error;
+                isExecutionCompleteAtError = executionState.IsExecutionComplete;
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun test-method ()
     (error ""test error""))
 (test-method)
-");
+", executionState);
             // errors _always_ halt execution
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("test error", ((LispError)evalResult.LastResult).Message);
+            Assert.False(isExecutionCompleteAtError);
+            Assert.Equal("test error", ((LispError)evalResult.Value).Message);
             Assert.Equal("test error", capturedError.Message);
-            Assert.True(ReferenceEquals(capturedError, evalResult.LastResult));
+            Assert.True(ReferenceEquals(capturedError, evalResult.Value));
         }
 
         [Fact]
         public async Task ExecutionCanBeHaltedWhenAnErrorIsNaturallyEncountered()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             LispError capturedError = null;
-            host.RootFrame.ErrorOccured += (s, e) =>
+            var isExecutionCompleteAtError = false;
+            host.RootFrame.ErrorOccurred += (s, e) =>
             {
                 capturedError = e.Error;
+                isExecutionCompleteAtError = executionState.IsExecutionComplete;
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun test-method ()
     (not-a-method))
 (test-method)
-");
+", executionState);
             // errors _always_ halt execution
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("Undefined macro/function 'NOT-A-METHOD', found '<null>'", ((LispError)evalResult.LastResult).Message);
+            Assert.False(isExecutionCompleteAtError);
+            Assert.Equal("Undefined macro/function 'NOT-A-METHOD', found '<null>'", ((LispError)evalResult.Value).Message);
             Assert.Equal("Undefined macro/function 'NOT-A-METHOD', found '<null>'", capturedError.Message);
-            Assert.True(ReferenceEquals(capturedError, evalResult.LastResult));
+            Assert.True(ReferenceEquals(capturedError, evalResult.Value));
         }
 
         [Fact]
         public async Task HaltingOnErrorOccuredDoesNotHappenMoreThanOnceForTheSameError()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             LispError capturedError = null;
-            host.RootFrame.ErrorOccured += (s, e) =>
+            var isExecutionCompleteAtError = false;
+            host.RootFrame.ErrorOccurred += (s, e) =>
             {
                 if (ReferenceEquals(capturedError, e.Error))
                 {
@@ -339,20 +343,21 @@ namespace IxMilia.Lisp.Test
                 }
 
                 capturedError = e.Error;
+                isExecutionCompleteAtError = executionState.IsExecutionComplete;
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun test-method ()
     (error ""test error""))
 (test-method)
-");
+", executionState);
             // ensure we halted the first time on the error
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.IsType<LispError>(evalResult.LastResult);
-            Assert.True(ReferenceEquals(capturedError, evalResult.LastResult));
+            Assert.False(isExecutionCompleteAtError);
+            Assert.IsType<LispError>(evalResult.Value);
+            Assert.True(ReferenceEquals(capturedError, evalResult.Value));
 
             // continue to the end (i.e., let the error bubble up, but don't halt again)
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            await host.EvalContinueAsync(executionState);
+            Assert.True(executionState.IsExecutionComplete);
         }
 
         [Theory]
@@ -360,44 +365,49 @@ namespace IxMilia.Lisp.Test
         [InlineData(false)]
         public async Task ExecutionCanStepOver(bool useTailCalls)
         {
-            var host = await LispHost.CreateAsync(useTailCalls: useTailCalls);
+            var host = await CreateHostAsync(useTailCalls: useTailCalls);
+            var executionState = host.CreateExecutionState();
             var hasHalted = false;
             host.RootFrame.EvaluatingExpression += (s, e) =>
             {
-                if (!hasHalted && e.Expression.ToString() == "(+ 2 (- 5 3))")
+                if (!hasHalted && e.Expression.ToString() == "(COMMON-LISP:+ 2 (COMMON-LISP:- 5 3))")
                 {
                     e.HaltExecution = true;
                     hasHalted = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun test-method ()
     (+ 1 1)
-    (+ 2 (- 5 3)) ; initial halt here
-    (+ 3 3))
-(test-method)
-(+ 4 4)
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 2 (- 5 3))", evalResult.ExecutionState.PeekOperation().ToString());
+    (+ 2 (- 5 3))       ; initial halt here
+    (+ 3 3))            ; first step over gets here
+(test-method)           ; second step over gets here
+(+ 4 4)                 ; third step over (aka, step out) gets here
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: (COMMON-LISP:+ 2 (COMMON-LISP:- 5 3))", executionState.PeekOperation().ToString());
 
-            await host.StepOverAsync(evalResult.ExecutionState);
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 3 3)", evalResult.ExecutionState.PeekOperation().ToString());
+            await host.StepOverAsync(executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: (COMMON-LISP:+ 3 3)", executionState.PeekOperation().ToString());
 
-            await host.StepOverAsync(evalResult.ExecutionState); // end of function, this was really a step out
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 4 4)", evalResult.ExecutionState.PeekOperation().ToString());
+            await host.StepOverAsync(executionState); // end of function, this was really a step out
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: (COMMON-LISP:+ 4 4)", executionState.PeekOperation().ToString());
+            Assert.Equal("test.lisp: [(7, 1)-(7, 8))", executionState.PeekCurrentExpression().SourceLocation.ToString());
 
-            await host.StepOverAsync(evalResult.ExecutionState); // execution complete; this was the last operation
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(8, ((LispInteger)evalResult.LastResult).Value);
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal("a: pop", executionState.PeekOperation().ToString());
+            Assert.Equal(8, ((LispInteger)evalResult.Value).Value);
+            await host.EvalContinueAsync(executionState);
+            Assert.True(executionState.IsExecutionComplete);
         }
 
         [Fact]
         public async Task ExecutionStepOverWhenNextOperationIsNotAnExpression()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.RootFrame.FunctionReturned += (s, e) =>
             {
                 if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:TEST-METHOD")
@@ -405,23 +415,22 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun test-method ()
     (+ 1 2))
 (test-method)
 (+ 4 5)
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(3, ((LispInteger)evalResult.LastResult).Value);
-            Assert.Null(evalResult.ExecutionState.PeekCurrentExpression());
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)evalResult.Value).Value);
+            Assert.Null(executionState.PeekCurrentExpression());
 
-            await host.StepOverAsync(evalResult.ExecutionState); // nothing to step over; it's really a step out
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 4 5)", evalResult.ExecutionState.PeekOperation().ToString());
+            await host.StepOverAsync(executionState); // nothing to step over; it's really a step out
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: (COMMON-LISP:+ 4 5)", executionState.PeekOperation().ToString());
 
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(9, ((LispInteger)evalResult.LastResult).Value); ;
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal(9, ((LispInteger)evalResult.Value).Value);
         }
 
         [Theory]
@@ -429,7 +438,8 @@ namespace IxMilia.Lisp.Test
         [InlineData(false)]
         public async Task ExecutionCanStepIn(bool useTailCalls)
         {
-            var host = await LispHost.CreateAsync(useTailCalls: useTailCalls);
+            var host = await CreateHostAsync(useTailCalls: useTailCalls);
+            var executionState = host.CreateExecutionState();
             host.AddFunction("NATIVE-FUNCTION", (host, executionState, args, _cancellationToken) =>
             {
                 return Task.FromResult(host.T);
@@ -437,34 +447,35 @@ namespace IxMilia.Lisp.Test
             var hasHalted = false;
             host.RootFrame.EvaluatingExpression += (s, e) =>
             {
-                if (!hasHalted && e.Expression.ToString() == "(TEST-METHOD)")
+                if (!hasHalted && e.Expression.ToString() == "(COMMON-LISP-USER:TEST-METHOD)")
                 {
                     e.HaltExecution = true;
                     hasHalted = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun test-method ()
     (native-function)
     (+ 1 1))
 (test-method) ; initial halt here
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: (TEST-METHOD)", evalResult.ExecutionState.PeekOperation().ToString());
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: (COMMON-LISP-USER:TEST-METHOD)", executionState.PeekOperation().ToString());
 
-            await host.StepInAsync(evalResult.ExecutionState);
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: (NATIVE-FUNCTION)", evalResult.ExecutionState.PeekOperation().ToString());
+            await host.StepInAsync(executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: (COMMON-LISP-USER:NATIVE-FUNCTION)", executionState.PeekOperation().ToString());
 
-            await host.StepInAsync(evalResult.ExecutionState); // can't step in to a native function; this is really a step over
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 1 1)", evalResult.ExecutionState.PeekOperation().ToString());
+            await host.StepInAsync(executionState); // can't step in to a native function; this is really a step over
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: (COMMON-LISP:+ 1 1)", executionState.PeekOperation().ToString());
         }
 
         [Fact]
         public async Task ExecutionStepInWhenNextOperationIsNotAnExpression()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.RootFrame.FunctionReturned += (s, e) =>
             {
                 if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:TEST-METHOD")
@@ -472,23 +483,22 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun test-method ()
     (+ 1 2))
 (test-method)
 (+ 4 5)
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(3, ((LispInteger)evalResult.LastResult).Value);
-            Assert.Null(evalResult.ExecutionState.PeekCurrentExpression());
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)evalResult.Value).Value);
+            Assert.Null(executionState.PeekCurrentExpression());
 
-            await host.StepInAsync(evalResult.ExecutionState); // nothing to step in to, so it's really step out _then_ step in
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: 4", evalResult.ExecutionState.PeekOperation().ToString());
+            await host.StepInAsync(executionState); // nothing to step in to, so it's really step out _then_ step in
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: 4", executionState.PeekOperation().ToString());
 
-            await host.EvalContinueAsync(evalResult.ExecutionState);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(9, ((LispInteger)evalResult.LastResult).Value); ;
+            evalResult = await host.EvalContinueAsync(executionState);
+            Assert.Equal(9, ((LispInteger)evalResult.Value).Value);
         }
 
         [Theory]
@@ -496,40 +506,49 @@ namespace IxMilia.Lisp.Test
         [InlineData(false)]
         public async Task ExecutionCanStepOut(bool useTailCalls)
         {
-            var host = await LispHost.CreateAsync(useTailCalls: useTailCalls);
+            var host = await CreateHostAsync(useTailCalls: useTailCalls);
+            var executionState = host.CreateExecutionState();
             var hasHalted = false;
+            var hitSomeOtherFunction = false;
+            host.AddFunction("SOME-OTHER-FUNCTION", (_host, executionState, args, cancellationToken) =>
+            {
+                hitSomeOtherFunction = true;
+                return Task.FromResult(_host.Nil);
+            });
             host.RootFrame.EvaluatingExpression += (s, e) =>
             {
-                if (!hasHalted && e.Expression.ToString() == "(+ 1 1)")
+                if (!hasHalted && e.Expression.ToString() == "(COMMON-LISP:+ 1 1)")
                 {
                     e.HaltExecution = true;
                     hasHalted = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun test-method ()
     (+ 1 1) ; initial halt here
     (+ 2 2))
 (test-method)
-(+ 3 3)
-(+ 4 4)
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 1 1)", evalResult.ExecutionState.PeekOperation().ToString());
+(some-other-function)
+8
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal("s: (COMMON-LISP:+ 1 1)", executionState.PeekOperation().ToString());
 
-            await host.StepOutAsync(evalResult.ExecutionState);
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal("s: (+ 3 3)", evalResult.ExecutionState.PeekOperation().ToString());
+            await host.StepOutAsync(executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.False(hitSomeOtherFunction);
+            Assert.Equal("s: (COMMON-LISP-USER:SOME-OTHER-FUNCTION)", executionState.PeekOperation().ToString());
 
-            await host.StepOutAsync(evalResult.ExecutionState); // can't step out at the root level; this was really a run to end
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(8, ((LispInteger)evalResult.LastResult).Value);
+            evalResult = await host.StepOutAsync(executionState); // can't step out at the root level; this was really a run to end
+            Assert.True(hitSomeOtherFunction);
+            Assert.Equal(8, ((LispInteger)evalResult.Value).Value);
         }
 
         [Fact]
         public async Task ExecutionStepOutWhenNextOperationIsNotAnExpression()
         {
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.RootFrame.FunctionReturned += (s, e) =>
             {
                 if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:TEST-METHOD")
@@ -537,26 +556,26 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun test-method ()
     (+ 1 2))
 (test-method)
 (+ 4 5)
-");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(3, ((LispInteger)evalResult.LastResult).Value);
-            Assert.Null(evalResult.ExecutionState.PeekCurrentExpression());
+", executionState);
+            Assert.False(executionState.IsExecutionComplete);
+            Assert.Equal(3, ((LispInteger)evalResult.Value).Value);
+            Assert.Null(executionState.PeekCurrentExpression());
 
-            await host.StepOutAsync(evalResult.ExecutionState); // stepping out here steps out of everything
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
-            Assert.Equal(9, ((LispInteger)evalResult.LastResult).Value); ;
+            evalResult = await host.StepOutAsync(executionState); // stepping out here steps out of everything
+            Assert.Equal(9, ((LispInteger)evalResult.Value).Value);
         }
 
         [Fact]
         public async Task EvaluationCanBeHaltedInsideSetFValue()
         {
             var enteredGetValue = false;
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.RootFrame.FunctionEntered += (s, e) =>
             {
                 if (e.Frame.FunctionSymbol.Value == "COMMON-LISP-USER:GET-VALUE")
@@ -565,11 +584,11 @@ namespace IxMilia.Lisp.Test
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (defun get-value ()
     42)
-(setf x (get-value))");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+(setf x (get-value))", executionState);
+            Assert.False(executionState.IsExecutionComplete);
             Assert.True(enteredGetValue);
             Assert.Null(host.GetValue("X"));
         }
@@ -578,19 +597,20 @@ namespace IxMilia.Lisp.Test
         public async Task EvaluationCanBeHaltedInsideSetFDestination()
         {
             var enteredSetValue = false;
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.RootFrame.EvaluatedExpression += (s, e) =>
             {
-                if (e.Expression.ToString() == "(CAR X)")
+                if (e.Expression.ToDisplayString(host.CurrentPackage) == "(CAR X)")
                 {
                     enteredSetValue = true;
                     e.HaltExecution = true;
                 }
             };
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (setf x '(1 2 3))
-(setf (car x) 11)");
-            Assert.False(evalResult.ExecutionState.IsExecutionComplete);
+(setf (car x) 11)", executionState);
+            Assert.False(executionState.IsExecutionComplete);
             Assert.True(enteredSetValue);
             Assert.Equal("(1 2 3)", host.GetValue("X").ToString());
         }
@@ -599,19 +619,20 @@ namespace IxMilia.Lisp.Test
         public async Task HandlerCaseCanInterceptAnError()
         {
             LispError capturedError = null;
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.AddFunction("MY-FUNCTION", (_host, executionState, args, cancellationToken) =>
             {
                 capturedError = (LispError)args.Single();
                 return Task.FromResult(host.Nil);
             });
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (handler-case (error ""some error"")
     (error (e) (progn (my-function e)
                       2)))
-");
-            EnsureNotError(evalResult.LastResult);
-            Assert.Equal(2, ((LispInteger)evalResult.LastResult).Value);
+", executionState);
+            EnsureNotError(evalResult.Value);
+            Assert.Equal(2, ((LispInteger)evalResult.Value).Value);
             Assert.NotNull(capturedError);
             Assert.Equal("some error", capturedError.Message);
         }
@@ -620,21 +641,22 @@ namespace IxMilia.Lisp.Test
         public async Task HandlerCaseCanInterceptAnErrorAfterSkippingALevel()
         {
             LispError capturedError = null;
-            var host = await LispHost.CreateAsync();
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             host.AddFunction("MY-FUNCTION", (_host, executionState, args, cancellationToken) =>
             {
                 capturedError = (LispError)args.Single();
                 return Task.FromResult(host.Nil);
             });
-            var evalResult = await host.EvalAsync(@"
+            var evalResult = await host.EvalAsync("test.lisp", @"
 (handler-case
     (handler-case (error ""some error"")
         (not-handled-here () ()))
     (error (e) (progn (my-function e)
                       2)))
-");
-            EnsureNotError(evalResult.LastResult);
-            Assert.Equal(2, ((LispInteger)evalResult.LastResult).Value);
+", executionState);
+            EnsureNotError(evalResult.Value);
+            Assert.Equal(2, ((LispInteger)evalResult.Value).Value);
             Assert.NotNull(capturedError);
             Assert.Equal("some error", capturedError.Message);
         }

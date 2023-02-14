@@ -70,13 +70,17 @@ namespace IxMilia.Lisp
             RestArgument = rest;
         }
 
-        public override string ToString()
+        public override string ToString() => ToString(a => a.ToString());
+
+        public string ToDisplayString(LispPackage currentPackage) => ToString(a => a.ToDisplayString(currentPackage));
+
+        private string ToString(Func<LispInvocationArgument, string> argumentToString)
         {
-            var regularArguments = string.Join(" ", RegularArguments.Select(a => a.ToString())).Trim();
-            var optionalArguments = string.Join(" ", OptionalArguments.Select(a => a.ToString())).Trim();
-            var keywordArguments = string.Join(" ", KeywordArguments.Select(a => a.ToString())).Trim();
-            var auxiliaryArguments = string.Join(" ", AuxiliaryArguments.Select(a => a.ToString())).Trim();
-            var rest = RestArgument?.ToString();
+            var regularArguments = string.Join(" ", RegularArguments.Select(argumentToString)).Trim();
+            var optionalArguments = string.Join(" ", OptionalArguments.Select(argumentToString)).Trim();
+            var keywordArguments = string.Join(" ", KeywordArguments.Select(a => argumentToString(a.Value))).Trim();
+            var auxiliaryArguments = string.Join(" ", AuxiliaryArguments.Select(argumentToString)).Trim();
+            var rest = RestArgument is { } ? argumentToString(RestArgument) : null;
             return string.Join(" ", new[] { regularArguments, optionalArguments, keywordArguments, auxiliaryArguments, rest }).Trim();
         }
 
@@ -93,6 +97,7 @@ namespace IxMilia.Lisp
             var assignedRest = false;
             for (; argumentValueIndex < argumentValues.Length; argumentValueIndex++)
             {
+                var assignedKeywordArgument = false;
                 var argumentValue = argumentValues[argumentValueIndex];
                 if (argumentValue is LispResolvedSymbol symbol && symbol.IsKeyword)
                 {
@@ -109,15 +114,12 @@ namespace IxMilia.Lisp
 
                             matchedArgumentsList.Add(Tuple.Create((LispInvocationArgument)keywordArgument, argumentValues[argumentValueIndex + 1]));
                             argumentValueIndex++;
+                            assignedKeywordArgument = true;
                         }
                     }
-                    else
-                    {
-                        error = new LispError($"Missing value for keyword argument {symbol.Value}");
-                        return false;
-                    }
                 }
-                else
+
+                if (!assignedKeywordArgument)
                 {
                     if (regularArgumentIndex < RegularArguments.Count)
                     {
@@ -158,7 +160,10 @@ namespace IxMilia.Lisp
                     }
                     else
                     {
-                        error = new LispError("Too many arguments");
+                        var errorMessage = argumentValue is LispResolvedSymbol resolvedSymbol && resolvedSymbol.IsKeyword
+                            ? $"Missing value for keyword argument {resolvedSymbol.Value}"
+                            : "Too many arguments";
+                        error = new LispError(errorMessage);
                         return false;
                     }
                 }
@@ -291,9 +296,10 @@ namespace IxMilia.Lisp
                                             argWithCustomDefault.Value is LispSymbol defaultArgName &&
                                             argWithCustomDefault.Next is LispList defaultValue)
                                         {
-                                            if (!seenArguments.Add(defaultArgName.LocalName))
+                                            var defaultArgNameString = defaultArgName.ToString();
+                                            if (!seenArguments.Add(defaultArgNameString))
                                             {
-                                                error = new LispError($"Duplicate argument declaration for {defaultArgName.LocalName}");
+                                                error = new LispError($"Duplicate argument declaration for {defaultArgNameString}");
                                                 return false;
                                             }
 

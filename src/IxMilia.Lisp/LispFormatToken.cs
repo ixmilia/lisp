@@ -21,7 +21,7 @@ namespace IxMilia.Lisp
 
     internal interface ITakesObjectFormatToken : ILispFormatToken
     {
-        string GetText(LispObject argument);
+        string GetText(LispObject argument, LispPackage currentPackage);
     }
 
     internal static class ILispFormatTokenExtensions
@@ -250,10 +250,18 @@ namespace IxMilia.Lisp
             Width = width;
         }
 
-        public string GetText(LispObject argument)
+        public string GetText(LispObject argument, LispPackage currentPackage)
         {
             var sb = new StringBuilder();
-            sb.Append(argument.ToString(useEscapeCharacters: false));
+            if (argument is LispString)
+            {
+                sb.Append(argument.ToString(useEscapeCharacters: false));
+            }
+            else
+            {
+                sb.Append(argument.ToDisplayString(currentPackage));
+            }
+
             var paddingWidth = Math.Max(0, Width - sb.Length);
             if (paddingWidth > 0)
             {
@@ -298,10 +306,18 @@ namespace IxMilia.Lisp
             Width = width;
         }
 
-        public string GetText(LispObject argument)
+        public string GetText(LispObject argument, LispPackage currentPackage)
         {
             var sb = new StringBuilder();
-            sb.Append(argument.ToString(useEscapeCharacters: true));
+            if (argument is LispString)
+            {
+                sb.Append(argument.ToString(useEscapeCharacters: true));
+            }
+            else
+            {
+                sb.Append(argument.ToDisplayString(currentPackage));
+            }
+
             var paddingWidth = Math.Max(0, Width - sb.Length);
             if (paddingWidth > 0)
             {
@@ -330,10 +346,10 @@ namespace IxMilia.Lisp
             return true;
         }
 
-        public static string FormatObject(LispObject obj)
+        public static string FormatObject(LispObject obj, LispPackage currentPackage)
         {
             var tokenSExpression = new LispFormatTokenSExpression(0, 0, 0);
-            var result = tokenSExpression.GetText(obj);
+            var result = tokenSExpression.GetText(obj, currentPackage);
             return result;
         }
     }

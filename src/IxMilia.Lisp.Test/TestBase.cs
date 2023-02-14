@@ -1,5 +1,7 @@
 ﻿using System;
+using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -7,14 +9,45 @@ namespace IxMilia.Lisp.Test
 {
     public abstract class TestBase
     {
+        /// <summary>
+        /// Create a new <see cref="LispHost"/> for testing.  Calling <see cref="LispHost.CreateAsync"/> can take several seconds,
+        /// so this is used to make running unit tests not horribly slow.  The "fix" is that one canonical <see cref="LispHost"/>
+        /// is created and internal package values are cloned into the new test instance.
+        /// </summary>
+        public static async Task<LispHost> CreateHostAsync(
+            TextReader input = null,
+            TextWriter output = null,
+            bool useTailCalls = false,
+            bool useInitScript = true,
+            bool useJustMyCode = true,
+            Func<LispResolvedSymbol, LispObject> getUntrackedValue = null,
+            Func<LispResolvedSymbol, LispObject, bool> trySetUntrackedValue = null,
+            CancellationToken cancellationToken = default)
+        {
+            var configuration = new LispHostConfiguration(
+                useInitScript: useInitScript,
+                useTailCalls: useTailCalls,
+                useJustMyCode: useJustMyCode,
+                readerType: LispReaderType.Compiled,
+                input: input,
+                output: output,
+                getUntrackedValue: getUntrackedValue,
+                trySetUntrackedValue: trySetUntrackedValue);
+            var host = await LispHost.CreateAsync(
+                configuration: configuration,
+                cancellationToken: cancellationToken);
+            return host;
+        }
+
         protected static async Task<LispObject> EvalAsync(string code)
         {
-            var host = await LispHost.CreateAsync();
-            var evalResult = await host.EvalAsync(code);
-            var result = evalResult.LastResult;
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
+            var evalResult = await host.EvalAsync("test.lisp", code, executionState);
+            var result = evalResult.Value;
             Assert.NotNull(result);
             EnsureNotError(result);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            Assert.True(executionState.IsExecutionComplete);
             return result;
         }
 

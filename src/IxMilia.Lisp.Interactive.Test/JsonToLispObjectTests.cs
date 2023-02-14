@@ -1,70 +1,78 @@
 ﻿using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace IxMilia.Lisp.Interactive.Test
 {
     public class JsonToLispObjectTests
     {
-        [Fact]
-        public void ParseTrue()
+        private static async Task<LispObject> ParseJson(string json)
         {
-            Assert.True(LispKernel.TryGetLispObjectFromJson("true", out var result));
-            Assert.True(result.IsTLike());
+            var host = await LispHost.CreateAsync();
+            Assert.True(LispKernel.TryGetLispObjectFromJson(host, json, out var result));
+            return result;
         }
 
         [Fact]
-        public void ParseFalse()
+        public async Task ParseTrue()
         {
-            Assert.True(LispKernel.TryGetLispObjectFromJson("false", out var result));
+            var result = await ParseJson("true");
+            Assert.True(result.IsT());
+        }
+
+        [Fact]
+        public async Task ParseFalse()
+        {
+            var result = await ParseJson("false");
             Assert.True(result.IsNil());
         }
 
         [Fact]
-        public void ParseNull()
+        public async Task ParseNull()
         {
-            Assert.True(LispKernel.TryGetLispObjectFromJson("null", out var result));
+            var result = await ParseJson("null");
             Assert.True(result.IsNil());
         }
 
         [Fact]
-        public void ParseEmptyArray()
+        public async Task ParseEmptyArray()
         {
-            Assert.True(LispKernel.TryGetLispObjectFromJson("[]", out var result));
+            var result = await ParseJson("[]");
             Assert.True(result.IsNil());
         }
 
         [Fact]
-        public void ParseFloat()
+        public async Task ParseFloat()
         {
-            Assert.True(LispKernel.TryGetLispObjectFromJson("1.0", out var result));
+            var result = await ParseJson("1.0");
             Assert.Equal(1.0, ((LispFloat)result).Value);
         }
 
         [Fact]
-        public void ParseInteger()
+        public async Task ParseInteger()
         {
-            Assert.True(LispKernel.TryGetLispObjectFromJson("1", out var result));
+            var result = await ParseJson("1");
             Assert.Equal(1, ((LispInteger)result).Value);
         }
 
         [Fact]
-        public void ParseString()
+        public async Task ParseString()
         {
-            Assert.True(LispKernel.TryGetLispObjectFromJson(@"""abc""", out var result));
+            var result = await ParseJson(@"""abc""");
             Assert.Equal("abc", ((LispString)result).Value);
         }
 
         [Fact]
-        public void ParseArray()
+        public async Task ParseArray()
         {
-            Assert.True(LispKernel.TryGetLispObjectFromJson("[1]", out var result));
+            var result = await ParseJson("[1]");
             Assert.Equal(1, ((LispInteger)((LispList)result).ToList().Single()).Value);
         }
 
         [Fact]
-        public void ParseObject()
+        public async Task ParseObject()
         {
-            Assert.True(LispKernel.TryGetLispObjectFromJson(@"{""key1"":""value1"",""key2"":2}", out var result));
+            var result = await ParseJson(@"{""key1"":""value1"",""key2"":2}");
             Assert.Equal(@"(:key1 ""value1"" :key2 2)", result.ToString());
         }
     }

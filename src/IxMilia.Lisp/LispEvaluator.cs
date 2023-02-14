@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,6 +15,7 @@ namespace IxMilia.Lisp
             var shouldDribbleReturnValue = executionState.StackFrame.Root.DribbleStream != null;
             while (executionState.TryDequeueOperation(out var operation))
             {
+                executionState.InstructionCount++;
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // value setting can only occur when evaluating a native macro or native function; if any of the set operations wants to halt, we do that below
@@ -25,33 +27,36 @@ namespace IxMilia.Lisp
                 executionState.StackFrame.Root.ValueSet += valueSet;
                 switch (operation)
                 {
+                    case LispEvaluatorReturnImmediate _:
+                        return LispEvaluationState.NonFatalHalt;
                     case LispEvaluatorThrowCondition thrw:
                         {
+                            // report the error to anybody that's listening
+                            if (thrw.Condition is LispError error)
+                            {
+                                // clean up the error
+                                error.StackFrame ??= executionState.StackFrame;
+                                if (!ReferenceEquals(executionState.LastReportedError, error))
+                                {
+                                    // only report this if it's the first time we've seen it
+                                    executionState.LastReportedError = error;
+                                    executionState.StackFrame.Root.OnErrorOccured(error, executionState.StackFrame);
+                                }
+                            }
+
                             // find the appropriate `handler-case` operation
                             if (executionState.TryRewindAndFindErrorHandler(thrw.Condition, out var handlerSet))
                             {
-                                executionState.TryPopArgument(out var _);
                                 if (handlerSet.argument is not null)
                                 {
                                     executionState.StackFrame.SetValue(handlerSet.argument, thrw.Condition);
                                 }
 
                                 executionState.InsertOperation(new LispEvaluatorObjectExpression(handlerSet.form));
+                                executionState.LastReportedError = null; // we added a handler, so we can ignore this now
                             }
                             else
                             {
-                                if (thrw.Condition is LispError error)
-                                {
-                                    // clean up the error
-                                    error.StackFrame ??= executionState.StackFrame;
-                                    if (!ReferenceEquals(executionState.LastReportedError, error))
-                                    {
-                                        // only report this if it's the first time we've seen it
-                                        executionState.LastReportedError = error;
-                                        executionState.StackFrame.Root.OnErrorOccured(error, executionState.StackFrame);
-                                    }
-                                }
-
                                 return LispEvaluationState.FatalHalt;
                             }
                         }
@@ -70,8 +75,9 @@ namespace IxMilia.Lisp
                             //   function-return
                             ILispEvaluatorOperation tailCallExpression = null;
                             ILispEvaluatorOperation invocationExit = null;
-                            if ((executionState.PeekOperation() is LispEvaluatorPopArgument pop &&
-                                    executionState.TryDequeueOperation(out var _) &&
+                            ILispEvaluatorOperation popArgument = null;
+                            if ((executionState.PeekOperation() is LispEvaluatorPopArgument &&
+                                    executionState.TryDequeueOperation(out popArgument) &&
                                     executionState.PeekOperation() is LispEvaluatorObjectExpression &&
                                     executionState.TryDequeueOperation(out tailCallExpression) &&
                                     executionState.PeekOperation() is LispEvaluatorFunctionExit &&
@@ -83,6 +89,14 @@ namespace IxMilia.Lisp
                             {
                                 var concreteInvocationExit = (LispEvaluatorFunctionExit)invocationExit;
                                 Debug.Assert(ReferenceEquals(tailPop.Function, concreteInvocationExit.Function));
+                                
+                                if (popArgument is LispEvaluatorPopArgument)
+                                {
+                                    if (!executionState.TryPopArgument(out var poppedArgument))
+                                    {
+                                        throw new InvalidOperationException("Tail call operation needed to pop an argument, but none were available.");
+                                    }
+                                }
 
                                 // restore the tail call operation and pop the stack
                                 executionState.InsertOperation(concreteInvocationExit.WithoutFramePop());
@@ -135,7 +149,8 @@ namespace IxMilia.Lisp
                                         var evaluatedValues = values.Select(async v =>
                                         {
                                             // TODO: evaluate using the operation queue
-                                            var itemExecutionState = LispExecutionState.CreateExecutionState(executionState.StackFrame, "TODO: input name", v, executionState.UseTailCalls, allowHalting: false, createDribbleInstructions: false);
+                                            var itemExecutionState = LispExecutionState.CreateExecutionState(executionState.StackFrame, allowHalting: false);
+                                            itemExecutionState.InsertOperation(new LispEvaluatorObjectExpression(v));
                                             await EvaluateAsync(host, itemExecutionState, cancellationToken);
                                             return itemExecutionState.LastResult;
                                         }).Select(t => t.Result);
@@ -185,6 +200,12 @@ namespace IxMilia.Lisp
                                             {
                                                 invocationObject = invokable;
                                             }
+                                            else if (candidateInvocationObject is LispQuotedNamedFunctionReference quoted)
+                                            {
+                                                var foo = LispSymbol.CreateFromString(quoted.Name).Resolve(host.CurrentPackage);
+                                                var result = executionState.StackFrame.GetValue(foo);
+                                                invocationObject = (LispInvocableObject)result;
+                                            }
                                             else if (candidateInvocationObject is null)
                                             {
                                                 executionState.ReportError(new LispError($"Undefined macro/function '{invocationSymbol.LocalName}', found '<null>'"), sList.Value);
@@ -232,7 +253,7 @@ namespace IxMilia.Lisp
                                                             }
 
                                                             var isTailCallCandidate = i == codeFunction.Commands.Length - 1;
-                                                            if (executionState.UseTailCalls && isTailCallCandidate)
+                                                            if (host.Configuration.UseTailCalls && isTailCallCandidate)
                                                             {
                                                                 // the previously inserted operation is a candidate for a tail call
                                                                 var tailCallArgumentNames = codeFunction.ArgumentCollection.ArgumentNames.Select(a => LispSymbol.CreateFromString(a).Resolve(host.CurrentPackage).Value).ToList();
@@ -290,7 +311,7 @@ namespace IxMilia.Lisp
                             if (dribbleOutput != null)
                             {
                                 shouldDribbleReturnValue = true;
-                                dribbleOutput.WriteLine($"> {dribbleEnter.Expression}");
+                                dribbleOutput.WriteLine($"> {dribbleEnter.Expression.ToDisplayString(host.CurrentPackage)}");
                             }
                             else
                             {
@@ -303,7 +324,7 @@ namespace IxMilia.Lisp
                             var dribbleOutput = executionState.StackFrame.Root.DribbleStream?.Output;
                             if (shouldDribbleReturnValue && dribbleOutput != null)
                             {
-                                dribbleOutput.WriteLine(executionState.LastResult?.ToString());
+                                dribbleOutput.WriteLine(executionState.LastResult?.ToDisplayString(host.CurrentPackage));
                                 dribbleOutput.WriteLine();
                             }
                         }
@@ -324,15 +345,23 @@ namespace IxMilia.Lisp
                             }
                         }
                         break;
-                    case LispEvaluatorPopArgument _:
-                        if (!executionState.TryPopArgument(out var _))
+                    case LispEvaluatorPopArgument pa:
+                        if (!executionState.TryPopArgument(out var popped))
                         {
-                            executionState.ReportError(new LispError($"Expected argument to pop off the stack but found nothing"));
+                            executionState.ReportError(new LispError("Expected argument to pop off the stack but found nothing"));
                             return LispEvaluationState.FatalHalt;
+                        }
+
+                        if (pa.PushAsOperation)
+                        {
+                            executionState.InsertOperation(new LispEvaluatorObjectExpression(popped), position: pa.OperationInsertDepth);
                         }
                         break;
                     case LispEvaluatorPushToArgumentStack push:
                         executionState.PushArgument(push.Expression);
+                        break;
+                    case LispEvaluatorSetStackFrame sf:
+                        executionState.StackFrame = sf.StackFrame;
                         break;
                     case LispEvaluatorSetValue setValue:
                         {
@@ -348,7 +377,7 @@ namespace IxMilia.Lisp
                                 else if (destination is LispSymbol symbol)
                                 {
                                     var resolvedSymbol = symbol.Resolve(host.CurrentPackage);
-                                    executionState.StackFrame.SetValueInParentScope(resolvedSymbol, valueToSet);
+                                    executionState.StackFrame.SetValue(resolvedSymbol, valueToSet);
                                     executionState.PushArgument(valueToSet);
                                 }
                                 else
@@ -359,6 +388,80 @@ namespace IxMilia.Lisp
                             else
                             {
                                 throw new InvalidOperationException("Expected to find value to set and destination on the argument stack");
+                            }
+                        }
+                        break;
+                    case LispEvaluatorFunCall funCall:
+                        {
+                            var foundArgumentCount = 0;
+                            var arguments = new LispObject[funCall.ArgumentCount];
+                            for (int i = funCall.ArgumentCount - 1; i >= 0; i--)
+                            {
+                                if (!executionState.TryPopArgument(out arguments[i]))
+                                {
+                                    executionState.ReportError(new LispError($"Expected {funCall.ArgumentCount} arguments but only found {foundArgumentCount}"));
+                                    return LispEvaluationState.FatalHalt;
+                                }
+
+                                foundArgumentCount++;
+                            }
+
+                            if (!executionState.TryPopArgument(out var candidateFunctionReference))
+                            {
+                                executionState.ReportError(new LispError("Expected to find function on argument stack"));
+                                return LispEvaluationState.FatalHalt;
+                            }
+
+                            LispInvocableObject invocableObject = null;
+                            LispStackFrame stackFrame = null;
+                            if (candidateFunctionReference is LispQuotedLambdaFunctionReference quotedLambda)
+                            {
+                                invocableObject = quotedLambda.Definition;
+                                stackFrame = quotedLambda.StackFrame;
+                            }
+                            else if (candidateFunctionReference is LispQuotedNamedFunctionReference quotedNamed)
+                            {
+                                var foo = LispSymbol.CreateFromString(quotedNamed.Name).Resolve(host.CurrentPackage);
+                                var result = executionState.StackFrame.GetValue(foo);
+                                invocableObject = (LispInvocableObject)result;
+                            }
+
+                            if (invocableObject is { })
+                            {
+                                if (invocableObject is LispFunction function)
+                                {
+                                    executionState.InsertOperation(new LispEvaluatorFunctionExit(function, invocableObject));
+                                    if (invocableObject is LispCodeFunction codeFunction)
+                                    {
+                                        for (int i = codeFunction.Commands.Length - 1; i >= 0; i--)
+                                        {
+                                            executionState.InsertOperation(new LispEvaluatorObjectExpression(codeFunction.Commands[i]));
+                                            if (i != 0)
+                                            {
+                                                executionState.InsertOperation(new LispEvaluatorPopArgument());
+                                            }
+
+                                            var isTailCallCandidate = i == codeFunction.Commands.Length - 1;
+                                            if (host.Configuration.UseTailCalls && isTailCallCandidate)
+                                            {
+                                                // the previously inserted operation is a candidate for a tail call
+                                                var tailCallArgumentNames = codeFunction.ArgumentCollection.ArgumentNames.Select(a => LispSymbol.CreateFromString(a).Resolve(host.CurrentPackage).Value).ToList();
+                                                executionState.InsertOperation(new LispEvaluatorPopForTailCall(invocableObject, tailCallArgumentNames));
+                                            }
+                                        }
+                                    }
+                                }
+
+                                executionState.InsertOperation(new LispEvaluatorInvocation(invocableObject, funCall.ArgumentCount, stackFrame));
+                                for (int i = 0; i < arguments.Length; i++)
+                                {
+                                    executionState.PushArgument(arguments[i]);
+                                }
+                            }
+                            else
+                            {
+                                executionState.ReportError(new LispError("Expected function reference"));
+                                return LispEvaluationState.FatalHalt;
                             }
                         }
                         break;
@@ -422,7 +525,7 @@ namespace IxMilia.Lisp
                                     break;
                                 case LispFunction function:
                                     {
-                                        executionState.StackFrame = new LispStackFrame(invocation.InvocationObject, executionState.StackFrame);
+                                        executionState.StackFrame = new LispStackFrame(invocation.InvocationObject, invocation.StackFrame ?? executionState.StackFrame);
                                         switch (function)
                                         {
                                             case LispCodeFunction codeFunction:

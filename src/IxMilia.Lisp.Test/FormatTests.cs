@@ -90,7 +90,8 @@ namespace IxMilia.Lisp.Test
 
         private static void TestFormat(string expected, string formatString, params LispObject[] args)
         {
-            Assert.True(LispFormatter.TryFormatString(formatString, args, out var result), $"Error from formatter: {result}");
+            var currentPackage = new LispPackage("COMMON-LISP");
+            Assert.True(LispFormatter.TryFormatString(formatString, args, currentPackage, out var result), $"Error from formatter: {result}");
             Assert.Equal(expected, result);
         }
     }

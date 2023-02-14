@@ -104,7 +104,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var diagnostic = diagnosticReport.Items.Single();
             Assert.Equal("(0, 0)-(0, 16)", diagnostic.Range.ToString());
             Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-            Assert.Equal("EOF", diagnostic.Message);
+            Assert.Equal("Unexpected end of string", diagnostic.Message);
         }
 
         [Fact]
@@ -212,7 +212,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var diagnostics = await publishDiagnosticsCompletionSource.Task;
             var diagnostic = diagnostics.Single();
             Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-            Assert.Equal("EOF", diagnostic.Message);
+            Assert.Equal("Unexpected end of string", diagnostic.Message);
             Assert.Equal("(0, 0)-(0, 20)", diagnostic.Range.ToString());
         }
 
@@ -246,7 +246,7 @@ namespace IxMilia.Lisp.LanguageServer.Test
             var diagnostics = await publishDiagnosticsCompletionSource.Task;
             var diagnostic = diagnostics.Single();
             Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-            Assert.Equal("EOF", diagnostic.Message);
+            Assert.Equal("Unexpected end of string", diagnostic.Message);
             Assert.Equal("(0, 0)-(0, 20)", diagnostic.Range.ToString());
         }
 

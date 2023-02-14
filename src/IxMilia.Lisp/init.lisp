@@ -13,8 +13,10 @@
 
 ;; read double-quoted strings
 (defun build-double-quoted-string (stream output-stream)
-    (let ((next-char (read-char stream t nil t)))
-        (cond ((char= next-char *double-quote-character*)   (get-output-stream-string output-stream)) ; done; return what we have
+    (setf +eof+ (gensym))
+    (let ((next-char (read-char stream nil +eof+)))
+        (cond ((eq next-char +eof+)                         (error *end-of-string*))
+              ((char= next-char *double-quote-character*)   (get-output-stream-string output-stream)) ; done; return what we have
               ((char= next-char *backslash-character*)      (progn (write-char (read-char stream t nil t) output-stream) ; append the next character
                                                                    (build-double-quoted-string stream output-stream))) ; continue reading
               (t                                            (progn (write-char next-char output-stream) ; append the read character
@@ -58,7 +60,7 @@
               ;;   #1=(1 2 #1#)
               ((and (>= (char-code next-char) (char-code *digit-zero-character*))
                     (<= (char-code next-char) (char-code *digit-nine-character*)))
-                                                            (kernel:process-list-forward-reference)) ; `kernel:process-list-forward-reference` is defined internally
+                                                            (kernel:process-list-forward-reference stream)) ; `kernel:process-list-forward-reference` is defined internally
               ;; not a supported character
               (t                                            (error "Expected back slash, single quote, '(', 'c', or digit")))))
 (set-macro-character *hash-character* (function single-hash-reader)) ; code 35 = #
@@ -117,9 +119,9 @@
     (setf stack (cons value stack)))
 
 (defmacro pop (stack)
-    (let ((result (car stack)))
-        (setf stack (cdr stack))
-        result))
+    (setf result    (car stack))
+    (setf stack     (cdr stack))
+    result)
 
 (defmacro when (pred &rest body)
     (cond (pred (apply #'progn 'body))

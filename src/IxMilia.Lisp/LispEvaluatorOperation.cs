@@ -8,15 +8,29 @@ namespace IxMilia.Lisp
     {
     }
 
+    internal class LispEvaluatorFunCall : ILispEvaluatorOperation
+    {
+        public int ArgumentCount { get; }
+
+        public LispEvaluatorFunCall(int argumentCount)
+        {
+            ArgumentCount = argumentCount;
+        }
+
+        public override string ToString() => $"fc: {ArgumentCount}";
+    }
+
     internal class LispEvaluatorInvocation : ILispEvaluatorOperation
     {
         public LispInvocableObject InvocationObject { get; }
         public int ArgumentCount { get; }
+        public LispStackFrame StackFrame { get; }
 
-        public LispEvaluatorInvocation(LispInvocableObject invocationObject, int argumentCount)
+        public LispEvaluatorInvocation(LispInvocableObject invocationObject, int argumentCount, LispStackFrame stackFrame = null)
         {
             InvocationObject = invocationObject;
             ArgumentCount = argumentCount;
+            StackFrame = stackFrame;
         }
 
         public override string ToString()
@@ -92,10 +106,22 @@ namespace IxMilia.Lisp
 
     internal class LispEvaluatorPopArgument : ILispEvaluatorOperation
     {
-        public override string ToString()
+        public bool PushAsOperation { get; }
+
+        public int OperationInsertDepth { get;  }
+
+        public LispEvaluatorPopArgument(bool pushAsOperation = false, int operationInsertDepth = 0)
         {
-            return "a: pop";
+            PushAsOperation = pushAsOperation;
+            OperationInsertDepth = operationInsertDepth;
         }
+
+        public override string ToString() => "a: pop" + (PushAsOperation ? " with push" : "");
+    }
+
+    internal class LispEvaluatorReturnImmediate : ILispEvaluatorOperation
+    {
+        public override string ToString() => "reti";
     }
 
     internal class LispEvaluatorPushToArgumentStack : ILispEvaluatorOperation
@@ -131,6 +157,18 @@ namespace IxMilia.Lisp
         {
             return $"s: {Expression}";
         }
+    }
+
+    internal class LispEvaluatorSetStackFrame : ILispEvaluatorOperation
+    {
+        public LispStackFrame StackFrame { get; }
+
+        public LispEvaluatorSetStackFrame(LispStackFrame stackFrame)
+        {
+            StackFrame = stackFrame;
+        }
+
+        public override string ToString() => $"sf: {StackFrame}";
     }
 
     internal class LispEvaluatorSetValue : ILispEvaluatorOperation

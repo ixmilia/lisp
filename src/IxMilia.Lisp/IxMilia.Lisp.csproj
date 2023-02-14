@@ -6,7 +6,7 @@
     <AssemblyTitle>IxMilia.Lisp</AssemblyTitle>
     <Authors>IxMilia</Authors>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
-    <LangVersion>9.0</LangVersion>
+    <LangVersion>10.0</LangVersion>
     <AssemblyName>IxMilia.Lisp</AssemblyName>
     <PackageId>IxMilia.Lisp</PackageId>
     <PackageTags>LISP</PackageTags>
@@ -20,6 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="bootstrap.lisp" />
     <EmbeddedResource Include="init.lisp" />
   </ItemGroup>
 

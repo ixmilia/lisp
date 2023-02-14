@@ -9,13 +9,13 @@ namespace IxMilia.Lisp
 {
     public class LispRepl
     {
+        private string _unconsumedInput;
         private string _location;
         private TextReader _input;
 
         public TextWriter Output { get; }
 
         private TextWriter _traceWriter;
-        private string _incompleteInput;
 
         public LispHost Host { get; private set; }
 
@@ -32,13 +32,19 @@ namespace IxMilia.Lisp
         public static async Task<LispRepl> CreateAsync(string location = null, TextReader input = null, TextWriter output = null, TextWriter traceWriter = null, bool useTailCalls = false, CancellationToken cancellationToken = default)
         {
             var repl = new LispRepl(location, input, output, traceWriter, useTailCalls);
-
-            repl.Host = await LispHost.CreateAsync(repl._location, repl._input, repl.Output, useTailCalls, cancellationToken: cancellationToken);
+            var configuration = new LispHostConfiguration(
+                useTailCalls: useTailCalls,
+                input: repl._input,
+                output: repl.Output);
+            repl.Host = await LispHost.CreateAsync(
+                configuration: configuration,
+                cancellationToken: cancellationToken);
             repl.Host.RootFrame.FunctionEntered += repl.FunctionEntered;
             repl.Host.RootFrame.FunctionReturned += repl.FunctionReturned;
 
             var replContext = new LispReplDefaultContext(repl);
             repl.Host.AddContextObject(replContext);
+            repl.Host.SetReaderFunction(LispReaderType.Interpreted);
             return repl;
         }
 
@@ -71,56 +77,64 @@ namespace IxMilia.Lisp
             _traceWriter.Flush();
         }
 
-        public async Task<LispParseResult> ParseUntilSourceLocationAsync(string code, LispSourcePosition position, CancellationToken cancellationToken = default)
-        {
-            var boundValues = Host.RootFrame.GetBoundValues();
-            LispObject containingObject = null;
-            var eofValue = new LispError("EOF");
-            var textReader = new StringReader(code);
-            var textStream = new LispTextStream("", textReader, TextWriter.Null);
-            var objectReader = new LispObjectReader(Host, textStream, allowIncompleteObjects: true);
-            while (true)
-            {
-                var result = await objectReader.ReadAsync(Host.RootFrame, false, eofValue, true, cancellationToken);
-                if (ReferenceEquals(result.LastResult, eofValue))
-                {
-                    break;
-                }
-
-                boundValues.TryAddSourceBinding(Host.CurrentPackage, result.LastResult);
-
-                if (result.LastResult.SourceLocation.HasValue &&
-                    result.LastResult.SourceLocation.Value.ContainsPosition(position))
-                {
-                    containingObject = result.LastResult;
-                    break;
-                }
-            }
-
-            var narrowestChild = containingObject?.GetNarrowestChild(position);
-            if (narrowestChild != null && !ReferenceEquals(narrowestChild, containingObject))
-            {
-                boundValues.TryAddSourceBinding(Host.CurrentPackage, narrowestChild);
-            }
-
-            var parseResult = new LispParseResult(Host, narrowestChild, boundValues);
-            return parseResult;
-        }
-
         public LispObject GetValue(string name) => Host.GetValue(name);
 
         public TObject GetValue<TObject>(string name) where TObject : LispObject => Host.GetValue<TObject>(name);
 
-        public async Task<LispReplResult> EvalAsync(string code, bool consumeIncompleteInput = true, CancellationToken cancellationToken = default)
+        public async Task<LispReplResult> EvalAsync(string code, CancellationToken cancellationToken = default)
         {
-            var unconsumedCode = consumeIncompleteInput && !string.IsNullOrEmpty(_incompleteInput)
-                ? string.Concat(_incompleteInput, Environment.NewLine)
-                : null;
-            var fullCode = string.Concat(unconsumedCode, code);
-            var evalResult = await Host.EvalAsync(fullCode, cancellationToken);
-            _incompleteInput = evalResult.IncompleteInput;
-            var replResult = new LispReplResult(evalResult.ExecutionState, evalResult.ExpressionDepth);
-            return replResult;
+            var fullCode = string.Concat(string.IsNullOrEmpty(_unconsumedInput) ? null : string.Concat(_unconsumedInput, Environment.NewLine), code);
+            var seenChars = 0;
+            using var fullCodeReader = new StringReader(fullCode);
+            using var mirroringReader = new MirroringTextReader(fullCodeReader, _c => seenChars++);
+            var executionState = LispExecutionState.CreateExecutionState(Host.RootFrame, true);
+            var stream = new LispTextStream(_location, mirroringReader, TextWriter.Null);
+            var readObject = LispList.FromItems(
+            new LispResolvedSymbol("COMMON-LISP", "READ", true),
+                stream,
+                Host.T,
+                Host.Nil,
+                Host.T);
+
+            var expressionDepth = 0;
+            bool IsListReader(LispResolvedSymbol symbol) => symbol.PackageName == "COMMON-LISP" && symbol.LocalName == "LIST-READER";
+            void EnterList(object sender, LispFunctionEnteredEventArgs e)
+            {
+                if (IsListReader(e.Frame.FunctionSymbol))
+                {
+                    expressionDepth++;
+                }
+            }
+
+            void ExitList(object sender, LispFunctionReturnedEventArgs e)
+            {
+                if (IsListReader(e.Frame.FunctionSymbol))
+                {
+                    expressionDepth--;
+                }
+            }
+
+            LispObject lastResult = null;
+            while (true)
+            {
+                Host.RootFrame.FunctionEntered += EnterList;
+                Host.RootFrame.FunctionReturned += ExitList;
+
+                var readEvalResult = await Host.EvalAsync(readObject, executionState, cancellationToken: cancellationToken);
+
+                Host.RootFrame.FunctionReturned -= ExitList;
+                Host.RootFrame.FunctionEntered -= EnterList;
+
+                if (readEvalResult.State == LispEvaluationState.FatalHalt)
+                {
+                    _unconsumedInput = fullCode;
+                    return new LispReplResult(lastResult, executionState, expressionDepth);
+                }
+
+                _unconsumedInput = fullCode.Substring(seenChars);
+                var evalEvalResult = await Host.EvalAsync(readEvalResult.Value, executionState, createDribbleInstructions: true, cancellationToken: cancellationToken);
+                lastResult = evalEvalResult.Value;
+            }
         }
 
         internal Task EvalAsync(LispExecutionState executionState, CancellationToken cancellationToken)

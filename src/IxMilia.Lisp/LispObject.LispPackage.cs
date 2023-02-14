@@ -21,30 +21,20 @@ namespace IxMilia.Lisp
 
         public void SetValue(string name, LispObject value)
         {
-            _values[name] = value;
+            if (value is null)
+            {
+                _values.Remove(name);
+            }
+            else
+            {
+                _values[name] = value;
+            }
         }
 
         public LispResolvedSymbol ResolveSymbol(LispUnresolvedSymbol symbol)
         {
-            // first try to resolve against one of the inherited packages
-            LispResolvedSymbol resolvedSymbol = null;
-            foreach (var package in _inheritedPackages)
-            {
-                var inheritedValue = package.GetValue(symbol.LocalName);
-                if (inheritedValue != null)
-                {
-                    // TODO: fix calculation of `isPublic`
-                    resolvedSymbol = new LispResolvedSymbol(package.Name, symbol.LocalName, isPublic: true);
-                    break;
-                }
-            }
-
-            // otherwise resolve to this package
-            // TODO: fix calculation of `isPublic`
-            if (resolvedSymbol == null)
-            {
-                resolvedSymbol = new LispResolvedSymbol(Name, symbol.LocalName, isPublic: true);
-            }
+            var owningPackage = GetNarrowestOwningPackage(symbol.LocalName);
+            var resolvedSymbol = new LispResolvedSymbol(owningPackage.Name, symbol.LocalName, isPublic: true); // TODO: fix calculation of `isPublic`
 
             resolvedSymbol.Parent = symbol.Parent;
             resolvedSymbol.SourceLocation = symbol.SourceLocation;
@@ -63,17 +53,59 @@ namespace IxMilia.Lisp
             }
         }
 
-        public bool HasSymbolWithName(string name)
+        internal bool IsSymbolWithNameInScope(string name)
         {
             foreach (var package in _inheritedPackages)
             {
-                if (package.HasSymbolWithName(name))
+                if (package.IsSymbolWithNameInScope(name))
                 {
                     return true;
                 }
             }
 
             return _values.ContainsKey(name);
+        }
+
+        internal LispPackage GetNarrowestOwningPackage(string localName)
+        {
+            // if it's defined here, report it
+            if (_values.ContainsKey(localName))
+            {
+                return this;
+            }
+
+            // otherwise look as deep as possible
+            var enqueuedPackageNames = new HashSet<string>();
+            var packagesToCheck = new Queue<LispPackage>();
+            AddPackageToCheck(this);
+            while (packagesToCheck.Count > 0)
+            {
+                var packageToCheck = packagesToCheck.Dequeue();
+                if (packageToCheck._values.ContainsKey(localName))
+                {
+                    return packageToCheck;
+                }
+
+                AddPackagesToCheck(packageToCheck._inheritedPackages);
+            }
+
+            // didn't find anything deeply nested, so it must be us
+            return this;
+
+            void AddPackageToCheck(LispPackage package)
+            {
+                if (enqueuedPackageNames.Add(package.Name))
+                {
+                    packagesToCheck.Enqueue(package);
+                }
+            }
+            void AddPackagesToCheck(IEnumerable<LispPackage> packages)
+            {
+                foreach (var package in packages)
+                {
+                    AddPackageToCheck(package);
+                }
+            }
         }
 
         public virtual LispObject GetValue(string name)
@@ -125,6 +157,11 @@ namespace IxMilia.Lisp
             foreach (var item in _values)
             {
                 clone._values.Add(item.Key, item.Value);
+            }
+
+            foreach (var inheritedPackage in _inheritedPackages)
+            {
+                clone._inheritedPackages.Add(inheritedPackage);
             }
 
             return clone;

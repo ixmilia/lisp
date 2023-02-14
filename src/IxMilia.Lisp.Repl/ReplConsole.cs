@@ -49,9 +49,9 @@ namespace IxMilia.Lisp.Repl
             }
         }
 
-        private async Task<LispReplResult> EvalAndPrintAsync(string line, bool consumeIncompleteInput = true, CancellationToken cancellationToken = default)
+        private async Task<LispReplResult> EvalAndPrintAsync(string line, CancellationToken cancellationToken = default)
         {
-            var result = await _repl.EvalAsync(line, consumeIncompleteInput, cancellationToken);
+            var result = await _repl.EvalAsync(line, cancellationToken);
             if (result.LastResult != null)
             {
                 Output.WriteLine(result.LastResult.ToDisplayString(_repl.Host.CurrentPackage));
@@ -83,7 +83,7 @@ namespace IxMilia.Lisp.Repl
                         inDebug = false;
                         break;
                     default:
-                        await EvalAndPrintAsync(line, consumeIncompleteInput: false, cancellationToken: cancellationToken);
+                        await EvalAndPrintAsync(line, cancellationToken: cancellationToken);
                         break;
                 }
             }

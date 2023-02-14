@@ -2,37 +2,39 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace IxMilia.Lisp
 {
     public class LispExecutionState
     {
-        private Stack<LispObject> _argumentStack = new Stack<LispObject>();
-        private List<ILispEvaluatorOperation> _operationQueue;
-        internal LispTextStream CodeInputStream;
+        private Stack<LispObject> _argumentStack = new Stack<LispObject>(16);
+        private Stack<ILispEvaluatorOperation> _operationStack = new Stack<ILispEvaluatorOperation>(128);
+        public ulong InstructionCount = 0;
+
+        public ulong MaxArgumentCount = 0;
+        public ulong MaxOperationCount = 0;
+
         public LispStackFrame StackFrame { get; internal set; }
-        internal bool UseTailCalls { get; }
         internal bool AllowHalting { get; }
-        internal LispError LastReportedError { get; set; }
+        public LispError LastReportedError { get; internal set; }
 
         public LispObject LastResult => _argumentStack.Count > 0 ? _argumentStack.Peek() : null;
 
-        public bool IsExecutionComplete => _operationQueue.Count == 0 && CodeInputStream.IsInputComplete;
+        public bool IsExecutionComplete => _operationStack.Count == 0;
 
-        private LispExecutionState(LispStackFrame stackFrame, string inputName, TextReader codeReader, bool useTailCalls, bool allowHalting)
+        private LispExecutionState(LispStackFrame stackFrame, bool allowHalting)
         {
-            _operationQueue = new List<ILispEvaluatorOperation>();
-            CodeInputStream = new LispTextStream(inputName, codeReader, TextWriter.Null);
             StackFrame = stackFrame;
-            UseTailCalls = useTailCalls;
             AllowHalting = allowHalting;
         }
 
         internal ILispEvaluatorOperation PeekOperation()
         {
-            if (_operationQueue.Count > 0)
+            if (_operationStack.Count > 0)
             {
-                return _operationQueue[0];
+                return _operationStack.Peek();
             }
 
             return null;
@@ -40,14 +42,56 @@ namespace IxMilia.Lisp
 
         internal LispObject PeekCurrentExpression()
         {
-            return _operationQueue.FirstOrDefault() is LispEvaluatorObjectExpression objectExpression
+            return _operationStack.FirstOrDefault() is LispEvaluatorObjectExpression objectExpression
                 ? objectExpression.Expression
                 : null;
         }
 
-        internal void InsertOperation(ILispEvaluatorOperation operation)
+        internal void InsertCodeOperations(string inputName, string code)
         {
-            _operationQueue.Insert(0, operation);
+            var reader = new ObservableStringReader(code);
+            var stream = new LispTextStream(inputName, reader, TextWriter.Null);
+            InsertStreamOperations(stream);
+        }
+
+        internal void InsertStreamOperations(LispTextStream stream)
+        {
+            var operation = LispList.FromItems(
+                new LispResolvedSymbol("COMMON-LISP", "EVAL-STREAM", true),
+                stream,
+                LispNilList.Instance); // last value
+            InsertExpressionOperation(operation);
+        }
+
+        internal void InsertExpressionOperation(LispObject expression)
+        {
+            InsertOperation(new LispEvaluatorPopArgument());
+            InsertOperation(new LispEvaluatorReturnImmediate());
+            InsertOperation(new LispEvaluatorObjectExpression(expression));
+        }
+
+        internal void InsertOperation(ILispEvaluatorOperation operation, int position = 0)
+        {
+            if (position == 0)
+            {
+                _operationStack.Push(operation);
+            }
+            else
+            {
+                var toSave = new Stack<ILispEvaluatorOperation>();
+                for (int i = 0; i < position; i++)
+                {
+                    toSave.Push(_operationStack.Pop());
+                }
+
+                _operationStack.Push(operation);
+                for (int i = 0; i < position; i++)
+                {
+                    _operationStack.Push(toSave.Pop());
+                }
+            }
+
+            MaxOperationCount = Math.Max(MaxOperationCount, (ulong)_operationStack.Count);
         }
 
         internal void InsertObjectOperations(LispObject obj, bool createDribbleInstructions)
@@ -68,10 +112,9 @@ namespace IxMilia.Lisp
         internal bool TryDequeueOperation(out ILispEvaluatorOperation operation)
         {
             operation = default;
-            if (_operationQueue.Count > 0)
+            if (_operationStack.Count > 0)
             {
-                operation = _operationQueue[0];
-                _operationQueue.RemoveAt(0);
+                operation = _operationStack.Pop();
                 return true;
             }
 
@@ -90,17 +133,18 @@ namespace IxMilia.Lisp
                 error.StackFrame = StackFrame;
             }
 
+            InsertOperation(new LispEvaluatorThrowCondition(error));
             if (insertPop)
             {
                 InsertOperation(new LispEvaluatorPopArgument());
             }
-
-            InsertOperation(new LispEvaluatorThrowCondition(error));
         }
 
         internal void PushArgument(LispObject argument)
         {
             _argumentStack.Push(argument);
+
+            MaxArgumentCount = Math.Max(MaxArgumentCount, (ulong)_argumentStack.Count);
         }
 
         internal bool TryPopArgument(out LispObject arg)
@@ -117,7 +161,7 @@ namespace IxMilia.Lisp
 
         internal bool TryRewindAndFindErrorHandler(LispObject errorObject, out (LispResolvedSymbol typeSpec, LispResolvedSymbol argument, LispObject form) handlerSet)
         {
-            if (errorObject is not LispError)
+            if (errorObject is not LispError error)
             {
                 throw new NotSupportedException("Only actual error objects are currently supported");
             }
@@ -127,16 +171,26 @@ namespace IxMilia.Lisp
             {
                 switch (candidateHandler)
                 {
+                    case LispEvaluatorSetStackFrame sf:
+                        StackFrame = sf.StackFrame;
+                        break;
                     case LispEvaluatorPopArgument _:
                         TryPopArgument(out var a);
                         break;
                     case LispEvaluatorHandlerCaseGuard handlerCaseGuard:
                         foreach (var candidateHandlerSet in handlerCaseGuard.Handlers)
                         {
+                            // this hard-coded set is terrible
                             switch (candidateHandlerSet.typeSpec.Value)
                             {
+                                case "COMMON-LISP:END-OF-FILE":
+                                    if (error.IsEof())
+                                    {
+                                        handlerSet = candidateHandlerSet;
+                                        return true;
+                                    }
+                                    break;
                                 case "COMMON-LISP:ERROR":
-                                    // TODO: this is the only thing supported at the moment
                                     handlerSet = candidateHandlerSet;
                                     return true;
                             }
@@ -148,17 +202,9 @@ namespace IxMilia.Lisp
             return false;
         }
 
-        internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, string inputName, string code, bool useTailCalls, bool allowHalting)
+        internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, bool allowHalting)
         {
-            var reader = new StringReader(code);
-            var executionState = new LispExecutionState(stackFrame, inputName, reader, useTailCalls, allowHalting);
-            return executionState;
-        }
-
-        internal static LispExecutionState CreateExecutionState(LispStackFrame stackFrame, string inputName, LispObject obj, bool useTailCalls, bool allowHalting, bool createDribbleInstructions)
-        {
-            var executionState = CreateExecutionState(stackFrame, inputName, string.Empty, useTailCalls, allowHalting);
-            executionState.InsertObjectOperations(obj, createDribbleInstructions);
+            var executionState = new LispExecutionState(stackFrame, allowHalting);
             return executionState;
         }
     }

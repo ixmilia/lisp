@@ -69,7 +69,7 @@ namespace IxMilia.Lisp
             return true;
         }
 
-        public static bool TryFormatString(string s, IEnumerable<LispObject> args, out string result)
+        public static bool TryFormatString(string s, IEnumerable<LispObject> args, LispPackage currentPackage, out string result)
         {
             var sb = new StringBuilder();
             var argList = args?.ToList() ?? new List<LispObject>();
@@ -98,7 +98,7 @@ namespace IxMilia.Lisp
 
                         var argument = argList[argIndex];
                         argIndex++;
-                        sb.Append(takes.GetText(argument));
+                        sb.Append(takes.GetText(argument, currentPackage));
                         break;
                     default:
                         result = $"Unexpected format token type '{token.GetType().Name}'";

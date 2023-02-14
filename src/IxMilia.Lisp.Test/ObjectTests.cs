@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace IxMilia.Lisp.Test
 {
-    public class ObjectTests
+    public class ObjectTests : TestBase
     {
         [Fact]
         public void ListToString()
@@ -157,11 +158,11 @@ namespace IxMilia.Lisp.Test
         [InlineData("(make-array 3 :fill-pointer 1 :adjustable t)", true, 1, 3, "#(())")]
         public async Task VectorProperties(string code, bool isAdjustable, int count, int size, string display)
         {
-            var host = await LispHost.CreateAsync();
-            var evalResult = await host.EvalAsync(code);
-            Assert.Null(evalResult.ReadError);
-            Assert.IsType<LispVector>(evalResult.LastResult);
-            var vector = (LispVector)evalResult.LastResult;
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
+            var evalResult = await host.EvalAsync("test.lisp", code, executionState);
+            Assert.IsType<LispVector>(evalResult.Value);
+            var vector = (LispVector)evalResult.Value;
             Assert.Equal(isAdjustable, vector.IsAdjustable);
             Assert.Equal(count, vector.Count);
             Assert.Equal(size, vector.Size);
@@ -175,10 +176,10 @@ namespace IxMilia.Lisp.Test
         [InlineData("(setf l '(1 2 3))\n(setf (elt l 1) 42)\nl", "(1 42 3)")] // set list
         public async Task SequenceElement(string code, string expected)
         {
-            var host = await LispHost.CreateAsync();
-            var evalResult = await host.EvalAsync(code);
-            Assert.Null(evalResult.ReadError);
-            Assert.Equal(expected, evalResult.LastResult.ToString());
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
+            var evalResult = await host.EvalAsync("test.lisp", code, executionState);
+            Assert.Equal(expected, evalResult.Value.ToString());
         }
 
         [Theory]
@@ -192,7 +193,8 @@ namespace IxMilia.Lisp.Test
             var filePath = "test-file.lisp";
             int? reportedBreakpointLine = null;
             var foundExpression = false;
-            var host = await LispHost.CreateAsync(filePath: filePath);
+            var host = await CreateHostAsync();
+            var executionState = host.CreateExecutionState();
             var code = @"
 (defun some-function ()         ; line 1
     (if (= (+ 1 2) (- 5 2))     ; line 2
@@ -207,7 +209,7 @@ namespace IxMilia.Lisp.Test
                 if (e.Expression.SourceLocation.HasValue &&
                     e.Expression.SourceLocation.Value.FilePath == filePath)
                 {
-                    var expressionString = e.Expression.ToString();
+                    var expressionString = e.Expression.ToDisplayString(host.CurrentPackage);
                     seenExpressions.Add(expressionString);
                     if (expressionString == expression)
                     {
@@ -216,10 +218,30 @@ namespace IxMilia.Lisp.Test
                     }
                 }
             };
-            var evalResult = await host.EvalAsync(code);
-            Assert.True(evalResult.ExecutionState.IsExecutionComplete);
+            var evalResult = await host.EvalAsync(filePath, code, executionState);
             Assert.True(foundExpression, $"Did not see expression [{expression}] in\n\t{string.Join("\n\t", seenExpressions)}");
             Assert.Equal(expectedBreakpointLine, reportedBreakpointLine);
+        }
+
+        [Theory]
+        [InlineData("a:b", "A", "B", false)]
+        [InlineData("a:b", "A", "B", true)]
+        [InlineData("a::b", "A", "B", false)]
+        [InlineData("a", "COMMON-LISP-USER", "A", false)]
+        [InlineData("a", null, "A", true)]
+        public async Task DirectSymbolParsing(string code, string expectedPackageName, string expectedSymbolName, bool allowUnresolvedSymbols)
+        {
+            var host = await CreateHostAsync();
+            var reader = new StringReader(code);
+            var textStream = new LispTextStream("test-input", reader, TextWriter.Null);
+            var obj = LispSymbol.ReadSymbolLike(textStream, host, allowUnresolvedSymbols);
+            var symbol = Assert.IsAssignableFrom<LispSymbol>(obj);
+            var packageName = symbol is LispResolvedSymbol resolved
+                ? resolved.PackageName
+                : null;
+            var symbolName = symbol.LocalName;
+            Assert.Equal(expectedPackageName, packageName);
+            Assert.Equal(expectedSymbolName, symbolName);
         }
     }
 }

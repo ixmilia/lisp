@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reactive.Subjects;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.DotNet.Interactive;
@@ -21,19 +22,22 @@ namespace IxMilia.Lisp.Interactive
         IKernelCommandHandler<SendValue>,
         IKernelCommandHandler<SubmitCode>
     {
-        private Lazy<Task<LispRepl>> _repl;
+        private Lazy<Task<LispHost>> _host;
         private HashSet<string> _suppressedValues = new HashSet<string>();
+        private Subject<string> _stdoutSubject = new Subject<string>();
 
         public LispKernel()
             : base("lisp")
         {
             KernelInfo.LanguageName = "Lisp";
             KernelInfo.DisplayName = "Lisp";
-            _repl = new Lazy<Task<LispRepl>>(async () =>
+            _host = new Lazy<Task<LispHost>>(async () =>
             {
-                var repl = await LispRepl.CreateAsync(location: "*REPL*");
-                _suppressedValues = new HashSet<string>(repl.Host.RootFrame.GetValues().Select(v => v.Item1.Value));
-                return repl;
+                var writer = new ListeningTextWriter(line => _stdoutSubject.OnNext(line));
+                var configuration = new LispHostConfiguration(output: writer);
+                var host = await LispHost.CreateAsync(configuration);
+                _suppressedValues = new HashSet<string>(host.RootFrame.GetValues().Select(v => v.Item1.Value));
+                return host;
             });
 
             this.UseValueSharing();
@@ -41,12 +45,12 @@ namespace IxMilia.Lisp.Interactive
 
         public async Task HandleAsync(RequestCompletions command, KernelInvocationContext context)
         {
-            var repl = await _repl.Value;
-            var parseResult = await repl.ParseUntilSourceLocationAsync(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
-            var completionItems = parseResult.GetReducedCompletionItems(repl.Host.CurrentPackage,
+            var host = await _host.Value;
+            var parseResult = await host.ParseUntilSourceLocationAsync("*REPL*", command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
+            var completionItems = parseResult.GetReducedCompletionItems(host.CurrentPackage,
                 (symbol, value) =>
                     new CompletionItem(
-                        displayText: symbol.ToDisplayString(repl.Host.CurrentPackage),
+                        displayText: symbol.ToDisplayString(host.CurrentPackage),
                         kind: "",
                         documentation: value is LispFunction f ? f.Documentation : null),
                 name =>
@@ -61,8 +65,8 @@ namespace IxMilia.Lisp.Interactive
 
         public async Task HandleAsync(RequestHoverText command, KernelInvocationContext context)
         {
-            var repl = await _repl.Value;
-            var parseResult = await repl.ParseUntilSourceLocationAsync(command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
+            var host = await _host.Value;
+            var parseResult = await host.ParseUntilSourceLocationAsync("*REPL*", command.Code, new LispSourcePosition(command.LinePosition.Line + 1, command.LinePosition.Character + 1));
             if (parseResult.Object != null)
             {
                 var markdown = parseResult.GetMarkdownDisplay();
@@ -85,9 +89,9 @@ namespace IxMilia.Lisp.Interactive
 
         public async Task HandleAsync(RequestValue command, KernelInvocationContext context)
         {
-            if (_repl.IsValueCreated)
+            if (_host.IsValueCreated)
             {
-                var repl = await _repl.Value;
+                var host = await _host.Value;
                 var formattedValue = await GetFormattedValue(command.Name, command.MimeType);
                 if (formattedValue is { })
                 {
@@ -99,16 +103,16 @@ namespace IxMilia.Lisp.Interactive
         public async Task HandleAsync(RequestValueInfos command, KernelInvocationContext context)
         {
             var kernelValueInfos = new KernelValueInfo[0];
-            if (_repl.IsValueCreated)
+            if (_host.IsValueCreated)
             {
-                var repl = await _repl.Value;
-                var valueInfoTasks = repl.Host.RootFrame.GetValues()
+                var host = await _host.Value;
+                var valueInfoTasks = host.RootFrame.GetValues()
                     .Where(v => !(v.Item2 is LispInvocableObject))
                     .Select(v => v.Item1)
                     .Where(v => !_suppressedValues.Contains(v.Value))
                     .Select(async v =>
                     {
-                        var displayName = v.ToDisplayString(repl.Host.CurrentPackage);
+                        var displayName = v.ToDisplayString(host.CurrentPackage);
                         var formattedValue = await GetFormattedValue(displayName, command.MimeType);
                         return new KernelValueInfo(displayName, formattedValue);
                     });
@@ -120,36 +124,45 @@ namespace IxMilia.Lisp.Interactive
 
         public async Task HandleAsync(SendValue command, KernelInvocationContext context)
         {
+            var host = await _host.Value;
             switch (command.FormattedValue.MimeType)
             {
                 case "application/json":
-                    if (TryGetLispObjectFromJson(command.FormattedValue.Value, out var obj) &&
-                        TryGetDeclarationStatementForObject(obj, command.Name, out var declarationStatement))
+                case "text/json":
+                    if (TryGetLispObjectFromJson(host, command.FormattedValue.Value, out var obj))
                     {
-                        var repl = await _repl.Value;
-                        await repl.EvalAsync(declarationStatement, consumeIncompleteInput: false);
+                        var symbolStream = new LispTextStream("send-value", new StringReader(command.Name), TextWriter.Null);
+                        var readSymbol = LispSymbol.ReadSymbolLike(symbolStream, host, allowUnresolvedSymbols: true);
+                        if (readSymbol is LispSymbol symbol)
+                        {
+                            var valueSymbol = symbol.Resolve(host.CurrentPackage);
+                            host.RootFrame.SetValue(valueSymbol, obj);
+                            return;
+                        }
+
+                        context.Fail(command, message: $"Unable to read symbol from name: \"{command.Name}\"");
                     }
 
                     break;
                 default:
                     // TODO: handle other mime types
+                    context.Fail(command, message: $"Unable to set value from mime type {command.FormattedValue.MimeType}");
                     break;
             }
         }
 
         public async Task HandleAsync(SubmitCode command, KernelInvocationContext context)
         {
-            var repl = await _repl.Value;
-            var writer = new ListeningTextWriter(line =>
+            var host = await _host.Value;
+            using var _ = _stdoutSubject.Subscribe(line =>
             {
                 var formatted = new FormattedValue("text/plain", line);
                 context.Publish(new StandardOutputValueProduced(command, new[] { formatted }));
             });
-            var consoleStream = new LispTextStream("", TextReader.Null, writer);
-            repl.Host.SetValue("*TERMINAL-IO*", consoleStream);
 
-            var result = await repl.EvalAsync(command.Code, consumeIncompleteInput: false);
-            switch (result.ExecutionState.LastResult)
+            var executionState = host.CreateExecutionState();
+            var result = await host.EvalAsync("*REPL*", command.Code, executionState);
+            switch (result.Value)
             {
                 case LispError err:
                     var errorLocation = err.SourceLocation;
@@ -195,14 +208,14 @@ namespace IxMilia.Lisp.Interactive
 
         public async Task<FormattedValue> GetFormattedValue(string valueName, string mimeType)
         {
-            var repl = await _repl.Value;
-            var foundValuePair = repl.Host.RootFrame.GetValues().FirstOrDefault(v => v.Item1.LocalName == valueName || v.Item1.Value == valueName);
+            var host = await _host.Value;
+            var foundValuePair = host.RootFrame.GetValues().FirstOrDefault(v => v.Item1.LocalName == valueName || v.Item1.Value == valueName);
             if (foundValuePair is { })
             {
                 var formatted = mimeType switch
                 {
                     "application/json" => foundValuePair.Item2.ToJsonString(),
-                    _ => foundValuePair.Item2.ToDisplayString(repl.Host.CurrentPackage),
+                    _ => foundValuePair.Item2.ToDisplayString(host.CurrentPackage),
                 };
 
                 return new FormattedValue(mimeType, formatted); ;
@@ -211,13 +224,13 @@ namespace IxMilia.Lisp.Interactive
             return null;
         }
 
-        public static bool TryGetLispObjectFromJson(string json, out LispObject result)
+        public static bool TryGetLispObjectFromJson(LispHost host, string json, out LispObject result)
         {
             var token = JToken.Parse(json);
-            return TryGetLispObjectFromJToken(token, out result);
+            return TryGetLispObjectFromJToken(host, token, out result);
         }
 
-        private static bool TryGetLispObjectFromJToken(JToken token, out LispObject result)
+        private static bool TryGetLispObjectFromJToken(LispHost host, JToken token, out LispObject result)
         {
             result = null;
             switch (token.Type)
@@ -228,7 +241,7 @@ namespace IxMilia.Lisp.Interactive
                         var arrayValues = new List<LispObject>();
                         foreach (var value in array.Values())
                         {
-                            if (TryGetLispObjectFromJToken(value, out var item))
+                            if (TryGetLispObjectFromJToken(host, value, out var item))
                             {
                                 arrayValues.Add(item);
                             }
@@ -240,7 +253,7 @@ namespace IxMilia.Lisp.Interactive
                 case JTokenType.Boolean:
                     {
                         var value = (bool)((JValue)token).Value;
-                        result = value ? (LispObject)new LispInteger(1) : LispList.FromItems();
+                        result = value ? (LispObject)host.T : host.Nil;
                     }
                     break;
                 case JTokenType.Integer:
@@ -263,7 +276,7 @@ namespace IxMilia.Lisp.Interactive
                     break;
                 case JTokenType.Null:
                 case JTokenType.Undefined:
-                    result = LispList.FromItems();
+                    result = host.Nil;
                     break;
                 case JTokenType.Object:
                     {
@@ -271,7 +284,7 @@ namespace IxMilia.Lisp.Interactive
                         var values = new List<LispObject>();
                         foreach (var prop in obj.Properties())
                         {
-                            if (TryGetLispObjectFromJToken(prop.Value, out var propertyValue))
+                            if (TryGetLispObjectFromJToken(host, prop.Value, out var propertyValue))
                             {
                                 values.Add(LispSymbol.CreateFromString(prop.Name, "KEYWORD"));
                                 values.Add(propertyValue);
@@ -284,20 +297,6 @@ namespace IxMilia.Lisp.Interactive
             }
 
             return result is { };
-        }
-
-        public static bool TryGetDeclarationStatementForObject(LispObject obj, string valueName, out string declarationStatement)
-        {
-            var valueToSet = obj.FormatAsSExpression();
-            if (obj is LispList)
-            {
-                // lists need to be quoted
-                valueToSet = "'" + valueToSet;
-            }
-
-            // add a trailing `()` so there is no `ReturnValueProduced` generated when executing this code
-            declarationStatement = $"(SETF {valueName} {valueToSet}) ()";
-            return valueToSet is { };
         }
     }
 }

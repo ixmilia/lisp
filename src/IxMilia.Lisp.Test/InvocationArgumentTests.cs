@@ -456,5 +456,28 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(1, rest.Count);
             Assert.Equal(4, ((LispInteger)rest[0]).Value);
         }
+
+        [Fact]
+        public void KeywordSymbolCanBindToRegularArguments()
+        {
+            var matched = MatchArguments(
+                new[]
+                {
+                    new LispRegularInvocationArgument(LispSymbol.CreateFromString("A")),
+                },
+                Array.Empty<LispOptionalInvocationArgument>(),
+                Array.Empty<LispKeywordInvocationArgument>(),
+                Array.Empty<LispAuxiliaryInvocationArgument>(),
+                null,
+                new LispObject[]
+                {
+                    LispSymbol.CreateFromString(":SOME-KEYWORD")
+                }
+            );
+
+            Assert.Single(matched);
+            Assert.Equal("A", matched[0].Item1.Name);
+            Assert.Equal(":SOME-KEYWORD", matched[0].Item2.ToString());
+        }
     }
 }

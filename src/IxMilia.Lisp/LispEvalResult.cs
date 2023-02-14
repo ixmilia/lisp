@@ -2,16 +2,18 @@
 {
     public class LispEvalResult
     {
-        public LispExecutionState ExecutionState { get; }
-        public int ExpressionDepth { get; internal set; }
-        public LispError ReadError { get; internal set; }
-        public string IncompleteInput { get; internal set; }
+        public LispEvaluationState State { get; }
+        public LispObject Value { get; }
 
-        public LispObject LastResult => ExecutionState?.LastReportedError ?? ExecutionState?.LastResult;
-
-        internal LispEvalResult(LispExecutionState executionState)
+        internal LispEvalResult(LispEvaluationState state, LispObject value)
         {
-            ExecutionState = executionState;
+            State = state;
+            Value = value;
+        }
+
+        internal LispEvalResult(LispEvaluationState state, LispExecutionState executionState)
+            : this(state, executionState.LastReportedError ?? executionState.LastResult)
+        {
         }
     }
 }

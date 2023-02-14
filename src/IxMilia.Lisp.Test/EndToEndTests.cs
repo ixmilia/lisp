@@ -4,7 +4,7 @@ using Xunit;
 
 namespace IxMilia.Lisp.Test
 {
-    public class EndToEndTests
+    public class EndToEndTests : TestBase
     {
         private string GetFileContents(string fileName)
         {
@@ -17,9 +17,10 @@ namespace IxMilia.Lisp.Test
         private async Task EvalFile(string fileName)
         {
             var contents = GetFileContents(fileName);
-            var host = await LispHost.CreateAsync();
-            var result = await host.EvalAsync(contents);
-            Assert.True(result.LastResult.Equals(host.T), result.LastResult.ToString());
+            var host = await CreateHostAsync();
+            var executionState = LispExecutionState.CreateExecutionState(host.RootFrame, allowHalting: false);
+            var result = await host.EvalAsync(fileName, contents, executionState);
+            Assert.True(result.Value.Equals(host.T), result.Value.ToString());
         }
 
         [Fact]

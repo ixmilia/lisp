@@ -39,7 +39,19 @@ namespace IxMilia.Lisp
 
         public virtual string ToDisplayString(LispPackage currentPackage) => ToString();
 
-        public string FormatAsSExpression() => LispFormatTokenSExpression.FormatObject(this);
+        public string FormatAsSExpression(LispPackage currentPackage) => LispFormatTokenSExpression.FormatObject(this, currentPackage);
+
+        public static LispObject CreateSymbolLike(string name, string defaultPackageName)
+        {
+            if (name.StartsWith("&"))
+            {
+                return new LispLambdaListKeyword(name);
+            }
+            else
+            {
+                return LispSymbol.CreateFromString(name, defaultPackageName);
+            }
+        }
 
         public LispObject PerformMacroReplacements(LispPackage currentPackage, IDictionary<string, LispObject> replacements)
         {
@@ -120,8 +132,19 @@ namespace IxMilia.Lisp
 
     public class LispError : LispObject
     {
+        private LispStackFrame _stackFrame;
+
         public string Message { get; }
-        public LispStackFrame StackFrame { get; internal set; }
+        public LispStackFrame StackFrame
+        {
+            get => _stackFrame;
+            set
+            {
+                _stackFrame = value;
+                RebuildStackTrace();
+            }
+        }
+        public string StackTrace { get; private set; }
 
         public LispError(string message)
             : this(message, null)
@@ -132,6 +155,12 @@ namespace IxMilia.Lisp
         {
             Message = message;
             StackFrame = stackFrame;
+            RebuildStackTrace();
+        }
+
+        private void RebuildStackTrace()
+        {
+            StackTrace = StackFrame?.ToString();
         }
 
         public override IEnumerable<LispObject> GetChildren()
@@ -146,7 +175,7 @@ namespace IxMilia.Lisp
 
         public override string ToString()
         {
-            var frame = StackFrame == null ? string.Empty : $":\n{StackFrame}";
+            var frame = StackTrace == null ? string.Empty : $":\n{StackTrace}";
             return $"{Message}{frame}";
         }
     }
@@ -154,6 +183,9 @@ namespace IxMilia.Lisp
     public abstract class LispSymbol : LispObject
     {
         public string LocalName { get; }
+
+        public Tuple<LispSourcePosition, LispSourcePosition> PackageSpan { get; private set; }
+        public Tuple<LispSourcePosition, LispSourcePosition> SymbolSpan { get; private set; }
 
         protected LispSymbol(string localName)
         {
@@ -225,6 +257,155 @@ namespace IxMilia.Lisp
 
             return Tuple.Create(packageName, localName, isPublic);
         }
+
+        internal static LispObject ReadSymbolLike(LispTextStream textStream, LispHost host, bool allowUnresolvedSymbols)
+        {
+            LispSourceLocation? startLocation = default;
+            LispSourceLocation? endLocation = default;
+            var sb = new StringBuilder();
+            var characters = new List<LispCharacter>();
+            while (true)
+            {
+                var next = textStream.Peek();
+                var finishIt = false;
+                if (next is LispCharacter c)
+                {
+                    if (sb.Length == 0)
+                    {
+                        startLocation = c.SourceLocation;
+                    }
+
+                    if (IsWhitespace(c.Value) ||
+                        c.Value == '(' ||
+                        c.Value == ')' ||
+                        c.Value == ';')
+                    {
+                        finishIt = true;
+                    }
+                    else
+                    {
+                        endLocation = c.SourceLocation;
+                        var _ = textStream.Read();
+                        characters.Add(c);
+                        sb.Append(c.Value);
+                    }
+                }
+                else
+                {
+                    // any non character value ends it
+                    finishIt = true;
+                }
+
+                if (finishIt)
+                {
+                    LispObject result = null;
+                    if (sb.Length == 0)
+                    {
+                        return result;
+                    }
+
+                    var stringValue = sb.ToString();
+                    var foundRegex = false;
+                    foreach (var regexPair in LispDefaultContext.RegexMatchers)
+                    {
+                        var regex = regexPair.Item1;
+                        var creator = regexPair.Item2;
+                        var collection = regex.Matches(stringValue);
+                        if (collection.Count >= 1)
+                        {
+                            var match = collection[0];
+                            result = creator(match);
+                            foundRegex = true;
+                            break;
+                        }
+                    }
+
+                    if (!foundRegex)
+                    {
+                        var packageCharacters = new List<LispCharacter>();
+                        var symbolCharacters = new List<LispCharacter>();
+                        var seenColon = false;
+                        foreach (var character in characters)
+                        {
+                            if (!seenColon)
+                            {
+                                if (character.Value == ':')
+                                {
+                                    seenColon = true;
+                                }
+                                else
+                                {
+                                    packageCharacters.Add(character);
+                                }
+                            }
+                            else
+                            {
+                                symbolCharacters.Add(character);
+                            }
+                        }
+
+                        if (!symbolCharacters.Any())
+                        {
+                            // no package splitter was found
+                            symbolCharacters = packageCharacters;
+                            packageCharacters = new List<LispCharacter>();
+                        }
+
+                        var localName = stringValue.ToUpperInvariant();// TODO: better casing
+                        var owningPackage = host.CurrentPackage.GetNarrowestOwningPackage(localName);
+                        var defaultPackageName = allowUnresolvedSymbols
+                            ? null
+                            : owningPackage.Name;
+                        result = CreateSymbolLike(localName, defaultPackageName);
+                        if (result is LispSymbol builtSymbol)
+                        {
+                            var firstPackageChar = packageCharacters.FirstOrDefault();
+                            var lastPackageChar = packageCharacters.LastOrDefault();
+                            var firstSymbolChar = symbolCharacters.FirstOrDefault();
+                            var lastSymbolChar = symbolCharacters.LastOrDefault();
+                            if (firstPackageChar?.SourceLocation != null && lastPackageChar?.SourceLocation != null)
+                            {
+                                builtSymbol.PackageSpan = Tuple.Create(firstPackageChar.SourceLocation.Value.Start, lastPackageChar.SourceLocation.Value.End);
+                            }
+
+                            if (firstSymbolChar?.SourceLocation != null && lastSymbolChar?.SourceLocation != null)
+                            {
+                                builtSymbol.SymbolSpan = Tuple.Create(firstSymbolChar.SourceLocation.Value.Start, lastSymbolChar.SourceLocation.Value.End);
+                            }
+
+                            if (builtSymbol is LispResolvedSymbol resolved &&
+                                resolved.IsKeyword)
+                            {
+                                host.RootFrame.SetValue(resolved, resolved);
+                            }
+                        }
+                    }
+
+                    if (startLocation.HasValue && endLocation.HasValue)
+                    {
+                        result.SourceLocation = new LispSourceLocation(startLocation.Value.FilePath, startLocation.Value.Start, endLocation.Value.End);
+                    }
+
+                    return result;
+                }
+            }
+        }
+
+        internal static bool IsWhitespace(char c)
+        {
+            switch (c)
+            {
+                case ' ':
+                case '\r':
+                case '\n':
+                case '\t':
+                case '\v':
+                case '\f':
+                    return true;
+                default:
+                    return false;
+            }
+        }
     }
 
     public class LispUnresolvedSymbol : LispSymbol, IEquatable<LispUnresolvedSymbol>
@@ -291,7 +472,7 @@ namespace IxMilia.Lisp
 
         public override string ToString() => Value;
 
-        public override string ToDisplayString(LispPackage currentPackage) => currentPackage.HasSymbolWithName(LocalName) || PackageName == currentPackage.Name ? LocalName : Value;
+        public override string ToDisplayString(LispPackage currentPackage) => currentPackage.IsSymbolWithNameInScope(LocalName) || PackageName == currentPackage.Name ? LocalName : Value;
 
         public static bool operator ==(LispResolvedSymbol a, LispResolvedSymbol b)
         {
@@ -1639,7 +1820,7 @@ namespace IxMilia.Lisp
             }
             else
             {
-                nextString = $" . {Next.ToDisplayString(currentPackage)}";
+                nextString = $" . {Next.ToDisplayString(currentPackage)})";
             }
 
             return nextString;
@@ -1864,7 +2045,7 @@ namespace IxMilia.Lisp
 
     public abstract class LispInvocableObject : LispObject
     {
-        public LispResolvedSymbol NameSymbol { get; }
+        public LispResolvedSymbol NameSymbol { get; internal set; }
         public string Documentation { get; }
 
         protected LispInvocableObject(LispResolvedSymbol nameSymbol, string documentation)

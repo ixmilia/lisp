@@ -16,16 +16,22 @@ namespace IxMilia.Lisp
         public LispStackFrame Parent { get; }
         public LispSourceLocation? SourceLocation { get; private set; }
 
-        public virtual LispRootStackFrame Root => Parent.Root;
+        public virtual LispRootStackFrame Root { get; }
         public virtual int Depth { get; }
 
         private Dictionary<string, (LispResolvedSymbol Symbol, LispObject Value)> _values = new Dictionary<string, (LispResolvedSymbol, LispObject)>();
 
         protected LispStackFrame(LispResolvedSymbol functionSymbol, LispStackFrame parent)
         {
+            if (ReferenceEquals(this, parent))
+            {
+                throw new Exception("nope");
+            }
+
             FunctionSymbol = functionSymbol;
             Parent = parent;
             Depth = (Parent?.Depth ?? LispRootStackFrame.RootStackDepth) + 1;
+            Root = parent?.Root;
         }
 
         internal LispStackFrame(LispInvocableObject function, LispStackFrame parent)
@@ -44,10 +50,7 @@ namespace IxMilia.Lisp
         {
             foreach (var valuePair in _values)
             {
-                if (invocationArgumentNames.Contains(valuePair.Key))
-                {
-                    Parent?.SetValue(LispSymbol.CreateFromString(valuePair.Key).Resolve(currentPackage), valuePair.Value.Value);
-                }
+                Parent?.SetValue(LispSymbol.CreateFromString(valuePair.Key).Resolve(currentPackage), valuePair.Value.Value);
             }
         }
 
@@ -125,7 +128,7 @@ namespace IxMilia.Lisp
         public event EventHandler<LispEvaluatingExpressionEventArgs> EvaluatingExpression;
         public event EventHandler<LispEvaluatedExpressionEventArgs> EvaluatedExpression;
         public event EventHandler<LispValueSetEventArgs> ValueSet;
-        public event EventHandler<LispErrorOccuredEventArgs> ErrorOccured;
+        public event EventHandler<LispErrorOccuredEventArgs> ErrorOccurred;
         public event EventHandler<LispEvaluationHaltedEventArgs> EvaluationHalted;
 
         private Dictionary<string, LispPackage> _packages = new Dictionary<string, LispPackage>();
@@ -156,11 +159,11 @@ namespace IxMilia.Lisp
         public LispObject T => _commonLispPackage.GetValue<LispSymbol>(TString);
         public LispObject Nil => _commonLispPackage.GetValue<LispNilList>(NilString);
         public LispTextStream TerminalIO => _commonLispPackage.GetValue<LispTextStream>(TerminalIOString);
-        public LispReadTable CurrentReadTable
-        {
-            get => _commonLispPackage.GetValue<LispReadTable>(ReadTableString);
-            set => _commonLispPackage.SetValue(ReadTableString, value);
-        }
+
+        private static LispResolvedSymbol TSymbol = new LispResolvedSymbol(CommonLispPackageName, TString, isPublic: true);
+        private static LispResolvedSymbol NilSymbol = new LispResolvedSymbol(CommonLispPackageName, NilString, isPublic: true);
+        private static LispResolvedSymbol TerminalIOSymbol = new LispResolvedSymbol(CommonLispPackageName, TerminalIOString, isPublic: true);
+        internal static LispResolvedSymbol ReadTableSymbol = new LispResolvedSymbol(CommonLispPackageName, ReadTableString, isPublic: true);
 
         internal LispRootStackFrame(TextReader input, TextWriter output, Func<LispResolvedSymbol, LispObject> getUntrackedValue, Func<LispResolvedSymbol, LispObject, bool> trySetUntrackedValue)
             : base(new LispResolvedSymbol("(ROOT)", "(ROOT)", isPublic: true), null)
@@ -171,19 +174,14 @@ namespace IxMilia.Lisp
             _getUntrackedValue = getUntrackedValue;
             _trySetUntrackedValue = trySetUntrackedValue;
 
-            var tSymbol = new LispResolvedSymbol(CommonLispPackageName, TString, isPublic: true);
-            SetValue(tSymbol, tSymbol);
+            SetValue(TSymbol, TSymbol);
+            SetValue(NilSymbol, LispNilList.Instance);
 
-            var nilSymbol = new LispResolvedSymbol(CommonLispPackageName, NilString, isPublic: true);
-            SetValue(nilSymbol, LispNilList.Instance);
-
-            var terminalIoSymbol = new LispResolvedSymbol(CommonLispPackageName, TerminalIOString, isPublic: true);
             var terminalIoStream = new LispTextStream(TerminalIOString, input, output);
-            SetValue(terminalIoSymbol, terminalIoStream);
+            SetValue(TerminalIOSymbol, terminalIoStream);
 
-            var currentReadTableSymbol = new LispResolvedSymbol(CommonLispPackageName, ReadTableString, isPublic: true);
             var currentReadTable = new LispReadTable();
-            SetValue(currentReadTableSymbol, currentReadTable);
+            SetValue(ReadTableSymbol, currentReadTable);
         }
 
         public LispPackage AddPackage(string packageName, IEnumerable<LispPackage> inheritedPackages = null)
@@ -321,7 +319,7 @@ namespace IxMilia.Lisp
         internal void OnErrorOccured(LispError error, LispStackFrame frame)
         {
             var args = new LispErrorOccuredEventArgs(error, frame);
-            ErrorOccured?.Invoke(this, args);
+            ErrorOccurred?.Invoke(this, args);
         }
 
         internal void OnHalted(LispEvaluationState evaluationState)

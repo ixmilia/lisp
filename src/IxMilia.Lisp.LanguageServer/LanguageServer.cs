@@ -13,7 +13,7 @@ namespace IxMilia.Lisp.LanguageServer
     public class LanguageServer
     {
         private JsonRpc _rpc;
-        private Dictionary<string, (LispRepl Repl, string Content)> _documentContents = new Dictionary<string, (LispRepl, string)>();
+        private Dictionary<string, (LispHost Host, string Content, ResettableTextWriter TextWriter)> _documentContents = new Dictionary<string, (LispHost, string, ResettableTextWriter)>();
 
         public LanguageServer(Stream sendingStream, Stream receivingStream)
         {
@@ -55,17 +55,22 @@ namespace IxMilia.Lisp.LanguageServer
 
         private async Task SetDocumentContentsAsync(string uri, string newContent, CancellationToken cancellationToken)
         {
-            LispRepl repl;
+            LispHost host;
+            ResettableTextWriter textWriter;
             if (_documentContents.TryGetValue(uri, out var pair))
             {
-                repl = pair.Repl;
+                host = pair.Host;
+                textWriter = pair.TextWriter;
             }
             else
             {
-                repl = await LispRepl.CreateAsync(output: new ResettableTextWriter());
+                var output = new ResettableTextWriter();
+                var configuration = new LispHostConfiguration(output: output);
+                host = await LispHost.CreateAsync(configuration);
+                textWriter = output;
             }
 
-            _documentContents[uri] = (repl, newContent);
+            _documentContents[uri] = (host, newContent, textWriter);
             var diagnostics = await ComputeDiagnosticsAsync(uri, cancellationToken);
             TextDocumentPublishDiagnostics(uri, diagnostics);
         }
@@ -82,11 +87,12 @@ namespace IxMilia.Lisp.LanguageServer
             if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
                 var diagnostics = new List<Diagnostic>();
-                var resettableTextWriter = pair.Repl.Output as ResettableTextWriter;
-                resettableTextWriter?.Reset();
+                var resettableTextWriter = pair.TextWriter;
+                resettableTextWriter.Reset();
 
-                var evalResult = await pair.Repl.EvalAsync(pair.Content, consumeIncompleteInput: false);
-                var error = evalResult.LastResult as LispError;
+                var executionState = pair.Host.CreateExecutionState();
+                var evalResult = await pair.Host.EvalAsync(param.TextDocument.Uri, pair.Content, executionState);
+                var error = executionState.LastReportedError;
 
                 if (error is { })
                 {
@@ -94,7 +100,7 @@ namespace IxMilia.Lisp.LanguageServer
                 }
 
                 var fullOutput = new StringBuilder();
-                var stdout = resettableTextWriter?.GetText();
+                var stdout = resettableTextWriter.GetText();
                 if (stdout != null)
                 {
                     fullOutput.Append(stdout);
@@ -104,7 +110,7 @@ namespace IxMilia.Lisp.LanguageServer
                     }
                 }
 
-                fullOutput.Append(evalResult.LastResult.ToString());
+                fullOutput.Append(evalResult.Value?.ToString());
 
                 TextDocumentPublishDiagnostics(param.TextDocument.Uri, diagnostics.ToArray());
 
@@ -123,11 +129,11 @@ namespace IxMilia.Lisp.LanguageServer
             var items = Enumerable.Empty<CompletionItem>();
             if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
-                var parseResult = await pair.Repl.ParseUntilSourceLocationAsync(pair.Content, position);
-                items = parseResult.GetReducedCompletionItems(pair.Repl.Host.CurrentPackage,
+                var parseResult = await pair.Host.ParseUntilSourceLocationAsync(param.TextDocument.Uri, pair.Content, position);
+                items = parseResult.GetReducedCompletionItems(pair.Host.CurrentPackage,
                     (symbol, value) =>
                         new CompletionItem(
-                            symbol.ToDisplayString(pair.Repl.Host.CurrentPackage),
+                            symbol.ToDisplayString(pair.Host.CurrentPackage),
                             symbol.Value,
                             value is LispFunction f ? new MarkupContent(MarkupKind.Markdown, f.Documentation) : null),
                     name => new CompletionItem(name, name, null));
@@ -191,7 +197,7 @@ namespace IxMilia.Lisp.LanguageServer
             var position = Converters.SourcePositionFromPosition(param.Position);
             if (_documentContents.TryGetValue(param.TextDocument.Uri, out var pair))
             {
-                var parseResult = await pair.Repl.ParseUntilSourceLocationAsync(pair.Content, position);
+                var parseResult = await pair.Host.ParseUntilSourceLocationAsync(param.TextDocument.Uri, pair.Content, position);
                 var markdown = parseResult.GetMarkdownDisplay();
                 return new Hover(new MarkupContent(MarkupKind.Markdown, markdown));
             }
@@ -204,7 +210,7 @@ namespace IxMilia.Lisp.LanguageServer
             var diagnostics = new List<Diagnostic>();
             if (_documentContents.TryGetValue(uri, out var pair))
             {
-                var parsedObjects = await pair.Repl.Host.ParseAllAsync(pair.Content, cancellationToken);
+                var parsedObjects = await pair.Host.ParseAllAsync(pair.Content, cancellationToken);
                 foreach (var parsedObj in parsedObjects)
                 {
                     if (parsedObj is LispError error)
@@ -256,10 +262,10 @@ namespace IxMilia.Lisp.LanguageServer
             {
                 var legend = new SemanticTokensLegend();
                 var builder = new SemanticTokensBuilder(legend.TokenTypes, legend.TokenModifiers);
-                var objects = await pair.Repl.Host.ParseAllAsync(pair.Content);
+                var objects = await pair.Host.ParseAllAsync(pair.Content);
                 foreach (var obj in objects)
                 {
-                    foreach (var token in obj.GetSemanticTokens(pair.Repl.Host))
+                    foreach (var token in obj.GetSemanticTokens(pair.Host))
                     {
                         var start = Converters.PositionFromSourcePosition(token.Start);
                         var end = Converters.PositionFromSourcePosition(token.End);
