@@ -1,4 +1,5 @@
 import * as monaco from 'monaco-editor';
+import * as grammar from './grammar/grammar';
 import './index.css';
 
 interface CompletionItem {
@@ -70,101 +71,7 @@ async function createEditor(adapter: DotNetInvoker): Promise<void> {
     monaco.languages.register({
         id: 'lisp'
     });
-    monaco.languages.setMonarchTokensProvider('lisp', {
-        defaultToken: '',
-        ignoreCase: true,
-        tokenPostfix: '.scheme', // TODO: not needed?
-
-        brackets: [
-            { open: '(', close: ')', token: 'delimiter.parenthesis' },
-            { open: '{', close: '}', token: 'delimiter.curly' },
-            { open: '[', close: ']', token: 'delimiter.square' }
-        ],
-
-        keywords: [
-            // TODO: expand this
-            'case',
-            'do',
-            'let',
-            'loop',
-            'if',
-            'else',
-            'when',
-            'cons',
-            'car',
-            'cdr',
-            'cond',
-            'lambda',
-            'lambda*',
-            'syntax-rules',
-            'format',
-            'set!',
-            'quote',
-            'eval',
-            'append',
-            'list',
-            'list?',
-            'member?',
-            'load'
-        ],
-
-        constants: ['t', 'nil'],
-
-        operators: ['eq?', 'eqv?', 'equal?', 'and', 'or', 'not', 'null?'], // TODO: expand
-
-        tokenizer: {
-            root: [
-                [/#[xXoObB][0-9a-fA-F]+/, 'number.hex'],
-                [/[+-]?\d+(?:(?:\.\d*)?(?:[eE][+-]?\d+)?)?/, 'number.float'],
-
-                [
-                    /(?:\b(?:(defun|defmacro))\b)(\s+)((?:\w|\-|\!|\?)*)/,
-                    ['keyword', 'white', 'variable']
-                ],
-
-                { include: '@whitespace' },
-                { include: '@strings' },
-
-                [
-                    /[a-zA-Z_#][a-zA-Z0-9_\-\?\!\*]*/,
-                    {
-                        cases: {
-                            '@keywords': 'keyword',
-                            '@constants': 'constant',
-                            '@operators': 'operators',
-                            '@default': 'identifier'
-                        }
-                    }
-                ]
-            ],
-
-            comment: [
-                [/[^\|#]+/, 'comment'],
-                [/#\|/, 'comment', '@push'],
-                [/\|#/, 'comment', '@pop'],
-                [/[\|#]/, 'comment']
-            ],
-
-            whitespace: [
-                [/[ \t\r\n]+/, 'white'],
-                [/#\|/, 'comment', '@comment'],
-                [/;.*$/, 'comment']
-            ],
-
-            strings: [
-                [/"$/, 'string', '@popall'],
-                [/"(?=.)/, 'string', '@multiLineString']
-            ],
-
-            multiLineString: [
-                [/[^\\"]+$/, 'string', '@popall'],
-                [/[^\\"]+/, 'string'],
-                [/\\./, 'string.escape'],
-                [/"/, 'string', '@popall'],
-                [/\\$/, 'string']
-            ]
-        }
-    });
+    monaco.languages.setMonarchTokensProvider('lisp', grammar.languageGrammar);
     const editor = monaco.editor.create(document.getElementById('editor'), {
         value: ['; comment', '(+ 1 1)'].join('\n'),
         language: 'lisp',

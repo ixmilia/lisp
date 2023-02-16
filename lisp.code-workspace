@@ -1,0 +1,15 @@
+{
+  "folders": [
+    {
+      "name": "(root)",
+      "path": "."
+    },
+    {
+      "path": "src/lisp-monaco-editor"
+    },
+    {
+      "path": "src/lisp-vscode"
+    }
+  ],
+  "settings": {}
+}
