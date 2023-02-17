@@ -121,7 +121,7 @@ namespace IxMilia.Lisp
             return false;
         }
 
-        internal void ReportError(LispError error, LispObject parent = null, bool insertPop = false)
+        public void ReportError(LispError error, LispObject parent = null, bool insertPop = false)
         {
             if (!error.SourceLocation.HasValue)
             {
