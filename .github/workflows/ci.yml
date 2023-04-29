@@ -19,6 +19,12 @@ jobs:
     - name: Build and test
       shell: pwsh
       run: ./build-and-test.ps1 -configuration ${{ matrix.configuration }}
+    - name: Publish WASM artifact
+      uses: actions/upload-artifact@v3
+      if: matrix.os == 'windows-latest' && matrix.configuration == 'Release'
+      with:
+        name: wasm
+        path: ./artifacts/wasm/wwwroot
 
   per-build-publish:
     if: github.ref == 'refs/heads/main'

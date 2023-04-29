@@ -45,6 +45,9 @@ try {
     dotnet pack --no-restore --no-build --configuration $configuration /p:VersionSuffix=$versionSuffix $solution || Fail "Error creating package."
     Write-Host "Packages generated at $PSScriptRoot/artifacts/packages/$configuration"
 
+    # create wasm package
+    dotnet publish "$PSScriptRoot/src/IxMilia.Lisp.Wasm/IxMilia.Lisp.Wasm.csproj" --configuration $configuration --output "$PSScriptRoot/artifacts/wasm"
+
     # create vscode extension
     Push-Location "$PSScriptRoot\src\lisp-vscode"
     npm i
