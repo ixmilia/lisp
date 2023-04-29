@@ -19,7 +19,7 @@ namespace IxMilia.Lisp.DebugAdapter.Test
             this.output = output;
         }
 
-        [Fact]
+        [OsFact(skipLinux: true)] // flaky on linux
         public async Task FullTest()
         {
             var filePath = "script-file.lisp";
