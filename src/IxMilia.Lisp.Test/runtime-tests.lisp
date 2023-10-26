@@ -267,6 +267,21 @@
     (assert-equal 4 (/ 24 3 2) "//*")
     ; exponent
     (assert-equal 8 (expt 2 3) "expt/2")
+    ; modulo and remainder - examples taken from http://clhs.lisp.se/Body/f_mod_r.htm
+    (assert-equal -1 (rem -1 5) "rem1")
+    (assert-equal 4 (mod -1 5) "mod1")
+    (assert-equal 1 (mod 13 4) "mod2")
+    (assert-equal 1 (rem 13 4) "rem2")
+    (assert-equal 3 (mod -13 4) "mod3")
+    (assert-equal -1 (rem -13 4) "rem3")
+    (assert-equal -3 (mod 13 -4) "mod4")
+    (assert-equal 1 (rem 13 -4) "rem4")
+    (assert-equal -1 (mod -13 -4) "mod5")
+    (assert-equal -1 (rem -13 -4) "rem5")
+    (assert-equal 0.25 (mod 13.25 1) "mod6")
+    (assert-equal 0.25 (rem 13.25 1) "rem6")
+    (assert-equal 0.75 (mod -13.25 1) "mod7")
+    (assert-equal -0.25 (rem -13.25 1) "rem7")
 )
 
 (and (item-equality)

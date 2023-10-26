@@ -2549,6 +2549,58 @@ namespace IxMilia.Lisp
             return Task.FromResult(host.Nil);
         }
 
+        [LispFunction("KERNEL:MOD/2")]
+        public Task<LispObject> TwoArgumentMod(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        {
+            if (args.Length == 2)
+            {
+                if (args[0] is LispInteger ai && args[1] is LispInteger bi)
+                {
+                    var a = ai.Value;
+                    var b = bi.Value;
+                    var result = ((a % b) + b) % b;
+                    return Task.FromResult<LispObject>(new LispInteger(result));
+                }
+                else if (args[0] is LispSimpleNumber an && args[1] is LispSimpleNumber bn)
+                {
+                    var av = an.AsFloat().Value;
+                    var bv = bn.AsFloat().Value;
+                    var dv = av / bv;
+                    var floor = Math.Floor(dv);
+                    var diff = dv - floor;
+                    return Task.FromResult<LispObject>(new LispFloat(diff));
+                }
+            }
+
+            executionState.ReportError(new LispError("Expected exactly two simple numeric arguments"), insertPop: true);
+            return Task.FromResult(host.Nil);
+        }
+
+        [LispFunction("KERNEL:REM/2")]
+        public Task<LispObject> TwoArgumentRem(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        {
+            if (args.Length == 2)
+            {
+                if (args[0] is LispInteger ai && args[1] is LispInteger bi)
+                {
+                    var x = Math.DivRem(ai.Value, bi.Value, out var remainder);
+                    return Task.FromResult<LispObject>(new LispInteger(remainder));
+                }
+                else if (args[0] is LispSimpleNumber an && args[1] is LispSimpleNumber bn)
+                {
+                    var av = an.AsFloat().Value;
+                    var bv = bn.AsFloat().Value;
+                    var dv = av / bv;
+                    var floor = Math.Truncate(dv);
+                    var diff = dv - floor;
+                    return Task.FromResult<LispObject>(new LispFloat(diff));
+                }
+            }
+
+            executionState.ReportError(new LispError("Expected exactly two simple numeric arguments"), insertPop: true);
+            return Task.FromResult(host.Nil);
+        }
+
         [LispFunction("KERNEL:PROCESS-LIST-FORWARD-REFERENCE")]
         public async Task<LispObject> ProcessListForwardReference(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {

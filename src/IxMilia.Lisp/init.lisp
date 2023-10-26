@@ -253,6 +253,12 @@
           ((equal 1 (length values))    (/ 1 (car values)))
           (t                            (reduce #'kernel://2 values))))
 
+(defun mod (a b)
+    (kernel:mod/2 a b))
+
+(defun rem (a b)
+    (kernel:rem/2 a b))
+
 (defpackage :common-lisp-user
     (:use :common-lisp))
 (in-package :common-lisp-user)
