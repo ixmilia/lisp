@@ -942,7 +942,18 @@ namespace IxMilia.Lisp
         }
 
         [LispFunction("READ-COMPILED", Signature = "&OPTIONAL (INPUT-STREAM *TERMINAL-IO*) (EOF-ERROR-P T) (EOF-VALUE NIL) (RECURSIVE-P NIL)")]
-        public async Task<LispObject> ReadCompiled(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        public Task<LispObject> ReadCompiled(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        {
+            return ReadCompiledPrivate(host, executionState, args, true, cancellationToken);
+        }
+
+        [LispFunction("READ-COMPILED-NO-MACROS", Signature = "&OPTIONAL (INPUT-STREAM *TERMINAL-IO*) (EOF-ERROR-P T) (EOF-VALUE NIL) (RECURSIVE-P NIL)")]
+        public Task<LispObject> ReadCompiledNoMacros(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        {
+            return ReadCompiledPrivate(host, executionState, args, false, cancellationToken);
+        }
+
+        private async Task<LispObject> ReadCompiledPrivate(LispHost host, LispExecutionState executionState, LispObject[] args, bool allowReaderMacros, CancellationToken cancellationToken)
         {
             var inputStream = host.RootFrame.TerminalIO;
             var eofOnError = true;
@@ -975,16 +986,20 @@ namespace IxMilia.Lisp
                 }
             }
 
-            var parser = new LispCompiledParser(inputStream, getReaderMacro: (character) =>
-            {
-                var readTable = executionState.StackFrame.GetValue<LispReadTable>(LispRootStackFrame.ReadTableSymbol);
-                if (readTable.ReadMacros.TryGetValue(character.Value, out var functionRef))
-                {
-                    return functionRef;
-                }
+            Func<LispCharacter, LispFunctionReference> getReaderMacro = allowReaderMacros
+                ? (character) =>
+                    {
+                        var readTable = executionState.StackFrame.GetValue<LispReadTable>(LispRootStackFrame.ReadTableSymbol);
+                        if (readTable.ReadMacros.TryGetValue(character.Value, out var functionRef))
+                        {
+                            return functionRef;
+                        }
 
-                return null;
-            });
+                        return null;
+                    }
+                : null;
+
+            var parser = new LispCompiledParser(inputStream, getReaderMacro);
             if (eofOnError || isRecursive)
             {
                 eofValue = LispCompiledParser.RealEof;

@@ -77,17 +77,32 @@ async function createEditor(adapter: DotNetInvoker): Promise<void> {
         language: 'lisp',
     });
 
-    async function lispEval(): Promise<void> {
-        const code = editor.getValue();
-        await lisp.setContent(code);
-        const result = await lisp.eval();
+    function appendOutput(output: string) {
         const textArea = <HTMLTextAreaElement>document.getElementById('output');
         if (textArea.value.length > 0) {
             textArea.value += '\n';
         }
 
-        textArea.value += result;
-        textArea.scrollTop = textArea.scrollHeight;
+        textArea.value += output;
+        textArea.scrollTop = textArea.scrollHeight
+    }
+
+    async function timeOperation(operation: () => Promise<any>): Promise<any> {
+        const startTime = performance.now();
+        const result = await operation();
+        const endTime = performance.now();
+        const totalTime = Math.round(endTime - startTime);
+        (<HTMLDivElement>document.getElementById('time-status')).innerText = `Last operation took ${totalTime} ms.`;
+        return result;
+    }
+
+    function lispEval(): Promise<void> {
+        return timeOperation(async () => {
+            const code = editor.getValue();
+            await lisp.setContent(code);
+            const result = await lisp.eval();
+            appendOutput(result);
+        });
     }
 
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, async () => {
@@ -124,7 +139,7 @@ async function createEditor(adapter: DotNetInvoker): Promise<void> {
         }
     };
 
-    lisp.init(editor.getModel().getValue());
+    timeOperation(() => lisp.init(editor.getModel().getValue()));
     monaco.languages.registerHoverProvider('lisp', hoverProvider);
     monaco.languages.registerCompletionItemProvider('lisp', completionProvider);
 }

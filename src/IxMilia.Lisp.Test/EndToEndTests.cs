@@ -14,19 +14,23 @@ namespace IxMilia.Lisp.Test
             return fileContents;
         }
 
-        private async Task EvalFile(string fileName)
+        private async Task EvalFile(string fileName, LispReaderType readerType)
         {
             var contents = GetFileContents(fileName);
             var host = await CreateHostAsync();
+            host.SetReaderFunction(readerType);
             var executionState = LispExecutionState.CreateExecutionState(host.RootFrame, allowHalting: false);
             var result = await host.EvalAsync(fileName, contents, executionState);
             Assert.True(result.Value.Equals(host.T), result.Value.ToString());
         }
 
-        [Fact]
-        public async Task Runtime()
+        [Theory]
+        //[InlineData(LispReaderType.Interpreted)] // skip for now
+        [InlineData(LispReaderType.Compiled)]
+        [InlineData(LispReaderType.NoReaderMacros)]
+        public async Task Runtime(LispReaderType readerType)
         {
-            await EvalFile("runtime-tests.lisp");
+            await EvalFile("runtime-tests.lisp", readerType);
         }
     }
 }

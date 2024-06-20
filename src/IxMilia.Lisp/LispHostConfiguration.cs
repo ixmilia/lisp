@@ -7,6 +7,7 @@ namespace IxMilia.Lisp
     {
         Compiled,
         Interpreted,
+        NoReaderMacros,
     }
 
     public class LispHostConfiguration

@@ -70,7 +70,7 @@ namespace IxMilia.Lisp
             await host.ApplyBootstrapScriptAsync(cancellationToken);
             if (host.Configuration.UseInitScript)
             {
-                host.SetReaderFunction(LispReaderType.Compiled);
+                host.SetReaderFunction(LispReaderType.NoReaderMacros);
                 await host.ApplyInitScriptAsync(cancellationToken);
             }
 
@@ -84,6 +84,7 @@ namespace IxMilia.Lisp
             {
                 LispReaderType.Compiled => "READ-COMPILED",
                 LispReaderType.Interpreted => "READ-INTERPRETED",
+                LispReaderType.NoReaderMacros => "READ-COMPILED-NO-MACROS",
                 _ => throw new NotSupportedException($"Unknown reader type {readerType}"),
             };
             var read = RootFrame.GetValue<LispFunction>(new LispResolvedSymbol(LispRootStackFrame.CommonLispPackageName, readFunctionName, true));

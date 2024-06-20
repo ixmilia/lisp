@@ -12,7 +12,7 @@ namespace IxMilia.Lisp.Wasm
         [JSInvokable]
         public async Task InitAsync(string code)
         {
-            _languageServer = new LS.LanguageServer(new MemoryStream(), new MemoryStream());
+            _languageServer = new LS.LanguageServer(new MemoryStream(), new MemoryStream(), LispReaderType.NoReaderMacros);
             _languageServer.Initialize(new InitializeParams(0, Array.Empty<WorkspaceFolder>()));
             await _languageServer.TextDocumentDidOpenAsync(new DidOpenTextDocumentParams(new TextDocumentItem(ReplUri, "lisp", 0, code)));
         }

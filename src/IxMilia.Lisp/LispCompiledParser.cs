@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,6 +13,8 @@ namespace IxMilia.Lisp
         public Func<LispCharacter, LispFunctionReference> GetReaderMacro { get; }
 
         internal static LispError RealEof = new LispError("EOF");
+
+        private bool _evalOnComma = false;
 
         public LispCompiledParser(LispTextStream stream, Func<LispCharacter, LispFunctionReference> getReaderMacro = null)
         {
@@ -57,6 +60,30 @@ namespace IxMilia.Lisp
                 result = await LispDefaultContext.FunCallAsync(host, stackFrame, readerFunction, new LispObject[] { Stream, next }, cancellationToken);
                 // TODO: check for errors
             }
+            else if (_evalOnComma && next.Value == ',')
+            {
+                Advance(); // swallow comma
+                var nextItem = await ParseItem(host, stackFrame, eofValue, depth, cancellationToken);
+                var executionState = host.CreateExecutionState();
+                var evalResult = await host.EvalAsync(nextItem, executionState, cancellationToken: cancellationToken);
+                result = evalResult.Value;
+            }
+            else if (next.Value == '"')
+            {
+                result = ParseString();
+            }
+            else if (next.Value == '\'')
+            {
+                result = await ParseQuotedAsync(host, stackFrame, eofValue, depth, cancellationToken);
+            }
+            else if (next.Value == '`')
+            {
+                result = await ParseBackQuotedAsync(host, stackFrame, eofValue, depth, cancellationToken);
+            }
+            else if (next.Value == '#')
+            {
+                result = await ParseHashItemAsync(host, stackFrame, eofValue, depth, cancellationToken);
+            }
             else
             {
                 var allowUnresolvedSymbols = AllowUnresolvedSymbols(host, stackFrame);
@@ -73,7 +100,7 @@ namespace IxMilia.Lisp
             return result;
         }
 
-        private async Task<LispObject> ParseListAsync(LispHost host, LispStackFrame stackFrame, LispObject eofValue, int depth, CancellationToken cancellationToken = default)
+        private async Task<LispObject> ParseListAsync(LispHost host, LispStackFrame stackFrame, LispObject eofValue, int depth, CancellationToken cancellationToken)
         {
             var firstChar = Stream.Peek();
             if (firstChar?.Value != '(')
@@ -200,6 +227,182 @@ namespace IxMilia.Lisp
             }
 
             return result;
+        }
+
+        private LispObject ParseString()
+        {
+            var firstChar = Stream.Peek();
+            if (firstChar?.Value != '"')
+            {
+                throw new Exception("Should have been a '\"'");
+            }
+
+            Advance();
+            var content = new StringBuilder();
+            var nextCharacter = Stream.Peek();
+            var keepGoing = true;
+            var isEscaped = false;
+            while (keepGoing && nextCharacter is { })
+            {
+                Advance();
+                var c = nextCharacter.Value;
+                if (isEscaped)
+                {
+                    content.Append(c);
+                    isEscaped = false;
+                }
+                else
+                {
+                    switch (c)
+                    {
+                        case '"':
+                            keepGoing = false;
+                            break;
+                        case '\\':
+                            isEscaped = true;
+                            break;
+                        default:
+                            content.Append(c);
+                            break;
+                    }
+                }
+
+                nextCharacter = Stream.Peek();
+            }
+
+            if (keepGoing)
+            {
+                throw new Exception("TODO: error: *end-of-string*");
+            }
+
+            var result = new LispString(content.ToString());
+            return result;
+        }
+
+        private async Task<LispObject> ParseQuotedAsync(LispHost host, LispStackFrame stackFrame, LispObject eofValue, int depth, CancellationToken cancellationToken)
+        {
+            var firstChar = Stream.Peek();
+            if (firstChar?.Value != '\'')
+            {
+                throw new Exception("Should have been a '''");
+            }
+
+            // swallow character and QUOTE the next item
+            Advance();
+            var item = await ParseItem(host, stackFrame, eofValue, depth, cancellationToken);
+            var result = LispList.FromItems(new LispResolvedSymbol("COMMON-LISP", "QUOTE", true), item);
+            return result;
+        }
+
+        private async Task<LispObject> ParseBackQuotedAsync(LispHost host, LispStackFrame stackFrame, LispObject eofValue, int depth, CancellationToken cancellationToken)
+        {
+            var firstChar = Stream.Peek();
+            if (firstChar?.Value != '`')
+            {
+                throw new Exception("Should have been a '`'");
+            }
+
+            // swallow character and QUOTE the next item, but force eval on comma character
+            Advance();
+            var oldEvalOnComma = _evalOnComma;
+            _evalOnComma = true;
+
+            try
+            {
+                var item = await ParseItem(host, stackFrame, eofValue, depth, cancellationToken);
+                var result = LispList.FromItems(new LispResolvedSymbol("COMMON-LISP", "QUOTE", true), item);
+                return result;
+            }
+            finally
+            {
+                _evalOnComma = oldEvalOnComma;
+            }
+        }
+
+        private async Task<LispObject> ParseHashItemAsync(LispHost host, LispStackFrame stackFrame, LispObject eofValue, int depth, CancellationToken cancellationToken)
+        {
+            // handle hash character
+            var firstChar = Stream.Peek();
+            if (firstChar?.Value != '#')
+            {
+                throw new Exception("Should have been a '#'");
+            }
+
+            Advance();
+
+            // check for the next character indicating the type of hash item
+            var nextChar = Stream.Peek();
+            if (nextChar is null)
+            {
+                return new LispError("TODO: end of stream");
+            }
+
+            // read the appropriate hash item type
+            switch (nextChar.Value)
+            {
+                case '\\':
+                    // single character
+                    Advance(); // swallow backslash
+                    var resultCharacter = Stream.Peek();
+                    if (resultCharacter is null)
+                    {
+                        return new LispError("TODO: end of stream");
+                    }
+
+                    Advance();
+                    return resultCharacter;
+                case 'c':
+                case 'C':
+                    // complex number
+                    Advance(); // swallow 'c'
+                    var complexNumberItem = await ParseItem(host, stackFrame, eofValue, depth, cancellationToken);
+                    var processComplexNumberFunctionReference = new LispQuotedNamedFunctionReference("PROCESS-COMPLEX-NUMBER");
+                    var complexArguments = new LispObject[] { LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), complexNumberItem) };
+                    var complexNumber = await LispDefaultContext.FunCallAsync(host, stackFrame, processComplexNumberFunctionReference, complexArguments, cancellationToken);
+                    return complexNumber;
+                case '\'':
+                    // quoted named function reference
+                    Advance(); // swallow single quote
+                    var functionReferenceItem = await ParseItem(host, stackFrame, eofValue, depth, cancellationToken);
+                    var functionReferenceEvaluation = LispList.FromItems(
+                        new LispUnresolvedSymbol("EVAL"),
+                        LispList.FromItems(
+                            new LispUnresolvedSymbol("LIST"),
+                            LispList.FromItems(
+                                new LispUnresolvedSymbol("QUOTE"),
+                                new LispUnresolvedSymbol("FUNCTION")),
+                            LispList.FromItems(
+                                new LispUnresolvedSymbol("QUOTE"),
+                                functionReferenceItem)
+                        ));
+                    var functionReferenceResult = await host.EvalAtStackFrameAsync(stackFrame, functionReferenceEvaluation, cancellationToken);
+                    return functionReferenceResult;
+                case '(':
+                    // vector
+                    var vectorItem = await ParseItem(host, stackFrame, eofValue, depth, cancellationToken);
+                    var vectorFunctionReference = new LispQuotedNamedFunctionReference("VECTOR");
+                    var vectorArguments = LispList.FromItems(new LispUnresolvedSymbol("QUOTE"), vectorItem);
+                    var vectorApplication = LispList.FromItems(new LispUnresolvedSymbol("APPLY"), vectorFunctionReference, vectorArguments);
+                    return vectorApplication;
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    var forwardReferenceEvaluation = LispList.FromItems(
+                        new LispResolvedSymbol("KERNEL", "PROCESS-LIST-FORWARD-REFERENCE", true),
+                        Stream);
+                    var forwardReferenceResult = await host.EvalAtStackFrameAsync(stackFrame, forwardReferenceEvaluation, cancellationToken);
+                    return forwardReferenceResult;
+                default:
+                    Advance();
+                    return new LispError("TODO: unknown hash item");
+            }
         }
 
         private static bool AllowIncompleteObjects(LispHost host, LispStackFrame stackFrame)

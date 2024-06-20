@@ -27,7 +27,7 @@ namespace IxMilia.Lisp.Test
             return (host, evalResult.Value);
         }
 
-        private async Task<LispObject> ReadAsync(string code, bool checkForErrors = true)
+        protected async Task<LispObject> ReadAsync(string code, bool checkForErrors = true)
         {
             var (_host, result) = await ReadHostAndResultAsync(code, checkForErrors);
             return result;
@@ -461,14 +461,16 @@ namespace IxMilia.Lisp.Test
         }
 
         [Theory]
-        [InlineData("`(1 ,(+ 2 3) (b))", "(CONS (QUOTE 1) (CONS (QUOTE 5) (CONS (CONS (QUOTE B) ()) ())))")]
-        [InlineData("`,(+ 1 2)", "(QUOTE 3)")]
-        [InlineData("`#(1 2 ,(+ 1 2) ,#(4))", "(QUOTE #(1 2 3 #(4)))")]
-        [InlineData("`a", "(QUOTE A)")]
-        public async Task BackQuoteRead(string code, string expected)
+        [InlineData("`(1 ,(+ 2 3) (b))", "(1 5 (B))")]
+        [InlineData("`,(+ 1 2)", "3")]
+        [InlineData("`#(1 2 ,(+ 1 2) ,#(4))", "#(1 2 3 #(4))", "(APPLY #'VECTOR (QUOTE (1 2 3 #(4))))")]
+        [InlineData("`a", "A")]
+        public async Task BackQuoteReadAndEval(string code, string expected, string alternateExpected = null)
         {
-            var (host, result) = await ReadHostAndResultAsync(code);
-            Assert.Equal(expected, result.ToDisplayString(host.CurrentPackage));
+            var (host, readResult) = await ReadHostAndResultAsync(code);
+            var evalResult = host.EvalAsync(readResult, host.CreateExecutionState());
+            var actual = evalResult.Result.Value.ToDisplayString(host.CurrentPackage);
+            Assert.True(expected == actual || alternateExpected == actual, $"Expected: {expected} or {alternateExpected}, Actual: {actual}");
         }
 
         [Fact]

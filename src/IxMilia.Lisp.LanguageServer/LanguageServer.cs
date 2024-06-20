@@ -14,13 +14,15 @@ namespace IxMilia.Lisp.LanguageServer
     {
         private JsonRpc _rpc;
         private Dictionary<string, (LispHost Host, string Content, ResettableTextWriter TextWriter)> _documentContents = new Dictionary<string, (LispHost, string, ResettableTextWriter)>();
+        private LispReaderType _defaultReaderType;
 
-        public LanguageServer(Stream sendingStream, Stream receivingStream)
+        public LanguageServer(Stream sendingStream, Stream receivingStream, LispReaderType defaultReaderType = LispReaderType.Compiled)
         {
             var messageHandler = CreateMessageHandler(sendingStream, receivingStream);
             _rpc = new JsonRpc(messageHandler, this);
             _rpc.TraceSource = new TraceSource("debugging-trace-listener", SourceLevels.All);
             _rpc.TraceSource.Listeners.Add(new DebuggingTraceListener());
+            _defaultReaderType = defaultReaderType;
         }
 
         internal static IJsonRpcMessageHandler CreateMessageHandler(Stream sendingStream, Stream receivingStream)
@@ -65,7 +67,7 @@ namespace IxMilia.Lisp.LanguageServer
             else
             {
                 var output = new ResettableTextWriter();
-                var configuration = new LispHostConfiguration(output: output);
+                var configuration = new LispHostConfiguration(output: output, readerType: _defaultReaderType);
                 host = await LispHost.CreateAsync(configuration);
                 textWriter = output;
             }
