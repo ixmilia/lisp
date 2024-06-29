@@ -62,7 +62,7 @@ namespace IxMilia.Lisp.Test
                     new LispInteger(14)),
                 LispSymbol.CreateFromString("SHOULD-BE-NIL")
             );
-            Assert.Equal(1, argumentCollection.RegularArguments.Count);
+            Assert.Single(argumentCollection.RegularArguments);
             Assert.Equal(2, argumentCollection.OptionalArguments.Count);
             Assert.Empty(argumentCollection.KeywordArguments);
             Assert.Empty(argumentCollection.AuxiliaryArguments);
@@ -87,7 +87,7 @@ namespace IxMilia.Lisp.Test
                     new LispInteger(14)),
                 LispSymbol.CreateFromString("SHOULD-BE-NIL")
             );
-            Assert.Equal(1, argumentCollection.RegularArguments.Count);
+            Assert.Single(argumentCollection.RegularArguments);
             Assert.Empty(argumentCollection.OptionalArguments);
             Assert.Equal(2, argumentCollection.KeywordArguments.Count);
             Assert.Empty(argumentCollection.AuxiliaryArguments);
@@ -110,7 +110,7 @@ namespace IxMilia.Lisp.Test
                     new LispInteger(2)),
                 LispSymbol.CreateFromString("NNIILL")
             );
-            Assert.Equal(1, argumentCollection.RegularArguments.Count);
+            Assert.Single(argumentCollection.RegularArguments);
             Assert.Empty(argumentCollection.OptionalArguments);
             Assert.Empty(argumentCollection.KeywordArguments);
             Assert.Equal(2, argumentCollection.AuxiliaryArguments.Count);
@@ -132,7 +132,7 @@ namespace IxMilia.Lisp.Test
                 new LispLambdaListKeyword("&REST"),
                 LispSymbol.CreateFromString("THE-REST")
             );
-            Assert.Equal(1, argumentCollection.RegularArguments.Count);
+            Assert.Single(argumentCollection.RegularArguments);
             Assert.Empty(argumentCollection.OptionalArguments);
             Assert.Empty(argumentCollection.KeywordArguments);
             Assert.NotNull(argumentCollection.RestArgument);
@@ -154,9 +154,9 @@ namespace IxMilia.Lisp.Test
                 new LispLambdaListKeyword("&REST"),
                 LispSymbol.CreateFromString("THE-REST")
             );
-            Assert.Equal(1, argumentCollection.RegularArguments.Count);
-            Assert.Equal(1, argumentCollection.OptionalArguments.Count);
-            Assert.Equal(1, argumentCollection.KeywordArguments.Count);
+            Assert.Single(argumentCollection.RegularArguments);
+            Assert.Single(argumentCollection.OptionalArguments);
+            Assert.Single(argumentCollection.KeywordArguments);
             Assert.NotNull(argumentCollection.RestArgument);
 
             Assert.Equal("A", argumentCollection.RegularArguments[0].Name);
@@ -453,8 +453,8 @@ namespace IxMilia.Lisp.Test
 
             Assert.Equal("THE-REST", matched[3].Item1.Name);
             var rest = ((LispList)matched[3].Item2).ToList();
-            Assert.Equal(1, rest.Count);
-            Assert.Equal(4, ((LispInteger)rest[0]).Value);
+            var remainder = Assert.Single(rest);
+            Assert.Equal(4, ((LispInteger)remainder).Value);
         }
 
         [Fact]

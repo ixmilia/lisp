@@ -990,6 +990,31 @@ namespace IxMilia.Lisp
                     throw new InvalidOperationException("Not possible, must be a simple number");
             }
         }
+
+        public abstract override bool Equals(object obj);
+        public abstract override int GetHashCode();
+
+        public static bool operator ==(LispSimpleNumber a, LispSimpleNumber b)
+        {
+            switch (a)
+            {
+                case null:
+                    return b is null;
+                case LispInteger i:
+                    return i.Equals(b);
+                case LispFloat f:
+                    return f.Equals(b);
+                case LispRatio r:
+                    return r.Equals(b);
+                default:
+                    throw new Exception("Expected a simple number");
+            }
+        }
+
+        public static bool operator !=(LispSimpleNumber a, LispSimpleNumber b)
+        {
+            return !(a == b);
+        }
     }
 
     public class LispInteger : LispSimpleNumber

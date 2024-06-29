@@ -303,7 +303,9 @@ namespace IxMilia.Lisp.DebugAdapter
             _host.RootFrame.ErrorOccurred += RootFrame_ErrorOccurred;
             _host.RootFrame.EvaluatingExpression += RootFrame_EvaluatingExpression;
             _host.RootFrame.FunctionEntered += RootFrame_FunctionEntered;
+#pragma warning disable VSTHRD003 // Avoid awaiting foreign Tasks
             await _configurationDone.Task;
+#pragma warning restore VSTHRD003 // Avoid awaiting foreign Tasks
             _executionState.InsertCodeOperations(launch.Arguments.Program, fileContent);
             PushMessage(new LaunchResponse(GetNextSeq(), launch.Seq));
             await ContinueEvaluationAsync();

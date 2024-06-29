@@ -468,8 +468,8 @@ namespace IxMilia.Lisp.Test
         public async Task BackQuoteReadAndEval(string code, string expected, string alternateExpected = null)
         {
             var (host, readResult) = await ReadHostAndResultAsync(code);
-            var evalResult = host.EvalAsync(readResult, host.CreateExecutionState());
-            var actual = evalResult.Result.Value.ToDisplayString(host.CurrentPackage);
+            var evalResult = await host.EvalAsync(readResult, host.CreateExecutionState());
+            var actual = evalResult.Value.ToDisplayString(host.CurrentPackage);
             Assert.True(expected == actual || alternateExpected == actual, $"Expected: {expected} or {alternateExpected}, Actual: {actual}");
         }
 

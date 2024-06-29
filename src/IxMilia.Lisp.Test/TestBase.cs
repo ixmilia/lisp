@@ -55,7 +55,7 @@ namespace IxMilia.Lisp.Test
         {
             if (obj is LispError error)
             {
-                Assert.True(false, $"{error.Message} at {error.SourceLocation}");
+                Assert.Fail($"{error.Message} at {error.SourceLocation}");
             }
         }
 
