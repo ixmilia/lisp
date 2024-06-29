@@ -1,6 +1,7 @@
 <Project>
 
   <PropertyGroup>
+    <CommonTargetFramework>net8.0</CommonTargetFramework>
     <VersionPrefix>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)version.txt').Trim())</VersionPrefix>
     <ArtifactsDir>$(MSBuildThisFileDirectory)artifacts</ArtifactsDir>
     <ArtifactsPackagesDir>$(ArtifactsDir)\packages</ArtifactsPackagesDir>

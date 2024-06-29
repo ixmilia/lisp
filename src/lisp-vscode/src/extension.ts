@@ -17,7 +17,7 @@ const languageName = 'lisp';
 const outputChannelName = 'IxMilia.Lisp Language Server';
 
 export async function activate(context: vscode.ExtensionContext) {
-    const targetFrameworkMoniker = 'net7.0';
+    const targetFrameworkMoniker = 'net8.0';
     const runtimeVersion = targetFrameworkMoniker.replace('net', '');
     if (context.extensionMode === vscode.ExtensionMode.Production) {
         const acquireContext = {

@@ -10,7 +10,7 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/IxMilia.Lisp.DebugAdapter.Test/bin/Debug/net7.0/IxMilia.Lisp.DebugAdapter.Test.dll",
+            "program": "${workspaceFolder}/src/IxMilia.Lisp.DebugAdapter.Test/bin/Debug/net8.0/IxMilia.Lisp.DebugAdapter.Test.dll",
             "args": [],
             "cwd": "${workspaceFolder}/src/IxMilia.Lisp.DebugAdapter.Test",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
