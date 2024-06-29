@@ -20,9 +20,8 @@ namespace IxMilia.Lisp.Interactive.Test
             GetCodeAndPosition(markedCode, out var code, out var position);
             var kernel = new LispKernel();
             var commandResult = await kernel.SendAsync(new RequestCompletions(code, GetLinePosition(position)), CancellationToken.None);
-            var events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
-            var completionsProduced = events.OfType<CompletionsProduced>().Single();
+            AssertNoErrors(commandResult.Events);
+            var completionsProduced = commandResult.Events.OfType<CompletionsProduced>().Single();
             var _ = completionsProduced.Completions.Where(c => c.DisplayText == "KERNEL:+/2").Single();
         }
 
@@ -33,9 +32,8 @@ namespace IxMilia.Lisp.Interactive.Test
             GetCodeAndPosition(markedCode, out var code, out var position);
             var kernel = new LispKernel();
             var commandResult = await kernel.SendAsync(new RequestHoverText(code, GetLinePosition(position)), CancellationToken.None);
-            var events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
-            var hoverText = events.OfType<HoverTextProduced>().Single();
+            AssertNoErrors(commandResult.Events);
+            var hoverText = commandResult.Events.OfType<HoverTextProduced>().Single();
             Assert.Equal("()", hoverText.Content.Single().Value);
         }
 
@@ -44,9 +42,8 @@ namespace IxMilia.Lisp.Interactive.Test
         {
             var kernel = new LispKernel();
             var commandResult = await kernel.SendAsync(new RequestValueInfos(kernel.Name));
-            var events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
-            var valueInfosProduced = events.OfType<ValueInfosProduced>().Single();
+            AssertNoErrors(commandResult.Events);
+            var valueInfosProduced = commandResult.Events.OfType<ValueInfosProduced>().Single();
             Assert.Empty(valueInfosProduced.ValueInfos);
         }
 
@@ -55,13 +52,11 @@ namespace IxMilia.Lisp.Interactive.Test
         {
             var kernel = new LispKernel();
             var commandResult = await kernel.SendAsync(new SubmitCode("(setf x 1)(setf y 2)"));
-            var events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
+            AssertNoErrors(commandResult.Events);
 
             commandResult = await kernel.SendAsync(new RequestValueInfos(kernel.Name));
-            events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
-            var valueInfosProduced = events.OfType<ValueInfosProduced>().Single();
+            AssertNoErrors(commandResult.Events);
+            var valueInfosProduced = commandResult.Events.OfType<ValueInfosProduced>().Single();
             var valueInfos = valueInfosProduced.ValueInfos.Select(v => v.Name).ToArray();
             Assert.Equal("X,Y", string.Join(",", valueInfos));
         }
@@ -71,13 +66,11 @@ namespace IxMilia.Lisp.Interactive.Test
         {
             var kernel = new LispKernel();
             var commandResult = await kernel.SendAsync(new SubmitCode("(setf x 1)(setf y 2)(defun some-function () ())(defmacro some-macro () ())"));
-            var events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
+            AssertNoErrors(commandResult.Events);
 
             commandResult = await kernel.SendAsync(new RequestValueInfos(kernel.Name));
-            events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
-            var valueInfosProduced = events.OfType<ValueInfosProduced>().Single();
+            AssertNoErrors(commandResult.Events);
+            var valueInfosProduced = commandResult.Events.OfType<ValueInfosProduced>().Single();
             var valueInfos = valueInfosProduced.ValueInfos.Select(v => v.Name).ToArray();
             Assert.Equal("X,Y", string.Join(",", valueInfos));
         }
@@ -91,13 +84,11 @@ namespace IxMilia.Lisp.Interactive.Test
         {
             var kernel = new LispKernel();
             var commandResult = await kernel.SendAsync(new SubmitCode("(setf x '(1 2 3))"));
-            var events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
+            AssertNoErrors(commandResult.Events);
 
             commandResult = await kernel.SendAsync(new RequestValue(valueName, mimeType: mimeType));
-            events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
-            var valueProduced = events.OfType<ValueProduced>().Single();
+            AssertNoErrors(commandResult.Events);
+            var valueProduced = commandResult.Events.OfType<ValueProduced>().Single();
             Assert.Equal(valueName, valueProduced.Name);
             Assert.Equal(mimeType, valueProduced.FormattedValue.MimeType);
             Assert.Equal(expectedResult, valueProduced.FormattedValue.Value);
@@ -109,9 +100,8 @@ namespace IxMilia.Lisp.Interactive.Test
             var code = "(+ 1 2)";
             var kernel = new LispKernel();
             var commandResult = await kernel.SendAsync(new SubmitCode(code));
-            var events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
-            var returnValue = events.OfType<ReturnValueProduced>().Single();
+            AssertNoErrors(commandResult.Events);
+            var returnValue = commandResult.Events.OfType<ReturnValueProduced>().Single();
             Assert.Equal("3", returnValue.FormattedValues.Single(f => f.MimeType == "text/plain").Value);
         }
 
@@ -121,9 +111,8 @@ namespace IxMilia.Lisp.Interactive.Test
             var code = "(format t \"stdout\")";
             var kernel = new LispKernel();
             var commandResult = await kernel.SendAsync(new SubmitCode(code));
-            var events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
-            var stdOut = events.OfType<StandardOutputValueProduced>().Single();
+            AssertNoErrors(commandResult.Events);
+            var stdOut = commandResult.Events.OfType<StandardOutputValueProduced>().Single();
             Assert.Equal("stdout", stdOut.FormattedValues.Single().Value);
         }
 
@@ -133,9 +122,8 @@ namespace IxMilia.Lisp.Interactive.Test
             var code = "()";
             var kernel = new LispKernel();
             var commandResult = await kernel.SendAsync(new SubmitCode(code));
-            var events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
-            Assert.Empty(events.OfType<DisplayEvent>());
+            AssertNoErrors(commandResult.Events);
+            Assert.Empty(commandResult.Events.OfType<DisplayEvent>());
         }
 
         [Fact]
@@ -144,13 +132,11 @@ namespace IxMilia.Lisp.Interactive.Test
             var kernel = new LispKernel();
             var command = new SendValue("x", null, new FormattedValue("application/json", "[1,2]"));
             var commandResult = await kernel.SendAsync(command);
-            var events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
+            AssertNoErrors(commandResult.Events);
 
             commandResult = await kernel.SendAsync(new RequestValueInfos());
-            events = GetEventList(commandResult.KernelEvents);
-            AssertNoErrors(events);
-            var valueInfos = events.OfType<ValueInfosProduced>().Single();
+            AssertNoErrors(commandResult.Events);
+            var valueInfos = commandResult.Events.OfType<ValueInfosProduced>().Single();
             var valueInfo = valueInfos.ValueInfos.Single();
             Assert.Equal("X", valueInfo.Name);
             Assert.Equal("text/plain+summary", valueInfo.FormattedValue.MimeType);
@@ -171,16 +157,6 @@ namespace IxMilia.Lisp.Interactive.Test
         private static LinePosition GetLinePosition(LispSourcePosition position)
         {
             return new LinePosition(position.Line - 1, position.Column - 1);
-        }
-
-        private static IList<KernelEvent> GetEventList(IObservable<KernelEvent> observable)
-        {
-            var result = new List<KernelEvent>();
-            observable.Subscribe(e =>
-            {
-                result.Add(e);
-            });
-            return result;
         }
     }
 }

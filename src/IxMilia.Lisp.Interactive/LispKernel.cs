@@ -34,7 +34,7 @@ namespace IxMilia.Lisp.Interactive
             _host = new Lazy<Task<LispHost>>(async () =>
             {
                 var writer = new ListeningTextWriter(line => _stdoutSubject.OnNext(line));
-                var configuration = new LispHostConfiguration(output: writer);
+                var configuration = new LispHostConfiguration(output: writer, readerType: LispReaderType.NoReaderMacros);
                 var host = await LispHost.CreateAsync(configuration);
                 _suppressedValues = new HashSet<string>(host.RootFrame.GetValues().Select(v => v.Item1.Value));
                 return host;
