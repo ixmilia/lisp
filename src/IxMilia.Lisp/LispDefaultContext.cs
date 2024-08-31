@@ -445,6 +445,29 @@ namespace IxMilia.Lisp
             return Task.FromResult<LispObject>(result);
         }
 
+        [LispMacro("LOAD", Signature = "FILESPEC", Documentation = "Loads the file named by _FILESPEC_ into the environment.")]
+        public async Task<LispObject> Load(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
+        {
+            // TODO: handle full version, not just a single path
+            if (args.Length == 1 && args[0] is LispString path)
+            {
+                var filePath = path.Value;
+                var fullPath = Path.Combine(Environment.CurrentDirectory, filePath);
+                if (!File.Exists(fullPath))
+                {
+                    executionState.ReportError(new LispError($"File \"{fullPath}\" does not exist"), insertPop: true);
+                    return host.Nil;
+                }
+
+                var content = File.ReadAllText(fullPath);
+                var result = await host.EvalAsync(fullPath, content, executionState, cancellationToken);
+                return result.Value;
+            }
+
+            executionState.ReportError(new LispError("Expected a file path"), insertPop: true);
+            return host.Nil;
+        }
+
         [LispMacro("DEFPACKAGE")]
         public Task<LispObject> DefPackage(LispHost host, LispExecutionState executionState, LispObject[] args, CancellationToken cancellationToken)
         {

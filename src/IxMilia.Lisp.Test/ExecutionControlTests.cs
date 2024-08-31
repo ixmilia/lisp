@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
@@ -659,6 +660,33 @@ namespace IxMilia.Lisp.Test
             Assert.Equal(2, ((LispInteger)evalResult.Value).Value);
             Assert.NotNull(capturedError);
             Assert.Equal("some error", capturedError.Message);
+        }
+
+        [Fact]
+        public async Task LoadAndExecuteFile()
+        {
+            using var temporaryDirectory = new TemporaryDirectory();
+            var previousWorkingDirectory = Environment.CurrentDirectory;
+            try
+            {
+                Environment.CurrentDirectory = temporaryDirectory.DirectoryPath;
+                await File.WriteAllTextAsync(Path.Combine(temporaryDirectory.DirectoryPath, "external-file.lisp"), """
+                    (setf some-other-value 42)
+                    """);
+                var host = await CreateHostAsync();
+                var executionState = host.CreateExecutionState();
+                var evalResult = await host.EvalAsync("test.lisp", """
+                    (load "external-file.lisp")
+                    (+ some-other-value 1)
+                    """,
+                    executionState);
+                EnsureNotError(evalResult.Value);
+                Assert.Equal(43, ((LispInteger)evalResult.Value).Value);
+            }
+            finally
+            {
+                Environment.CurrentDirectory = previousWorkingDirectory;
+            }
         }
     }
 }
