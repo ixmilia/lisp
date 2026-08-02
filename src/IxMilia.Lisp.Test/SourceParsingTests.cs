@@ -315,7 +315,7 @@ common-lisp-user:$$
             var (host, parseResult) = await ParseAndGetHostAndResult(markedCode);
             var completionItems = parseResult.GetReducedCompletionItems(host.CurrentPackage, (symbol, value) => symbol.ToDisplayString(host.CurrentPackage), name => name).ToArray();
             Assert.Single(completionItems.Where(i => i == "KERNEL"));
-            Assert.Empty(completionItems.Where(i => i == "KERNEL:+/2"));
+            Assert.DoesNotContain("KERNEL:+/2", completionItems);
         }
 
         [Fact]
